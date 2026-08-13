@@ -24,6 +24,10 @@
  * describes how the site consumes what that document asks for.
  */
 
+// three's loader calls fetch directly and never sees Next's basePath.
+import { asset } from "@/lib/basePath";
+
+
 /** Named material groups the scene expects to be able to address separately. */
 export type VesselMaterialGroup =
   | "hull"
@@ -87,7 +91,7 @@ export const VESSELS = {
   "duna61-cabin": {
     id: "duna61-cabin",
     label: "Duna 6.1 Cabin",
-    url: "/models/Duna61Cabin.glb",
+    url: asset("/models/Duna61Cabin.glb"),
     available: false,
     yaw: 0,
     scale: 1,
@@ -98,7 +102,7 @@ export const VESSELS = {
   "duna61-kadet": {
     id: "duna61-kadet",
     label: "Duna 6.1 Kadét",
-    url: "/models/Duna61Kadet.glb",
+    url: asset("/models/Duna61Kadet.glb"),
     available: false,
     yaw: 0,
     scale: 1,

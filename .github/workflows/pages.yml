@@ -1,0 +1,82 @@
+# Static export → GitHub Pages.
+#
+# The repo's default Pages behaviour is Jekyll, which finds README.md, renders
+# it as index.html and ignores the application entirely. This replaces that
+# with a real build.
+#
+# It is only possible because every route in this app prerenders — `next build`
+# reports all of them as `○ (Static)`. See next.config.ts for what GITHUB_PAGES
+# switches on, and src/lib/basePath.ts for the paths Next cannot prefix by
+# itself.
+#
+# WHAT THIS PUBLISHES. The whole site, including /preview/pxl and the PXL
+# configurator, at lukacsartur13.github.io/dunahajok/. Those routes keep their
+# `noindex, nofollow, nosnippet, noimageindex` meta robots directives, so they
+# stay out of search results — but they are reachable by anyone with the link.
+# The PXL is an unannounced product. Treat the URL as private.
+#
+# Note that robots.txt does NOT apply here: a project site serves it at
+# /dunahajok/robots.txt, and crawlers only read it at a domain root. The meta
+# directives are what does the work on this host, which is why they are set on
+# the whole /preview segment rather than per page.
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # So a deploy can be re-run without an empty commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time. `cancel-in-progress: false` because cancelling a
+# half-finished deploy can leave the site serving a partial upload.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` rather than `npm install`: the lockfile is the build input.
+      - run: npm ci
+
+      # The same gate that guards a local commit. A broken configuration
+      # contract should stop a deploy, not reach the demo.
+      - run: npm run qa
+
+      - run: npm run build
+        env:
+          GITHUB_PAGES: "true"
+
+      # Pages runs Jekyll on the artifact unless told not to, and Jekyll drops
+      # every directory beginning with an underscore — which is `_next`, i.e.
+      # all the JavaScript and CSS. `public/.nojekyll` is copied into the export
+      # by Next; this is the belt to that brace.
+      - run: touch out/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

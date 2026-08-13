@@ -30,6 +30,7 @@
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isImmersiveRoute } from "@/content/publication";
+import { asset } from "@/lib/basePath";
 import { MEDIA } from "@/lib/media.generated";
 import { gsap, prefersReducedMotion } from "@/lib/motion";
 import { isReturningVisitor, markIntroComplete, markVisited } from "@/lib/intro";
@@ -146,7 +147,8 @@ export function Preloader() {
         const img = new Image();
         img.onload = () => resolve();
         img.onerror = () => resolve();
-        img.src = MEDIA["hero-danube"].src;
+        // A raw DOM image, so Next's basePath rewriting does not apply.
+        img.src = asset(MEDIA["hero-danube"].src);
       }),
     ];
 

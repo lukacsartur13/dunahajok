@@ -12,3 +12,13 @@ scripts/.cache/
 
 # PXL pipeline scratch (the archival GLB and zone previews are kept)
 assets/derived/pxl/dump/
+
+# iCloud Drive conflict copies. This project lives in iCloud Drive, and sync
+# leaves duplicates named "layout 2.tsx" beside the real file — 29 of them at
+# the last count. They are never source, and one of them landing in the repo
+# would be a second copy of a component quietly drifting from the first.
+#
+# The space before the digit is what makes this safe: it matches iCloud's
+# naming and not a legitimate "duna61.ts" or "phase2.ts".
+* [0-9].*
+* [0-9][0-9].*

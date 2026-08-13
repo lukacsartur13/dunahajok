@@ -17,6 +17,10 @@
  * limitations spelled out.
  */
 
+// The one import, and it imports nothing itself — this module is part of the
+// pure set `npm test` runs on plain node. See `basePath.ts`.
+import { asset } from "../../../lib/basePath";
+
 /** Every mesh in `public/models/PXL.glb`, by exported node name. */
 export type PxlZone =
   | "hull_primary"
@@ -222,7 +226,13 @@ export const PXL_CONSOLE_ZONES: readonly PxlZone[] = [
 /* ── The asset ─────────────────────────────────────────────────────────────*/
 
 export const PXL_MODEL = {
-  url: "/models/PXL.glb",
+  /**
+   * Prefixed, because three's loader calls `fetch` directly and never sees
+   * Next's `basePath`. On its own domain `asset()` is the identity; under the
+   * GitHub Pages sub-path it is the difference between a model and a 404 that
+   * looks like a slow network.
+   */
+  url: asset("/models/PXL.glb"),
   /**
    * EXT_meshopt_compression. drei's `useGLTF` attaches MeshoptDecoder from
    * three-stdlib to every loader it creates, so this needs no decoder asset
