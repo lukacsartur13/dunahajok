@@ -1,0 +1,90 @@
+/* --wipe is registered so GSAP can interpolate it as a length, not a string. */
+@property --wipe {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+.frame {
+  --ratio: auto;
+  position: relative;
+  aspect-ratio: var(--ratio);
+  overflow: hidden;
+  background: var(--depth-raised);
+  isolation: isolate;
+}
+
+.plate {
+  position: absolute;
+  inset: 0;
+  /* Wipes open from the bottom, the leading edge raked to the hull angle.
+     100% = closed, 0% = open. */
+  clip-path: polygon(
+    0 calc(var(--wipe) + 3.5vw),
+    100% var(--wipe),
+    100% 100%,
+    0 100%
+  );
+}
+
+/* Pre-hydration / no-JS: a closed plate would hide the image entirely, so the
+   closed state is only applied once GSAP has taken over. Until then --wipe
+   stays at its 0% initial value and the image is simply visible. */
+.closed {
+  will-change: clip-path;
+}
+
+.plate img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  scale: 1.075; /* headroom for the parallax drift */
+  will-change: transform;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* Weighted low and carried further up than a conventional scrim: these are
+     bright daylight river photographs, and display type has to hold on water
+     as well as on shadow. */
+  background: linear-gradient(
+    to top,
+    rgba(6, 9, 10, 0.94) 0%,
+    rgba(6, 9, 10, 0.74) 26%,
+    rgba(6, 9, 10, 0.4) 52%,
+    rgba(6, 9, 10, 0.1) 76%,
+    rgba(6, 9, 10, 0) 92%
+  );
+}
+
+/* ── The Duna Line ─────────────────────────────────────────────────────────
+   Static raked edges, all cut at the same angle as the 6.1's sheer.        */
+
+.cut-top {
+  clip-path: polygon(0 var(--rake-cut), 100% 0, 100% 100%, 0 100%);
+}
+
+.cut-bottom {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--rake-cut)), 0 100%);
+}
+
+.cut-both {
+  clip-path: polygon(0 var(--rake-cut), 100% 0, 100% calc(100% - var(--rake-cut)), 0 100%);
+}
+
+/* Leading edge — the bow. Rakes the left edge back so the frame points. */
+.cut-lead {
+  clip-path: polygon(var(--rake-cut) 0, 100% 0, 100% 100%, 0 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plate img {
+    scale: 1;
+  }
+  .plate {
+    clip-path: none;
+  }
+}

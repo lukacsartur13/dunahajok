@@ -1,0 +1,18 @@
+/* Reveal contributes no layout opinion of its own — the calling section
+   supplies the box via className. It only owns the entrance state.
+
+   The hidden state is gated on `scripting: enabled` so it fails safe: with
+   JS off (or in a browser that doesn't understand the query) the rule never
+   applies and the content is simply visible. */
+
+@media (scripting: enabled) {
+  .pending {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pending {
+    opacity: 1;
+  }
+}

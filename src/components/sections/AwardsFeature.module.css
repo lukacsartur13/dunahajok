@@ -1,0 +1,97 @@
+.section {
+  position: relative;
+  background: var(--depth);
+  color: var(--signal);
+  padding-block: clamp(5rem, 12vw, 11rem);
+  overflow: hidden;
+}
+
+.wake {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 18%;
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  width: var(--shell);
+  margin-inline: auto;
+}
+
+.head {
+  display: grid;
+  gap: clamp(1.25rem, 2.4vw, 2rem);
+  padding-block-end: clamp(3.5rem, 9vw, 8rem);
+}
+
+.headline {
+  font-stretch: 84%;
+}
+
+/* ── Index ─────────────────────────────────────────────────────────────── */
+
+.list {
+  display: grid;
+  gap: 0;
+}
+
+.item {
+  display: grid;
+  gap: clamp(0.75rem, 1.6vw, 1.25rem);
+  padding-block: clamp(1.75rem, 3.5vw, 3rem);
+  border-block-start: 1px solid var(--signal-16);
+}
+
+.item:last-child {
+  border-block-end: 1px solid var(--signal-16);
+}
+
+.year {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-stretch: 86%;
+  font-size: clamp(2.25rem, 5vw, 4rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--signal);
+}
+
+.itemBody {
+  display: grid;
+  gap: clamp(0.4rem, 0.9vw, 0.7rem);
+  max-width: 56ch;
+}
+
+.itemTitle {
+  font-size: var(--fs-lead);
+  font-weight: 500;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
+}
+
+.subject {
+  color: var(--signal-70);
+}
+
+.result {
+  color: var(--teak);
+  filter: saturate(1.15) brightness(1.35);
+}
+
+.detail {
+  font-size: var(--fs-small);
+  line-height: 1.55;
+  color: var(--signal-45);
+}
+
+@media (min-width: 48rem) {
+  .item {
+    grid-template-columns: minmax(6rem, 0.28fr) minmax(0, 1fr);
+    gap: clamp(1.5rem, 4vw, 4rem);
+    align-items: start;
+  }
+}

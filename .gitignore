@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+*.pem
+.env*.local
+next-env.d.ts.bak
+.vercel
+*.tsbuildinfo
+scripts/.cache/
+
+# PXL pipeline scratch (the archival GLB and zone previews are kept)
+assets/derived/pxl/dump/

@@ -1,0 +1,61 @@
+/* The single root canvas.
+   ---------------------------------------------------------------------------
+   Fixed, full-viewport, and — this is the part that matters — ABOVE the page
+   content rather than behind it. The alternative was tried and does not work:
+   sections carry their own opaque grounds (the hero paints `--depth` across
+   its whole height), so a canvas behind <main> is a canvas nobody can see.
+
+   Painting over the page is safe because the canvas is transparent everywhere
+   except inside an active SceneSlot's scissor rectangle — see
+   stage/StageRuntime.tsx — and because `pointer-events: none` means it cannot
+   intercept a click, a scroll, a hover or a focus ring anywhere at all.
+
+   The z-index is the whole reason `--z-scene` moved up the stack. Everything
+   the visitor operates still sits above it, by design and by token:
+
+     --z-scene    40   this canvas
+     --z-menu     70   the fullscreen menu, fully operable over the scene
+     --z-header   80   including the Close control inside it
+     --z-cursor   90
+     --z-preloader 100 which must cover the scene while it composes itself   */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scene);
+  pointer-events: none;
+  /* Its own layer: the canvas repaints every frame and must never invalidate
+     the composited page underneath it. */
+  contain: strict;
+}
+
+.stage canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* react-three-fiber wraps the canvas in containers of its own and sets
+   `pointer-events: auto` on them inline. `pointer-events` is an inherited
+   property, so that quietly undoes the `none` above for the canvas and
+   everything in it — and since this canvas is fixed, full-viewport and ABOVE
+   the page, the result is a transparent sheet that eats every click on the
+   site. It is invisible until something under it needs to be operated: the
+   PXL scene is turned by dragging its own slot, and the slot never receives a
+   pointerdown.
+
+   `!important` because the declaration being overridden is inline. */
+.stage > *,
+.stage canvas {
+  pointer-events: none !important;
+}
+
+/* The preloader owns the screen until it releases the page, and the first
+   frames of a scene composing itself must not be visible behind it. */
+:global(html[data-intro="running"]) .stage {
+  opacity: 0;
+}
+
+.stage {
+  transition: opacity var(--dur-3) var(--ease-hull);
+}

@@ -1,0 +1,160 @@
+.section {
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  padding-block: var(--section-y);
+}
+
+.head {
+  width: var(--shell);
+  margin-inline: auto;
+  display: grid;
+  gap: clamp(1.25rem, 2.4vw, 2rem);
+  padding-block-end: clamp(2.5rem, 5vw, 4rem);
+}
+
+/* ── The dimensioned drawing ───────────────────────────────────────────── */
+
+.drawing {
+  position: relative;
+  width: min(100% - var(--gutter) * 2, 86rem);
+  margin-inline: auto;
+}
+
+.drawingMedia {
+  /* The studio backdrop is near-white; blending it into the paper is what
+     turns the photograph into a drawing on the same sheet. The frame's
+     default dark backing would multiply to black, so it is neutralised here. */
+  mix-blend-mode: multiply;
+  background: var(--paper);
+}
+
+.dimension {
+  position: absolute;
+  /* Tuned to the hull in cabin-studio-profile: measured in the browser, the
+     boat spans 12.6%–89.7% of this frame. The witness lines sit just inside. */
+  inset-inline: 12.5% 10%;
+  inset-block-end: 12%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-45);
+}
+
+.dimTick {
+  flex: none;
+  width: 1px;
+  height: 0.85rem;
+  background: currentColor;
+}
+
+.dimRule {
+  flex: 1 1 auto;
+  height: 1px;
+  background: currentColor;
+}
+
+.dimValue {
+  flex: none;
+  font-family: var(--font-tech);
+  font-size: var(--fs-small);
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dimUnit {
+  color: var(--ink-45);
+}
+
+.dimLabel {
+  position: absolute;
+  inset-inline-start: 14%;
+  inset-block-end: 6%;
+  color: var(--ink-45);
+}
+
+/* ── Oversized figures ─────────────────────────────────────────────────── */
+
+.figures {
+  width: var(--shell);
+  margin-inline: auto;
+  margin-block-start: clamp(3rem, 7vw, 6.5rem);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+  gap: clamp(2rem, 4vw, 3.5rem) clamp(1.25rem, 2.5vw, 2.5rem);
+  align-items: start;
+}
+
+.figure {
+  display: grid;
+  gap: 0.55rem;
+  border-block-start: 1px solid var(--ink-16);
+  padding-block-start: clamp(0.75rem, 1.5vw, 1.25rem);
+}
+
+/* A staggered baseline — a drawing sheet, not a table row. */
+.figureOffset {
+  margin-block-start: clamp(1.25rem, 3.5vw, 3.25rem);
+}
+
+.value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.14em;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-stretch: 88%;
+  font-size: var(--fs-num);
+  line-height: 0.86;
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  font-size: 0.24em;
+  font-stretch: 100%;
+  letter-spacing: 0;
+  color: var(--ink-45);
+  text-transform: lowercase;
+}
+
+.figureRule {
+  display: block;
+  width: 1.75rem;
+  height: 1px;
+  background: var(--teak);
+  opacity: 0.75;
+}
+
+.figureLabel {
+  color: var(--ink);
+}
+
+.figureNote {
+  font-size: var(--fs-small);
+  color: var(--ink-45);
+  line-height: 1.35;
+}
+
+.footnote {
+  width: var(--shell);
+  margin-inline: auto;
+  margin-block-start: clamp(2.5rem, 5vw, 4rem);
+  color: var(--ink-45);
+}
+
+@media (max-width: 47.99rem) {
+  .figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dimension {
+    inset-block-end: 9%;
+  }
+
+  .dimLabel {
+    inset-block-end: 2%;
+  }
+}

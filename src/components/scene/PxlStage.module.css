@@ -1,0 +1,27 @@
+.stage {
+  position: relative;
+  inline-size: 100%;
+  block-size: 100%;
+  /* The studio backdrop the scene draws is this colour at the horizon, so the
+     box and the render share an edge rather than meeting at one. */
+  background: #141819;
+  overflow: hidden;
+}
+
+.plate {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: 100%;
+  /* Breathing room matched to the scene's own framing, so the fallback and the
+     live render put the boat at roughly the same size — the handover is a
+     crossfade, and a crossfade between two different scales is a jump. */
+  padding: clamp(1rem, 5vw, 4rem);
+}
+
+.image {
+  inline-size: 100%;
+  block-size: auto;
+  max-block-size: 100%;
+  object-fit: contain;
+}

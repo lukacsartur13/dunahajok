@@ -1,0 +1,62 @@
+.cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-cursor);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-1) linear;
+  mix-blend-mode: difference;
+  color: #fff;
+  will-change: transform;
+}
+
+.visible {
+  opacity: 1;
+}
+
+.ring {
+  display: block;
+  width: 2.1rem;
+  height: 2.1rem;
+  margin: -1.05rem 0 0 -1.05rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.55;
+  transition:
+    width var(--dur-2) var(--ease-hull),
+    height var(--dur-2) var(--ease-hull),
+    margin var(--dur-2) var(--ease-hull),
+    opacity var(--dur-2) var(--ease-hull);
+}
+
+.compact .ring {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin: -0.25rem 0 0 -0.25rem;
+  opacity: 0.85;
+}
+
+/* Over media that affords something, the ring opens up to hold a label. */
+.labelled .ring {
+  width: 5.6rem;
+  height: 5.6rem;
+  margin: -2.8rem 0 0 -2.8rem;
+  opacity: 0.8;
+}
+
+.label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-size: 0.625rem;
+  letter-spacing: 0.16em;
+}
+
+.pressed .ring {
+  transform: scale(0.86);
+}

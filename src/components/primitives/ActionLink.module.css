@@ -1,0 +1,126 @@
+.action {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.9em;
+  padding-block: 0.95em 0.85em;
+  color: var(--fg);
+  text-align: left;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.label {
+  position: relative;
+  z-index: 1;
+  transition: transform var(--dur-2) var(--ease-hull);
+}
+
+.arrow {
+  position: relative;
+  z-index: 1;
+  width: 1.55em;
+  flex: none;
+  align-self: center;
+  transition: transform var(--dur-2) var(--ease-hull);
+}
+
+.arrow svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* The hairline. Sits under the label and draws through on hover. */
+.rule {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.32;
+  transform-origin: left;
+  transition:
+    opacity var(--dur-2) var(--ease-hull),
+    transform var(--dur-2) var(--ease-hull);
+}
+
+.rule::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dur-3) var(--ease-hull);
+}
+
+@media (hover: hover) {
+  .action:hover .rule::after,
+  .action:focus-visible .rule::after {
+    transform: scaleX(1);
+  }
+
+  .action:hover .arrow,
+  .action:focus-visible .arrow {
+    transform: translateX(0.42em);
+  }
+}
+
+/* Touch and keyboard get the same end state without depending on hover. */
+.action:focus-visible .rule::after {
+  transform: scaleX(1);
+}
+
+.action:active .label {
+  transform: translateY(1px);
+}
+
+/* ── Variants ──────────────────────────────────────────────────────────── */
+
+/* Primary: the rule closes into a raked frame. Used once or twice a page. */
+.primary {
+  padding: 1.1em 1.6em 1em;
+  gap: 2.4em;
+}
+
+.primary .rule {
+  inset: 0;
+  height: auto;
+  background: none;
+  border: 1px solid currentColor;
+  opacity: 0.28;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0.9em 100%);
+  transition: opacity var(--dur-2) var(--ease-hull);
+}
+
+.primary .rule::after {
+  background: currentColor;
+  transform: scaleX(0);
+  opacity: 0.07;
+}
+
+@media (hover: hover) {
+  .primary:hover .rule,
+  .primary:focus-visible .rule {
+    opacity: 0.75;
+  }
+}
+
+.primary:focus-visible .rule {
+  opacity: 0.75;
+}
+
+/* Quiet: no rule at all, for dense footer and menu lists. */
+.quiet {
+  padding-block: 0.35em;
+  gap: 0.7em;
+}
+
+.quiet .rule {
+  opacity: 0;
+}
+
+.quiet .rule::after {
+  opacity: 0.5;
+}

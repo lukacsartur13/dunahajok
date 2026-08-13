@@ -1,0 +1,196 @@
+.section {
+  position: relative;
+  background: var(--depth);
+  color: var(--signal);
+}
+
+.stage {
+  position: relative;
+  height: 100svh;
+  min-height: 30rem;
+  overflow: hidden;
+}
+
+/* Both plates run bright at the foot — varnished teak and a white hull — so
+   the type needs its own ground rather than a per-image scrim. One veil,
+   applied to the stage, keeps it legible through the whole dissolve. */
+.stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgba(6, 9, 10, 0.92) 0%,
+    rgba(6, 9, 10, 0.66) 22%,
+    rgba(6, 9, 10, 0.18) 46%,
+    transparent 64%
+  );
+}
+
+.slot {
+  position: absolute;
+  inset: 0;
+}
+
+.plates,
+.macro,
+.wide {
+  position: absolute;
+  inset: 0;
+}
+
+.macro,
+.wide {
+  will-change: transform, opacity;
+}
+
+.wide {
+  opacity: 0;
+}
+
+.plate {
+  width: 100%;
+  height: 100%;
+}
+
+.plate :global(img) {
+  height: 100%;
+}
+
+/* ── Type ──────────────────────────────────────────────────────────────── */
+
+.type {
+  position: absolute;
+  z-index: 2;
+  inset-block-end: clamp(2rem, 6vh, 4.5rem);
+  inset-inline: var(--gutter);
+  display: grid;
+  gap: clamp(0.75rem, 1.6vw, 1.25rem);
+  justify-items: start;
+  color: var(--signal);
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.label {
+  color: var(--signal-70);
+}
+
+.sub {
+  color: var(--signal-70);
+  max-width: 26ch;
+}
+
+/* ── Tail ──────────────────────────────────────────────────────────────── */
+
+.tail {
+  width: var(--shell);
+  margin-inline: auto;
+  padding-block: var(--section-y);
+}
+
+.tailCopy {
+  max-width: 58ch;
+  margin-inline-start: auto;
+}
+
+/* ── Phones: stack, never pin ──────────────────────────────────────────── */
+
+@media (max-width: 47.99rem) {
+  .stage {
+    height: auto;
+    min-height: 0;
+  }
+
+  /* Stacked layout: the plates are separate frames, so the veil has nothing
+     to sit over. */
+  .stage::after {
+    display: none;
+  }
+
+  /* The SceneSlot is absolutely positioned so the pinned stage can hold the
+     plates; stacked, it has to return to flow or the section collapses. */
+  .slot {
+    position: relative;
+    inset: auto;
+  }
+
+  .plates {
+    position: relative;
+    inset: auto;
+    display: grid;
+    gap: 2px;
+  }
+
+  .macro,
+  .wide {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+  }
+
+  .macro .plate {
+    aspect-ratio: 4 / 5;
+  }
+
+  .wide .plate {
+    aspect-ratio: 4 / 3;
+  }
+
+  .type {
+    position: static;
+    inset: auto;
+    padding: clamp(1.75rem, 6vw, 2.5rem) 0 0;
+    text-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage {
+    height: auto;
+    min-height: 0;
+  }
+
+  .stage::after {
+    display: none;
+  }
+
+  /* The SceneSlot is absolutely positioned so the pinned stage can hold the
+     plates; stacked, it has to return to flow or the section collapses. */
+  .slot {
+    position: relative;
+    inset: auto;
+  }
+
+  .plates {
+    position: relative;
+    inset: auto;
+    display: grid;
+    gap: 2px;
+  }
+
+  .macro,
+  .wide {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+  }
+
+  .macro .plate {
+    aspect-ratio: 16 / 10;
+  }
+
+  .wide .plate {
+    aspect-ratio: 16 / 9;
+  }
+
+  .type {
+    position: static;
+    inset: auto;
+    padding-block-start: clamp(1.75rem, 6vw, 2.5rem);
+    padding-inline: var(--gutter);
+    text-shadow: none;
+  }
+}

@@ -1,0 +1,157 @@
+.section {
+  position: relative;
+}
+
+/* ── Chapter ───────────────────────────────────────────────────────────── */
+
+.chapter {
+  background: var(--bg);
+  color: var(--fg);
+  display: grid;
+  gap: clamp(2rem, 4vw, 3.5rem);
+  padding-block: var(--section-y);
+}
+
+.tone-warm {
+  --bg: var(--paper-warm);
+}
+
+.tone-technical {
+  --bg: var(--paper);
+}
+
+.tone-dark {
+  --bg: var(--depth);
+}
+
+/* The drawing-office chapter gets a faint measurement grid — the only place
+   on the site that uses one, so it stays a device rather than a texture. */
+.tone-technical {
+  background-image:
+    linear-gradient(to right, var(--ink-08) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--ink-08) 1px, transparent 1px);
+  background-size: clamp(3rem, 6vw, 5.5rem) clamp(3rem, 6vw, 5.5rem);
+  background-position: center;
+}
+
+.media {
+  width: 100%;
+}
+
+.body {
+  width: var(--shell);
+  margin-inline: auto;
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.6rem);
+  align-content: center;
+}
+
+.title {
+  font-stretch: 90%;
+}
+
+.tone-warm .title {
+  /* The editorial serif, used once per chapter at most. */
+  font-size: clamp(2.6rem, 7vw, 7rem);
+}
+
+.copy {
+  display: grid;
+  gap: clamp(0.85rem, 1.6vw, 1.25rem);
+  max-width: 52ch;
+}
+
+.annotations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem clamp(1rem, 2.2vw, 2rem);
+  margin-block-start: clamp(0.5rem, 1.4vw, 1.25rem);
+  color: var(--fg-faint);
+}
+
+.annotations li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.annotationTick {
+  display: block;
+  width: 0.75rem;
+  height: 1px;
+  background: var(--teak);
+  flex: none;
+}
+
+.tone-dark .annotationTick {
+  background: var(--teak);
+  opacity: 0.9;
+}
+
+/* ── Closing lockup ────────────────────────────────────────────────────── */
+
+.lockup {
+  position: relative;
+  background: var(--depth);
+  color: var(--signal);
+  padding-block: clamp(5rem, 13vw, 12rem);
+  overflow: hidden;
+}
+
+.lockupWake {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.lockupType {
+  position: relative;
+  z-index: 1;
+  width: var(--shell);
+  margin-inline: auto;
+  font-stretch: 86%;
+}
+
+/* The fourth line is the turn: it drops to the serif and to a whisper. */
+.lockupType :global(.js-line):last-child span {
+  font-family: var(--font-ed);
+  font-style: italic;
+  font-weight: 400;
+  font-stretch: 100%;
+  text-transform: none;
+  letter-spacing: -0.01em;
+  color: var(--signal-45);
+}
+
+/* ── Desktop ───────────────────────────────────────────────────────────── */
+
+@media (min-width: 61.25rem) {
+  .chapter {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(3rem, 6vw, 7rem);
+    padding-inline-end: var(--gutter);
+  }
+
+  .body {
+    width: auto;
+    margin-inline: 0;
+    max-width: 34rem;
+  }
+
+  .flip {
+    padding-inline: var(--gutter) 0;
+  }
+
+  .flip .media {
+    order: 2;
+  }
+
+  .flip .body {
+    order: 1;
+    justify-self: end;
+  }
+}

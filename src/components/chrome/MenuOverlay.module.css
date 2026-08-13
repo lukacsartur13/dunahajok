@@ -1,0 +1,232 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-menu);
+  background: var(--depth);
+  color: var(--signal);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: none;
+  clip-path: polygon(0 0, 100% 0, 100% 0%, 0 0%);
+  will-change: clip-path;
+}
+
+.inner {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(2.5rem, 5vw, 4rem);
+  padding: clamp(6rem, 12vh, 9rem) var(--gutter) clamp(2.5rem, 6vh, 4rem);
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Primary navigation ─────────────────────────────────────────────────── */
+
+.primaryItem + .primaryItem {
+  margin-block-start: clamp(0.35rem, 0.8vw, 0.9rem);
+}
+
+.primaryLink {
+  display: flex;
+  /* Not `baseline`: .primaryLine sets overflow:hidden for the mask, which
+     makes it a block formatting context and stops its text baseline
+     propagating. The index is aligned to cap height instead. */
+  align-items: flex-start;
+  gap: clamp(0.75rem, 1.8vw, 1.75rem);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.primaryIndex {
+  color: var(--signal-45);
+  transition: color var(--dur-2) var(--ease-hull);
+  flex: none;
+  padding-block-start: 0.55em;
+}
+
+.primaryLine {
+  display: block;
+  overflow: hidden;
+  padding-block-end: 0.08em;
+  margin-block-end: -0.08em;
+}
+
+.primaryLine > span {
+  display: block;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-stretch: 92%;
+  /* Sized so all six primary entries, their sub-lists and the contact block
+     fit one viewport without scrolling — "Suzuki Marine" is the constraint,
+     both for line length and for the vertical budget. */
+  font-size: clamp(2rem, 4.8vw, 4rem);
+  line-height: 1.04;
+  letter-spacing: var(--tr-display);
+  text-transform: uppercase;
+  transform: translateY(112%);
+  transition: opacity var(--dur-2) var(--ease-hull);
+  will-change: transform;
+}
+
+@media (hover: hover) {
+  .primary:hover .primaryLink .primaryLine > span {
+    opacity: 0.32;
+  }
+  .primaryLink:hover .primaryLine > span,
+  .primaryLink:focus-visible .primaryLine > span {
+    opacity: 1;
+  }
+  .primaryLink:hover .primaryIndex {
+    color: var(--signal);
+  }
+}
+
+.secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem clamp(0.9rem, 2vw, 1.75rem);
+  margin-block-start: clamp(0.5rem, 1vw, 0.9rem);
+  margin-inline-start: clamp(2rem, 4.4vw, 4.25rem);
+  opacity: 0;
+}
+
+.secondaryLink {
+  font-size: var(--fs-small);
+  color: var(--signal-45);
+  padding-block: 0.2rem;
+  border-block-end: 1px solid transparent;
+  transition:
+    color var(--dur-1) var(--ease-hull),
+    border-color var(--dur-1) var(--ease-hull);
+}
+
+.secondaryLink:hover,
+.secondaryLink:focus-visible {
+  color: var(--signal);
+  border-block-end-color: var(--signal-16);
+}
+
+/* ── Aside ──────────────────────────────────────────────────────────────── */
+
+.aside {
+  display: grid;
+  gap: clamp(1.75rem, 3vw, 2.5rem);
+  align-content: end;
+}
+
+.plate {
+  display: none;
+  opacity: 0;
+}
+
+.contact,
+.meta {
+  opacity: 0;
+}
+
+.contactLabel {
+  color: var(--signal-45);
+  margin-block-end: 0.75rem;
+}
+
+.address {
+  display: grid;
+  font-style: normal;
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  color: var(--signal-70);
+}
+
+.contactLinks {
+  display: grid;
+  gap: 0.1rem;
+  margin-block-start: 0.9rem;
+  font-size: var(--fs-body);
+}
+
+.contactLinks a {
+  width: fit-content;
+  border-block-end: 1px solid var(--signal-16);
+  padding-block-end: 1px;
+  transition: border-color var(--dur-1) var(--ease-hull);
+}
+
+.contactLinks a:hover {
+  border-block-end-color: var(--signal);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding-block-start: clamp(1.25rem, 3vw, 2rem);
+  border-block-start: 1px solid var(--signal-16);
+}
+
+.socials,
+.langs {
+  display: flex;
+  gap: clamp(0.9rem, 2vw, 1.6rem);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--signal-45);
+}
+
+.socials a:hover,
+.langs a:hover {
+  color: var(--signal);
+}
+
+.langCurrent {
+  color: var(--signal);
+}
+
+.wake {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 8%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Desktop ───────────────────────────────────────────────────────────── */
+
+@media (min-width: 61.25rem) {
+  .inner {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    align-items: end;
+    gap: clamp(3rem, 6vw, 7rem);
+    padding-block: clamp(6.5rem, 13vh, 9.5rem) clamp(2.5rem, 5vh, 4rem);
+  }
+
+  .plate {
+    display: block;
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--depth-raised);
+    clip-path: polygon(0 var(--rake-cut), 100% 0, 100% 100%, 0 100%);
+  }
+
+  .plate img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity var(--dur-2) var(--ease-hull);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    clip-path: none;
+    opacity: 0;
+    transition: opacity var(--dur-1) linear;
+  }
+  .primaryLine > span {
+    transform: none;
+  }
+}

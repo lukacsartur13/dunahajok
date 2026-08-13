@@ -1,0 +1,76 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-preloader);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  align-items: center;
+  padding: clamp(1.25rem, 3.4vw, 2.75rem) var(--gutter);
+  background: var(--depth);
+  color: var(--signal);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  will-change: clip-path;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mark {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-stretch: 88%;
+  font-size: clamp(0.95rem, 1.1vw, 1.15rem);
+  letter-spacing: 0.42em;
+  text-indent: 0.42em; /* balance the trailing letterspace */
+  text-transform: uppercase;
+}
+
+.counter {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  color: var(--signal-45);
+}
+
+.water {
+  display: block;
+  width: 100%;
+  height: clamp(5rem, 12vh, 8rem);
+  overflow: visible;
+}
+
+.water path {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.line {
+  opacity: 0.85;
+}
+
+.wake {
+  opacity: 0;
+  stroke-width: 1;
+}
+
+.foot {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--signal-45);
+  justify-self: start;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: opacity var(--dur-1) linear;
+  }
+}

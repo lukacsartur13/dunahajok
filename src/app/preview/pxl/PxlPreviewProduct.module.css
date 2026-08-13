@@ -1,0 +1,243 @@
+/* ===========================================================================
+   PXL — the editorial preview page
+   ---------------------------------------------------------------------------
+   EDITORIAL MODE. This page scrolls, breathes and uses the site's own dark
+   ground and type; the configurator does none of those things. That contrast
+   is the reason the transition between them reads as going somewhere rather
+   than as a tab change (§5, §68).
+
+   It is deliberately quiet. There is very little to say about the PXL that is
+   both true and published, and a layout with room for three marketing
+   paragraphs would be a layout inviting someone to write them.
+   =========================================================================== */
+
+.page {
+  position: relative;
+  min-block-size: 100dvh;
+  background: var(--depth);
+  color: var(--signal);
+  font-family: var(--font-ui);
+  padding-block: clamp(3.25rem, 6vw, 6rem) clamp(3rem, 6vw, 6rem);
+  padding-inline: var(--gutter);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.75rem, 4vw, 3.5rem);
+  overflow-x: clip;
+}
+
+/* §3: one quiet line saying what this address is. Loud enough not to be
+   missed, quiet enough that nobody screenshots the banner instead of the boat. */
+.notice {
+  margin: 0;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--signal-45);
+}
+
+.masthead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.marque {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--signal-45);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-d1);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: 500;
+}
+
+.lede {
+  margin: 0;
+  font-family: var(--font-ed);
+  font-size: var(--fs-lead);
+  line-height: 1.3;
+  color: var(--signal-70);
+  max-inline-size: 40ch;
+}
+
+/* ── The vessel ─────────────────────────────────────────────────────────── */
+
+.stage {
+  position: relative;
+  /* Tall enough that the boat is the composition rather than an illustration
+     beside the text, and bounded so that the door into product mode is on the
+     first screen with it. Measured: at 1440 x 900 the CTA lands at 861px —
+     an editorial page may make you scroll for the specifications, but it must
+     not make you scroll to find out that the boat can be configured. */
+  block-size: clamp(18rem, 44vh, 34rem);
+}
+
+.stage > [data-scene] {
+  block-size: 100%;
+}
+
+/* ── The door into product mode ─────────────────────────────────────────── */
+
+.enter {
+  display: flex;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 3.25rem;
+  padding: 0 1.75rem;
+  background: var(--signal);
+  color: var(--depth);
+  text-decoration: none;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  transition: background-color var(--dur-1) var(--ease-hull);
+}
+
+.cta:hover {
+  background: #fff;
+}
+
+.cta:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+
+.body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: clamp(1.5rem, 4vw, 4rem);
+  padding-block-start: clamp(1rem, 3vw, 2.5rem);
+  border-block-start: 1px solid var(--signal-16);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-inline-size: 0;
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  font-weight: 400;
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--signal-45);
+}
+
+.observed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: var(--fs-small);
+  line-height: 1.55;
+  color: var(--signal-70);
+  max-inline-size: var(--measure);
+}
+
+.observed li {
+  padding-inline-start: 1rem;
+  border-inline-start: 1px solid var(--signal-16);
+}
+
+.specs {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.specRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding-block: 0.55rem;
+  border-block-end: 1px solid var(--signal-16);
+  font-size: var(--fs-small);
+}
+
+.specRow dt {
+  color: var(--signal-70);
+}
+
+/* An unpublished figure is set in the technical face and in the faint tone —
+   it reads as a state, not as a value somebody could transcribe. */
+.specRow dd {
+  margin: 0;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: 0.04em;
+  color: var(--signal-45);
+  text-align: end;
+}
+
+.plate {
+  margin: 0;
+}
+
+.plate img {
+  inline-size: 100%;
+  block-size: auto;
+  /* The Duna Line, once, on the one full-bleed image on the page. */
+  clip-path: polygon(0 var(--rake-cut), 100% 0, 100% 100%, 0 100%);
+}
+
+/* ── Leaving ────────────────────────────────────────────────────────────── */
+
+/* §5: editorial recedes before product mode arrives. The type loses
+   prominence first and the ground closes over it; by the time the route
+   actually changes the screen is already the colour the configurator opens on,
+   so there is no flash between the two trees. */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--depth);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-glide);
+}
+
+.page[data-leaving] .veil {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.page[data-leaving] .masthead,
+.page[data-leaving] .body,
+.page[data-leaving] .enter,
+.page[data-leaving] .notice {
+  opacity: 0;
+  transform: translateY(-0.75rem);
+  transition:
+    opacity var(--dur-1) var(--ease-hull),
+    transform var(--dur-2) var(--ease-hull);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .veil,
+  .page[data-leaving] .masthead,
+  .page[data-leaving] .body,
+  .page[data-leaving] .enter,
+  .page[data-leaving] .notice {
+    transition: none;
+  }
+}

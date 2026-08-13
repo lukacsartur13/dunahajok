@@ -1,0 +1,98 @@
+.bar {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: var(--z-header);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: clamp(1rem, 2.2vw, 1.9rem) var(--gutter);
+  opacity: 0;
+  mix-blend-mode: difference;
+  color: #fff; /* difference-blended: renders as the inverse of the ground */
+  pointer-events: none;
+}
+
+.bar > * {
+  pointer-events: auto;
+}
+
+/* Blend mode gives a perfect inverse on photography, but it also inverts the
+   overlay itself. Over the menu we drop to plain colour. */
+.overMenu {
+  mix-blend-mode: normal;
+  color: var(--signal);
+}
+
+/* `light`/`dark` are kept for browsers where difference blending is
+   unavailable, and for the focus ring colour. */
+.light {
+  --focus: var(--ink);
+}
+.dark {
+  --focus: var(--signal);
+}
+
+.wordmark {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-stretch: 88%;
+  font-size: clamp(0.95rem, 1.15vw, 1.2rem);
+  line-height: 1;
+  letter-spacing: 0.4em;
+  text-indent: 0.4em;
+  text-transform: uppercase;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.5rem 0;
+  color: inherit;
+}
+
+.triggerLabel {
+  min-width: 3.4em; /* keeps Menu/Close from shifting the mark */
+  text-align: right;
+}
+
+/* Two rules that rake apart on hover — the wake, at UI scale. */
+.triggerMark {
+  display: grid;
+  gap: 5px;
+  width: 1.75rem;
+}
+
+.triggerMark span {
+  display: block;
+  height: 1px;
+  background: currentColor;
+  transition: transform var(--dur-2) var(--ease-hull);
+}
+
+.triggerMark span:last-child {
+  width: 62%;
+  justify-self: end;
+}
+
+@media (hover: hover) {
+  .trigger:hover .triggerMark span:first-child {
+    transform: translateX(-4px);
+  }
+  .trigger:hover .triggerMark span:last-child {
+    transform: translateX(4px);
+  }
+}
+
+.trigger:focus-visible {
+  outline-color: currentColor;
+}
+
+@media (max-width: 30rem) {
+  .wordmark {
+    letter-spacing: 0.3em;
+    text-indent: 0.3em;
+  }
+}

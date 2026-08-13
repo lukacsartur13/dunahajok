@@ -1,0 +1,204 @@
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--depth);
+  color: var(--signal);
+  overflow: hidden;
+}
+
+/* ── Upper register: air ────────────────────────────────────────────────── */
+
+.upper {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: clamp(1.5rem, 4vh, 3.5rem);
+  padding-block-start: clamp(4.75rem, 11vh, 8rem);
+  will-change: transform;
+}
+
+.head {
+  width: var(--shell);
+  margin-inline: auto;
+  display: grid;
+  gap: clamp(1.15rem, 2.2vw, 1.9rem);
+  align-content: start;
+  padding-block-end: clamp(1.25rem, 3vh, 2.5rem);
+}
+
+.kicker {
+  color: var(--signal-45);
+}
+
+/* No max-width: the line breaks are authored in the component, and a measure
+   constraint would silently re-wrap them. The scale is tuned so the longer
+   line ("Built beyond convention.") holds on one line at 375px too. */
+/* `.head .claim` rather than `.claim`: it has to out-specify the shared d3
+   step from Type.module.css, whose source order isn't guaranteed. */
+.head .claim {
+  font-size: clamp(1.4rem, 5.6vw, 3.4rem);
+  color: var(--signal);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(1rem, 2.5vw, 2.5rem);
+}
+
+/* ── The wordmark, resting on the waterline ─────────────────────────────── */
+
+.markRow {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(1rem, 3vw, 3rem);
+  width: var(--shell);
+  margin-inline: auto;
+}
+
+.mark {
+  font-size: var(--fs-mega);
+  font-stretch: 84%;
+  line-height: 0.78;
+  letter-spacing: var(--tr-mega);
+  /* Optical: pull the D's left sidebearing flush to the gutter. */
+  margin-inline-start: -0.045em;
+  /* The line box carries descender space these caps never use. Removing it is
+     what actually lands the baseline on the waterline — without this the
+     wordmark floats above the line instead of sitting on it. */
+  margin-block-end: -0.15em;
+  flex: none;
+  will-change: transform;
+}
+
+/* The wake continues from the wordmark along the waterline, so its still-water
+   axis (the SVG's vertical centre) must coincide with the line. */
+.wakeWrap {
+  --wake-h: clamp(2.75rem, 5vw, 5rem);
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--wake-h);
+  margin-block-end: calc(var(--wake-h) / -2);
+  opacity: 0.5;
+}
+
+/* Beats the WakeLine module's own height by specificity, not by source order. */
+.wakeWrap > svg {
+  height: 100%;
+}
+
+/* ── The waterline itself ───────────────────────────────────────────────── */
+
+.waterline {
+  flex: none;
+  height: 1px;
+  width: 100%;
+  background: var(--signal-16);
+}
+
+/* ── Lower register: the river ──────────────────────────────────────────── */
+
+/* Shrinkable: on a short viewport the river gives way before the type does. */
+.plate {
+  position: relative;
+  flex: 0 1 auto;
+  height: clamp(11rem, 34vh, 26rem);
+  min-height: 8.5rem;
+}
+
+.plateMedia {
+  height: 100%;
+  /* Meets the waterline at the hull rake, so the two geometries agree. */
+  clip-path: polygon(0 0, 100% var(--rake-cut), 100% 100%, 0 100%);
+}
+
+.plateMedia :global(img) {
+  height: 100%;
+}
+
+.scroll {
+  position: absolute;
+  inset-block-end: clamp(1rem, 2.5vh, 1.75rem);
+  inset-inline-start: var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--signal);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55);
+  /* Sits inside the river plate, which is the hero-vessel SceneSlot: the root
+     canvas paints over that box, so the indicator has to clear it. */
+  z-index: calc(var(--z-scene) + 1);
+}
+
+.scrollRule {
+  display: block;
+  width: 2.75rem;
+  height: 1px;
+  background: currentColor;
+  transform-origin: left;
+  animation: sound 3.4s var(--ease-drift) infinite;
+}
+
+@keyframes sound {
+  0%,
+  100% {
+    transform: scaleX(0.28);
+    opacity: 0.4;
+  }
+  45% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrollRule {
+    animation: none;
+    transform: scaleX(1);
+  }
+}
+
+/* ── Small screens ─────────────────────────────────────────────────────────
+   Not a squeezed desktop: the claim leads, the wordmark is still monumental
+   relative to the viewport, and the plate keeps a usable portrait-ish crop. */
+
+@media (max-width: 47.99rem) {
+  .upper {
+    padding-block-start: clamp(4.5rem, 12vh, 7rem);
+  }
+
+  .head {
+    gap: clamp(1.25rem, 4vw, 2rem);
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
+  .wake {
+    display: none;
+  }
+
+  .plate {
+    height: clamp(13rem, 30vh, 20rem);
+  }
+}
+
+/* Landscape phones have almost no vertical budget — drop the plate rather
+   than let the type collapse. */
+@media (max-height: 30rem) and (orientation: landscape) {
+  .hero {
+    min-height: auto;
+  }
+  .plate {
+    height: 42vw;
+  }
+}

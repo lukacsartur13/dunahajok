@@ -1,0 +1,156 @@
+/* ===========================================================================
+   DUNA — design tokens
+   ---------------------------------------------------------------------------
+   Everything visual resolves through this file. Sections never hard-code a
+   colour, a step of the type scale, or a rhythm value.
+   =========================================================================== */
+
+:root {
+  /* ── Colour ───────────────────────────────────────────────────────────────
+     Two grounds — warm paper and river-dark. Teak is deliberately *not* a UI
+     colour: it exists as a hairline accent and, properly, as photographed
+     material. Never fill a surface with it.                                  */
+  --paper: #f1f0eb;
+  --paper-sunk: #e8e6df; /* recessed panels on paper */
+  --paper-warm: #eae3d7; /* the Tradition chapter — pulled toward the timber */
+  --paper-line: #d4d2c9;
+
+  --ink: #101111;
+  --ink-70: rgba(16, 17, 17, 0.68);
+  --ink-45: rgba(16, 17, 17, 0.45);
+  --ink-16: rgba(16, 17, 17, 0.16);
+  --ink-08: rgba(16, 17, 17, 0.08);
+
+  /* River-dark: desaturated green-blue, taken from the Danube itself rather
+     than from the navy of yacht-brochure convention. */
+  --depth: #0a0e0f;
+  --depth-raised: #131a1b;
+  --depth-line: rgba(241, 240, 235, 0.14);
+
+  --signal: #f1f0eb;
+  --signal-70: rgba(241, 240, 235, 0.7);
+  --signal-45: rgba(241, 240, 235, 0.45);
+  --signal-16: rgba(241, 240, 235, 0.16);
+
+  --teak: #a9612e;
+  --teak-soft: rgba(169, 97, 46, 0.42);
+
+  /* Per-surface aliases. Sections set --bg/--fg and children inherit. */
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --fg-muted: var(--ink-70);
+  --fg-faint: var(--ink-45);
+  --rule: var(--ink-16);
+
+  /* ── Type ─────────────────────────────────────────────────────────────────
+     Display steps are viewport-driven so headlines behave as layout, not as
+     text in a box. Body steps are near-static — reading size shouldn't swing. */
+  /* The DUNA wordmark. Sized against BOTH axes: monumental type that ignores
+     the vertical budget pushes the hero past the fold on laptop screens. */
+  --fs-mega: clamp(4.75rem, min(21vw, 31vh), 24rem);
+  /* The lower bounds are set by the longest authored display line (15–16
+     uppercase characters) at 375px inside the gutters. Raise them and the
+     headlines re-wrap inside their reveal masks. */
+  --fs-d1: clamp(2.15rem, 8.6vw, 9.5rem);
+  --fs-d2: clamp(1.95rem, 5.4vw, 5.75rem);
+  --fs-d3: clamp(1.65rem, 3.4vw, 3.5rem);
+  --fs-num: clamp(3.25rem, 9vw, 10rem); /* oversized specification numerals */
+  --fs-lead: clamp(1.125rem, 1.5vw, 1.6rem);
+  --fs-body: clamp(1rem, 0.55vw + 0.86rem, 1.15rem);
+  --fs-small: clamp(0.875rem, 0.3vw + 0.8rem, 0.95rem);
+  --fs-label: clamp(0.6875rem, 0.22vw + 0.63rem, 0.8125rem);
+
+  --lh-tight: 0.86;
+  --lh-display: 0.94;
+  --lh-heading: 1.06;
+  --lh-body: 1.55;
+
+  --tr-mega: -0.045em;
+  --tr-display: -0.032em;
+  --tr-heading: -0.02em;
+  --tr-label: 0.14em;
+
+  --font-ui: var(--font-display), "Helvetica Neue", Arial, sans-serif;
+  --font-ed: var(--font-serif), Georgia, "Times New Roman", serif;
+  --font-tech: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* ── Rhythm ───────────────────────────────────────────────────────────── */
+  --gutter: clamp(1.125rem, 4.2vw, 4.5rem);
+  --measure: 62ch;
+  --section-y: clamp(5.5rem, 11vw, 13rem);
+  --section-y-tight: clamp(3.5rem, 6vw, 7rem);
+  --stack-1: clamp(0.5rem, 0.6vw, 0.75rem);
+  --stack-2: clamp(0.875rem, 1.2vw, 1.5rem);
+  --stack-3: clamp(1.5rem, 2.4vw, 2.75rem);
+  --stack-4: clamp(2.5rem, 4.5vw, 5rem);
+  --stack-5: clamp(4rem, 7vw, 8.5rem);
+
+  --grid: 12;
+  --shell: min(100% - (var(--gutter) * 2), 96rem);
+
+  /* ── The Duna Line ────────────────────────────────────────────────────────
+     A single rake angle, lifted from the sheer of the 6.1 hull, governs every
+     diagonal on the site: section cuts, image boundaries, the "/" in lockups.
+     Change it here and the whole geometry re-rakes together.                */
+  --rake: 6.5deg;
+  --rake-cut: 4.5vw; /* vertical travel of a full-width diagonal edge */
+  --hairline: 1px;
+
+  /* ── Motion ───────────────────────────────────────────────────────────────
+     Slow, physical, inertial. Nothing snaps.                                */
+  --ease-hull: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-glide: cubic-bezier(0.33, 0, 0.12, 1);
+  --ease-drift: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-1: 220ms;
+  --dur-2: 480ms;
+  --dur-3: 900ms;
+  --dur-4: 1400ms;
+
+  /* The root WebGL canvas paints OVER the page, not behind it: every section
+     carries its own opaque ground, so a canvas below <main> would be invisible
+     inside the very sections that host the scenes. It is safe there because it
+     is transparent outside a live SceneSlot and never takes pointer events —
+     see webgl/stage/WebGLStage.module.css. Everything the visitor operates
+     stays above it. */
+  --z-scene: 40;
+  --z-content: 10;
+  /* Product-mode interface: the configurator's rail, identity and overlays.
+     ABOVE the scene, and it has to be — in editorial sections the canvas only
+     paints inside a slot that occupies part of the layout, so ordinary content
+     is never underneath it, but the configurator's slot IS the viewport. Its
+     controls float over the vessel by design, and a control the visitor cannot
+     see is not a control. Below the menu, which must still open over it. */
+  --z-product-ui: 50;
+  --z-menu: 70;
+  /* Above the overlay on purpose: the header carries the Close control, so it
+     must stay reachable while the menu is open. */
+  --z-header: 80;
+  --z-cursor: 90;
+  --z-preloader: 100;
+}
+
+/* Dark ground. Applied per-section, not globally — the site alternates. */
+.is-dark {
+  --bg: var(--depth);
+  --fg: var(--signal);
+  --fg-muted: var(--signal-70);
+  --fg-faint: var(--signal-45);
+  --rule: var(--signal-16);
+}
+
+.is-light {
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --fg-muted: var(--ink-70);
+  --fg-faint: var(--ink-45);
+  --rule: var(--ink-16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 1ms;
+    --dur-2: 1ms;
+    --dur-3: 1ms;
+    --dur-4: 1ms;
+  }
+}

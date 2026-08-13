@@ -1,0 +1,1013 @@
+/* ===========================================================================
+   PXL CONFIGURATOR — the customer-facing composition
+   ---------------------------------------------------------------------------
+   ONE RULE GOVERNS EVERY BREAKPOINT: the vessel is the page and the interface
+   floats over it. The stage is `position: absolute; inset: 0` rather than a
+   grid cell, which is what makes §7 structural instead of aspirational — a
+   narrower window, a taller rail or a longer language cannot take a single
+   pixel away from the boat, because the boat is not in the same layout flow as
+   the controls. The rail earns its legibility from a scrim, not from a panel.
+
+   That is also why there is no sidebar anywhere in this file. A 24rem rail
+   beside a 1440px viewport is a sixth of the width, permanently, in exchange
+   for six swatches and five view chips that fit comfortably in a horizontal
+   band 96px tall.
+
+   Three authored compositions:
+
+     DESKTOP    identity top-left, actions top-right, one horizontal rail
+     PORTRAIT   identity top, tray at the bottom, capped so the stage keeps
+                the majority of the viewport
+     LANDSCAPE  almost the whole viewport is stage; the rail is a slim overlay
+
+   Everything resolves through the site's tokens. The configurator is more
+   restrained than the editorial homepage — mono labels, hairlines, no display
+   type beyond the product name — but it is the same instrument (§38).
+   =========================================================================== */
+
+.shell {
+  --pad: clamp(1rem, 2.4vw, 2.5rem);
+  --rail-gap: clamp(1rem, 2.2vw, 2.75rem);
+
+  position: fixed;
+  inset: 0;
+  background: var(--depth);
+  color: var(--signal);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  /* NO `contain` HERE, AND IT COST AN HOUR TO LEARN WHY.
+     Both `contain: paint` and `contain: layout` make the element a stacking
+     context. This shell has no z-index of its own, so becoming one flattens
+     every control inside it to the shell's own level — underneath the root
+     canvas at --z-scene, which on this route covers the entire viewport. The
+     symptom is a configurator whose interface vanishes the instant the vessel
+     starts drawing, which looks like a rendering bug and is a stacking one. */
+}
+
+/* ── The vessel ─────────────────────────────────────────────────────────── */
+
+/* The measured box the renderer projects into, and the home of the fallback
+   render until it does. It stays at the bottom of the stack on purpose: the
+   canvas paints over it, which is exactly the handover data-scene-active
+   performs. */
+.stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.stage > [data-scene] {
+  block-size: 100%;
+}
+
+/* ── Top chrome ─────────────────────────────────────────────────────────── */
+
+/* ABOVE THE CANVAS, and structurally rather than stylistically.
+   The root canvas is fixed at --z-scene and paints wherever an active slot is.
+   In an editorial section that slot is a band inside the layout, so ordinary
+   page content is never underneath it and the token order in tokens.css holds.
+   Here the slot IS the viewport: every control has to sit above --z-scene or it
+   is painted over by the very boat it operates. --z-product-ui exists for this
+   one case and stays below --z-menu, so the site's menu still opens over it. */
+.top {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: calc(var(--z-product-ui) + 2);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: var(--pad);
+  padding-block-start: max(var(--pad), env(safe-area-inset-top, 0px));
+  /* A scrim rather than a bar. The identity has to stay legible over a white
+     hull and over a black one, and a filled header would be a second horizontal
+     band competing with the rail for the frame. */
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 14, 15, 0.72) 0%,
+    rgba(10, 14, 15, 0.34) 52%,
+    rgba(10, 14, 15, 0) 100%
+  );
+  pointer-events: none;
+}
+
+.top > * {
+  pointer-events: auto;
+}
+
+.identity {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-inline-size: 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--signal-70);
+  text-decoration: none;
+  transition: color var(--dur-1) var(--ease-hull);
+  /* The type stays where the lockup wants it; the TARGET grows around it.
+     Padding out and margin back in gives the link a 44px hit area without
+     moving a single glyph — the alternative, setting a min-height, would push
+     the baseline out of line with DUNA and PXL beside it. */
+  padding: 0.85rem 0.6rem;
+  margin: -0.85rem -0.6rem;
+}
+
+.back:hover {
+  color: var(--signal);
+}
+
+.rule {
+  flex: 0 0 2rem;
+  block-size: 1px;
+  background: var(--signal-16);
+  transform: translateY(-0.3em);
+}
+
+.marque {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--signal-45);
+}
+
+/* §44: PXL is the product and it is the largest word on the screen after the
+   boat itself. DUNA stays beside it as the parent brand, in mono, once. */
+.model {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.6vw, 2.5rem);
+  font-weight: 500;
+  letter-spacing: var(--tr-heading);
+  line-height: 1;
+}
+
+.topActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+.chip {
+  min-block-size: 2.75rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--signal-16);
+  border-radius: 0;
+  background: rgba(10, 14, 15, 0.4);
+  color: var(--signal-70);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color var(--dur-1) var(--ease-hull),
+    border-color var(--dur-1) var(--ease-hull);
+}
+
+.chip:hover {
+  color: var(--signal);
+  border-color: var(--signal-45);
+}
+
+.chip[aria-pressed="true"] {
+  color: var(--depth);
+  background: var(--signal);
+  border-color: var(--signal);
+}
+
+/* ── The arrival, and the hint ──────────────────────────────────────────── */
+
+/* §42: a brief compositional caption while the camera settles into frame, then
+   the controls are the page. It never blocks anything — it is `aria-hidden`,
+   it takes no pointer events, and it removes itself on a timer that runs
+   whether or not the model ever arrives. */
+.arrival {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline: 0;
+  z-index: calc(var(--z-product-ui) + 1);
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--signal-45);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity var(--dur-3) var(--ease-hull);
+}
+
+.arrival[data-gone] {
+  opacity: 0;
+}
+
+.hint {
+  position: absolute;
+  inset-block-end: calc(var(--rail-height, 7rem) + 1rem);
+  inset-inline-start: var(--pad);
+  z-index: calc(var(--z-product-ui) + 1);
+  margin: 0;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--signal-45);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity var(--dur-2) var(--ease-hull);
+}
+
+.hint[data-gone] {
+  opacity: 0;
+}
+
+/* ── The control rail ───────────────────────────────────────────────────── */
+
+.rail {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: calc(var(--z-product-ui) + 2);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--rail-gap);
+  padding: var(--pad);
+  padding-block-end: max(var(--pad), env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(
+    to top,
+    rgba(10, 14, 15, 0.86) 0%,
+    rgba(10, 14, 15, 0.62) 44%,
+    rgba(10, 14, 15, 0) 100%
+  );
+  /* §42: the controls arrive after the vessel is dominant, not with it. */
+  opacity: 0;
+  transform: translateY(0.75rem);
+  transition:
+    opacity var(--dur-2) var(--ease-hull),
+    transform var(--dur-2) var(--ease-hull);
+}
+
+.rail[data-ready] {
+  opacity: 1;
+  transform: none;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-inline-size: 0;
+  /* The rail is a row of blocks that are each exactly as wide as their
+     contents. Letting a group shrink would compress the swatches — the one
+     control on the page whose size is the point of it. */
+  flex-shrink: 0;
+}
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+/* §39: mono for the technical annotation, and nothing else labelled. */
+.label {
+  margin: 0;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  font-weight: 400;
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--signal-45);
+}
+
+/* §24: the selection is always named, never inferred from a coloured disc. */
+.value {
+  margin: 0;
+  font-size: var(--fs-small);
+  letter-spacing: 0.01em;
+  color: var(--signal);
+}
+
+/* ── Swatches ───────────────────────────────────────────────────────────── */
+
+.swatches {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.swatch {
+  position: relative;
+  /* 44px minimum target in both axes, with the sample inset so the selected
+     ring has somewhere to live that is not the sample itself. */
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-1) var(--ease-hull),
+    transform var(--dur-1) var(--ease-hull);
+}
+
+/* §10: a material sample, not a colour fill. The sheen is fixed — the same
+   light on every swatch — so the six are comparable, and it is what lets the
+   near-black finish read as a glossy black object rather than as a hole. The
+   two radial gradients are a highlight where a softbox would fall and a
+   shadow where the sphere turns away; together they are the difference
+   between a paint chip and a table cell with a background colour. */
+.sample {
+  inline-size: 1.85rem;
+  block-size: 1.85rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 32% 26%,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(255, 255, 255, 0.08) 34%,
+      rgba(255, 255, 255, 0) 58%
+    ),
+    radial-gradient(circle at 70% 82%, rgba(0, 0, 0, 0.34) 0%, rgba(0, 0, 0, 0) 62%),
+    var(--finish);
+  box-shadow: inset 0 0 0 1px rgba(241, 240, 235, 0.2);
+  transition: transform var(--dur-1) var(--ease-hull);
+}
+
+.swatch:hover {
+  border-color: var(--signal-16);
+}
+
+.swatch:hover .sample {
+  transform: scale(1.06);
+}
+
+/* §10: selection is a ring AND a name AND aria-checked. Never colour alone. */
+.swatch[data-on] {
+  border-color: var(--signal);
+}
+
+/* The per-swatch name appears on hover and on focus only — §10's "hover
+   label". The rail already prints the selected name permanently, so this is
+   for comparing the other five without clicking them. */
+.swatchName {
+  position: absolute;
+  inset-block-end: calc(100% + 0.4rem);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--font-tech);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--signal-70);
+  background: rgba(10, 14, 15, 0.86);
+  padding: 0.25rem 0.5rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-1) var(--ease-hull);
+}
+
+.swatch:hover .swatchName,
+.swatch:focus-visible .swatchName {
+  opacity: 1;
+}
+
+/* ── View controls ──────────────────────────────────────────────────────── */
+
+.views {
+  display: flex;
+  gap: 0.375rem;
+  /* Five chips, one row, at every desktop width. A view selector that breaks
+     4 + 1 reads as an accident and makes the rail a line taller for nothing. */
+  flex-wrap: nowrap;
+}
+
+.view {
+  min-block-size: 2.75rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--signal-16);
+  background: none;
+  color: var(--signal-70);
+  font-family: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--dur-1) var(--ease-hull),
+    border-color var(--dur-1) var(--ease-hull),
+    background-color var(--dur-1) var(--ease-hull);
+}
+
+.view:hover {
+  color: var(--signal);
+  border-color: var(--signal-45);
+}
+
+.view[data-on] {
+  color: var(--depth);
+  background: var(--signal);
+  border-color: var(--signal);
+}
+
+/* ── Actions ────────────────────────────────────────────────────────────── */
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+  flex-shrink: 0;
+}
+
+.primary {
+  min-block-size: 2.75rem;
+  padding: 0 1.4rem;
+  border: 1px solid var(--signal);
+  background: var(--signal);
+  color: var(--depth);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-hull);
+}
+
+.primary:hover {
+  background: #fff;
+}
+
+.ghost {
+  min-block-size: 2.75rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--signal-16);
+  background: none;
+  color: var(--signal-70);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color var(--dur-1) var(--ease-hull),
+    border-color var(--dur-1) var(--ease-hull);
+}
+
+.ghost:hover:not(:disabled) {
+  color: var(--signal);
+  border-color: var(--signal-45);
+}
+
+.ghost:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* §24: focus has to survive over a white hull, a black hull and the scrim. */
+.swatch:focus-visible,
+.view:focus-visible,
+.chip:focus-visible,
+.primary:focus-visible,
+.ghost:focus-visible,
+.back:focus-visible,
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
+}
+
+/* ── Feedback ───────────────────────────────────────────────────────────── */
+
+/* §28/§45: one line, brief, never a stack. The primary feedback for a finish
+   change is the boat; this exists for the actions that have no visible result
+   of their own — copying a link, resetting an already-default configuration. */
+.toast {
+  position: absolute;
+  inset-block-end: calc(var(--rail-height, 7rem) + 1rem);
+  inset-inline: 0;
+  z-index: calc(var(--z-product-ui) + 3);
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--signal-70);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-1) var(--ease-hull);
+}
+
+.toast[data-on] {
+  opacity: 1;
+}
+
+/* §53, beside the name it qualifies rather than in a footnote elsewhere. One
+   line, mono, faint — a technical annotation in the sense of §39, not a
+   warning banner. It removes itself the day the range is approved. */
+.provisional {
+  font-family: var(--font-tech);
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--signal-45);
+  white-space: nowrap;
+  padding-inline-start: 0.6rem;
+  border-inline-start: 1px solid var(--signal-16);
+}
+
+.srOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Focus mode ─────────────────────────────────────────────────────────── */
+
+/* §20: the vessel, maximised, with the way out still reachable. A CSS state,
+   never the Fullscreen API — a page that takes over the display without being
+   asked is a page people close.
+
+   The rail slides rather than disappearing, so leaving focus mode returns it
+   to exactly where the eye left it. */
+.shell[data-focus] .rail {
+  opacity: 0;
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+.shell[data-focus] .top {
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 14, 15, 0.45) 0%,
+    rgba(10, 14, 15, 0) 100%
+  );
+}
+
+.shell[data-focus] .marque,
+.shell[data-focus] .rule,
+.shell[data-focus] .provisional {
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease-hull);
+}
+
+/* ── The entry curtain ──────────────────────────────────────────────────── */
+
+/* §5: the previous route faded to this colour before navigating, so the first
+   paint here is the same flat ground rather than a flash of a new layout. It
+   lifts on its own and is gone from the tree once the animation ends. */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-product-ui) + 5);
+  background: var(--depth);
+  pointer-events: none;
+  animation: veil-lift var(--dur-3) var(--ease-hull) forwards;
+}
+
+@keyframes veil-lift {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* ── Request panel ──────────────────────────────────────────────────────── */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-product-ui) + 4);
+  display: grid;
+  place-items: end center;
+  padding: var(--pad);
+  background: rgba(6, 9, 10, 0.68);
+  backdrop-filter: blur(6px);
+  animation: fade-in var(--dur-1) var(--ease-hull);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.panel {
+  inline-size: min(100%, 30rem);
+  max-block-size: min(100%, 44rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  background: var(--depth-raised);
+  border: 1px solid var(--signal-16);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: clamp(1.15rem, 1.8vw, 1.5rem);
+  font-weight: 500;
+  letter-spacing: var(--tr-heading);
+}
+
+.panelNote {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 1.55;
+  color: var(--signal-70);
+}
+
+.devNote {
+  margin: 0;
+  font-family: var(--font-tech);
+  font-size: 0.625rem;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--signal-45);
+  border: 1px dashed rgba(241, 240, 235, 0.28);
+  padding: 0.5rem;
+}
+
+/* §30/§33: the configuration, shown, attached, and never re-typed. */
+.summary {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-block: 0.75rem;
+  border-block: 1px solid var(--signal-16);
+}
+
+.summaryRow {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.summaryRow dt {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--signal-45);
+}
+
+.summaryRow dd {
+  margin: 0;
+  font-size: var(--fs-small);
+  text-align: end;
+}
+
+/* The naming qualifier in the enquiry. Quiet prose, not a development notice —
+   this one is customer-facing and has to read as a fact about the range rather
+   than as a warning about the website. */
+.qualifier {
+  margin: 0;
+  margin-block-start: -0.35rem;
+  font-family: var(--font-tech);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--signal-45);
+}
+
+/* The stable token beside an unapproved working name. */
+.token {
+  font-family: var(--font-tech);
+  font-size: 0.6875rem;
+  color: var(--signal-45);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.fieldLabel {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--signal-45);
+}
+
+.fieldLabel em {
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--signal-45);
+  opacity: 0.7;
+}
+
+.input,
+.textarea {
+  min-block-size: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--signal-16);
+  background: rgba(10, 14, 15, 0.6);
+  color: var(--signal);
+  font-family: inherit;
+  font-size: var(--fs-small);
+}
+
+.textarea {
+  resize: vertical;
+  min-block-size: 4.5rem;
+}
+
+.input[aria-invalid],
+.textarea[aria-invalid] {
+  border-color: var(--teak);
+}
+
+.error {
+  font-size: var(--fs-label);
+  color: var(--teak);
+}
+
+.panelActions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-block-start: 0.25rem;
+}
+
+.outcome {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ===========================================================================
+   PORTRAIT PHONE AND TABLET — the rail becomes a tray
+   ---------------------------------------------------------------------------
+   §21: mobile is designed, not scaled. The tray is content-sized and capped;
+   the stage takes everything else. The cap is what makes the stage's claim on
+   the viewport mean something — Phase 2.5 found the tray growing to 570px on a
+   844px phone and leaving the boat an ecommerce thumbnail.
+   =========================================================================== */
+
+@media (max-width: 60rem) {
+  .shell {
+    --pad: 1rem;
+  }
+
+  .rail {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.9rem;
+    /* Measured: at 390×844 this lands the rail at ~250px and the stage at
+       ~594px — 70% of the screen, and comfortably the largest thing on it. */
+    max-block-size: 34dvh;
+    overflow-y: auto;
+    background: linear-gradient(
+      to top,
+      rgba(10, 14, 15, 0.94) 0%,
+      rgba(10, 14, 15, 0.86) 60%,
+      rgba(10, 14, 15, 0) 100%
+    );
+  }
+
+  /* §21: swatches scroll horizontally rather than wrapping to a second row.
+     Six colours wrapping 4 + 2 reads as an accident, and a second row is the
+     first thing that pushes the tray past its cap. `contain` on the inline
+     axis stops a swipe along the swatches from also scrolling the tray —
+     §23's "avoid nested scroll traps". */
+  .swatches {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    padding-block-end: 0.15rem;
+  }
+
+  .swatches::-webkit-scrollbar {
+    display: none;
+  }
+
+  .views {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .views::-webkit-scrollbar {
+    display: none;
+  }
+
+  .actions {
+    margin-inline-start: 0;
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 0.5rem;
+  }
+
+  /* Two rows: the way out and the two secondary actions above, the product
+     name below and undiminished. Everything on one line at 390px would mean
+     shrinking PXL, which is the one thing on the screen that may not shrink. */
+  .top {
+    flex-wrap: wrap;
+    row-gap: 0.35rem;
+  }
+
+  .identity {
+    order: 2;
+    flex-basis: 100%;
+  }
+
+  .rule {
+    display: none;
+  }
+
+  .model {
+    font-size: 1.5rem;
+  }
+
+  /* The tray is measured, so these still sit exactly above it — see
+     `--rail-height`. What changes on a phone is only that the hint is centred
+     with the confirmation rather than tucked into a corner there is no room
+     for. */
+  .hint {
+    inset-inline: 0;
+    text-align: center;
+  }
+
+  /* The marker stays — an unapproved name should be marked on a phone too —
+     but it is allowed to drop to its own line rather than forcing the selected
+     colour's name to truncate. */
+  .groupHead {
+    flex-wrap: wrap;
+    row-gap: 0.15rem;
+  }
+
+  .provisional {
+    padding-inline-start: 0;
+    border-inline-start: none;
+  }
+
+  .scrim {
+    padding: 0;
+  }
+
+  .panel {
+    inline-size: 100%;
+    max-block-size: 92dvh;
+    padding-block-end: max(1.25rem, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ===========================================================================
+   LANDSCAPE PHONE — almost the whole viewport is stage
+   ---------------------------------------------------------------------------
+   §22. A phone on its side is the closest thing the web has to a presentation
+   screen, and the correct response is to get out of the way: the rail becomes
+   a single slim row overlaid on the bottom of the frame, the labels go, and
+   the boat keeps the rest.
+   =========================================================================== */
+
+@media (max-height: 32rem) and (orientation: landscape) {
+  .shell {
+    --pad: 0.65rem;
+  }
+
+  /* One row again. The portrait rule above matches this width too — 844 is
+     under 60rem — and its stacked identity would spend a tenth of a 390px-tall
+     viewport on a line break. */
+  .top {
+    flex-wrap: nowrap;
+  }
+
+  .identity {
+    order: 0;
+    flex-basis: auto;
+  }
+
+  .rail {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.9rem;
+    max-block-size: none;
+    padding-block: 0.5rem;
+    /* Respect the notch on a phone held either way round. */
+    padding-inline: max(var(--pad), env(safe-area-inset-left, 0px))
+      max(var(--pad), env(safe-area-inset-right, 0px));
+  }
+
+  /* WHAT GIVES WAY, AND IN WHAT ORDER.
+     844 × 390 cannot hold six swatches, five view chips and three actions on
+     one row at full size, and the answer is not to shrink everything until it
+     fits. The swatches and the views may compress and scroll — they are ranges,
+     and a range that scrolls is still a range. The primary action may not: a
+     CTA that has slid off the right edge of a phone is a CTA that does not
+     exist. So the snapshot goes, and it is the right thing to lose — §35 calls
+     it secondary, it has a keyboard-free equivalent in the share link, and it
+     is the one control here that produces a file rather than a decision. */
+  .group {
+    flex-shrink: 1;
+    min-inline-size: 0;
+  }
+
+  .snapshot {
+    display: none;
+  }
+
+  .groupHead {
+    display: none;
+  }
+
+  .swatch {
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+  }
+
+  /* Still 44px. A phone on its side is the hardest place to hit a control
+     accurately, and a 60px rail out of a 390px viewport still leaves the
+     vessel 85% of the screen — there is nothing to buy by shrinking them. */
+  .view,
+  .ghost,
+  .primary,
+  .chip {
+    min-block-size: 2.75rem;
+  }
+
+  .model {
+    font-size: 1.25rem;
+  }
+
+  .marque,
+  .rule,
+  .arrival,
+  .hint,
+  .provisional {
+    display: none;
+  }
+}
+
+/* ===========================================================================
+   REDUCED MOTION — §25
+   ---------------------------------------------------------------------------
+   The product does not go away and nothing stops working. What goes is travel:
+   the rail is simply present rather than arriving, the curtain does not lift
+   because there was never one to lift, and the swatch does not grow under the
+   pointer. The finish still changes, because a colour change is information.
+   =========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .rail {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .veil,
+  .scrim {
+    animation: none;
+  }
+
+  .swatch:hover .sample {
+    transform: none;
+  }
+
+  .arrival {
+    display: none;
+  }
+}

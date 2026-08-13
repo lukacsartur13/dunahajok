@@ -1,0 +1,48 @@
+.wake {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  color: var(--fg);
+}
+
+.wake path {
+  fill: none;
+  stroke: currentColor;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+}
+
+.still {
+  stroke-width: 1;
+  opacity: 0.45;
+}
+
+.fan {
+  stroke-width: 1;
+}
+
+.ripple {
+  stroke-width: 0.75;
+}
+
+/* Section divider: a hairline the width of the page. */
+.divider {
+  height: clamp(3.5rem, 7vw, 7rem);
+  opacity: 0.55;
+}
+
+/* Background field for dark sections — reads as texture, not as drawing. */
+.field {
+  height: clamp(9rem, 22vw, 22rem);
+  opacity: 0.22;
+}
+
+/* Used where the wake must not compete: behind type, inside the timeline. */
+.quiet {
+  height: clamp(2.5rem, 5vw, 5rem);
+  opacity: 0.32;
+}
+
+.quiet .fan {
+  stroke-width: 0.75;
+}

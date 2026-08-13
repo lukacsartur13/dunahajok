@@ -1,0 +1,195 @@
+.root {
+  position: relative;
+  background: var(--depth);
+  color: var(--signal);
+  padding-block-start: clamp(3.5rem, 8vw, 7rem);
+  overflow: hidden;
+}
+
+.wake {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  width: var(--shell);
+  margin-inline: auto;
+  display: grid;
+  gap: clamp(2.75rem, 6vw, 5rem);
+}
+
+/* ── Contact, given real weight ─────────────────────────────────────────── */
+
+.leadLabel {
+  color: var(--signal-45);
+  margin-block-end: clamp(1rem, 2vw, 1.5rem);
+}
+
+.address {
+  font-style: normal;
+  display: grid;
+  gap: clamp(0.15rem, 0.5vw, 0.4rem);
+}
+
+.big {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-stretch: 92%;
+  font-size: clamp(1.5rem, 3.6vw, 3.1rem);
+  line-height: 1.08;
+  letter-spacing: var(--tr-heading);
+  width: fit-content;
+  max-width: 100%;
+  position: relative;
+}
+
+.big::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0.08em;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dur-3) var(--ease-hull);
+}
+
+.big:hover::after,
+.big:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.postal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  margin-block-start: clamp(0.75rem, 1.6vw, 1.25rem);
+  color: var(--signal-45);
+  font-size: var(--fs-small);
+}
+
+.postal span:not(:last-child)::after {
+  content: " /";
+  color: var(--signal-16);
+}
+
+/* ── Columns ────────────────────────────────────────────────────────────── */
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: clamp(1.75rem, 3.5vw, 3rem);
+  padding-block-start: clamp(1.75rem, 3.5vw, 3rem);
+  border-block-start: 1px solid var(--signal-16);
+}
+
+.colTitle {
+  color: var(--signal-45);
+  margin-block-end: clamp(0.75rem, 1.4vw, 1.1rem);
+  font-weight: 400;
+}
+
+.col ul {
+  display: grid;
+  gap: 0.3rem;
+  font-size: var(--fs-small);
+}
+
+.col a {
+  color: var(--signal-70);
+  width: fit-content;
+  border-block-end: 1px solid transparent;
+  padding-block-end: 1px;
+  transition:
+    color var(--dur-1) var(--ease-hull),
+    border-color var(--dur-1) var(--ease-hull);
+}
+
+.col a:hover,
+.col a:focus-visible {
+  color: var(--signal);
+  border-block-end-color: var(--signal-16);
+}
+
+.plain {
+  color: var(--signal-45);
+}
+
+.langList {
+  grid-auto-flow: column;
+  justify-content: start;
+  gap: 0.85rem;
+}
+
+/* ── Wordmark ───────────────────────────────────────────────────────────── */
+
+.wordmark {
+  position: relative;
+  z-index: 1;
+  margin-block: clamp(2.5rem, 7vw, 6rem) 0;
+  padding-inline: var(--gutter);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-stretch: 78%;
+  /* Sized to fill the viewport width edge to edge, whatever the viewport. */
+  font-size: clamp(4rem, 25.5vw, 30rem);
+  line-height: 0.76;
+  letter-spacing: -0.03em;
+  text-align: center;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--signal-16);
+  user-select: none;
+}
+
+/* ── Base line ──────────────────────────────────────────────────────────── */
+
+.base {
+  position: relative;
+  z-index: 1;
+  width: var(--shell);
+  margin-inline: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-block: clamp(1.25rem, 2.5vw, 2rem);
+  border-block-start: 1px solid var(--signal-16);
+  color: var(--signal-45);
+}
+
+.legal {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.legal a:hover {
+  color: var(--signal);
+}
+
+.copyright {
+  margin: 0;
+}
+
+@media (min-width: 61.25rem) {
+  .inner {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    align-items: start;
+    gap: clamp(3rem, 7vw, 8rem);
+  }
+
+  .columns {
+    /* Explicit four, not auto-fit: auto-fit dropped Language onto a second
+       row on its own, which reads as a mistake rather than as a layout. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(1rem, 2vw, 2rem);
+    border-block-start: 0;
+    padding-block-start: 0;
+  }
+}

@@ -1,0 +1,209 @@
+@property --split {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 50;
+}
+
+.section {
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  padding-block: var(--section-y) 0;
+}
+
+.head {
+  width: var(--shell);
+  margin-inline: auto;
+  display: grid;
+  gap: clamp(1.25rem, 2.4vw, 2rem);
+  padding-block-end: clamp(2.5rem, 5vw, 4.5rem);
+}
+
+.intro {
+  max-width: 46ch;
+}
+
+/* ── The divided frame ──────────────────────────────────────────────────── */
+
+.frame {
+  --split: 50;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.side {
+  position: relative;
+  width: 100%;
+}
+
+.media {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Plaques ────────────────────────────────────────────────────────────── */
+
+.plaque {
+  position: absolute;
+  inset-block-end: clamp(1.5rem, 4vw, 3.25rem);
+  inset-inline: var(--gutter);
+  z-index: 2;
+  display: grid;
+  gap: clamp(0.4rem, 0.9vw, 0.7rem);
+  justify-items: start;
+  color: var(--signal);
+  max-width: 30ch;
+}
+
+.plaqueKicker {
+  color: var(--signal-70);
+}
+
+.plaqueName {
+  font-size: clamp(2.5rem, 6.4vw, 5.5rem);
+  line-height: 0.94;
+  letter-spacing: var(--tr-display);
+}
+
+.plaqueLine {
+  font-size: var(--fs-body);
+  color: var(--signal-70);
+  max-width: 26ch;
+}
+
+.traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  color: var(--signal-45);
+  margin-block-start: 0.35rem;
+}
+
+.traits li:not(:last-child)::after {
+  content: " /";
+  color: var(--signal-16);
+  margin-inline-start: 0.4rem;
+}
+
+.plaqueAction {
+  margin-block-start: clamp(0.35rem, 1vw, 0.9rem);
+  color: var(--signal);
+}
+
+.hint {
+  width: var(--shell);
+  margin-inline: auto;
+  padding-block: clamp(1rem, 2vw, 1.5rem);
+  color: var(--ink-45);
+  text-align: center;
+}
+
+/* ── Mobile & tablet: two stacked plates ────────────────────────────────── */
+
+@media (max-width: 61.24rem) {
+  .frame {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .side + .side {
+    margin-block-start: 2px; /* a hairline of paper between the two */
+  }
+
+  .sideA {
+    order: -1;
+  }
+
+  /* Tall plates, because the plaque stays *on* the image. Dropping it onto
+     the paper below would put white type on an off-white ground. */
+  .media {
+    aspect-ratio: 3 / 4;
+  }
+
+  .plaque {
+    max-width: none;
+    inset-block-end: clamp(1.25rem, 4vw, 2rem);
+  }
+
+  .plaqueName {
+    font-size: clamp(2.25rem, 11vw, 4rem);
+  }
+}
+
+/* ── Desktop: the raked divide ──────────────────────────────────────────── */
+
+@media (min-width: 61.25rem) {
+  .frame {
+    height: clamp(30rem, 78vh, 52rem);
+  }
+
+  .side {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* Cabin sits on top and is clipped to the left of the divide. The bottom
+     edge of the clip runs further right than the top edge — the hull rake. */
+  .sideA {
+    z-index: 1;
+    clip-path: polygon(
+      0 0,
+      calc(var(--split) * 1% - var(--rake-cut) / 2) 0,
+      calc(var(--split) * 1% + var(--rake-cut) / 2) 100%,
+      0 100%
+    );
+  }
+
+  .rule {
+    position: absolute;
+    inset-block: 0;
+    left: calc(var(--split) * 1%);
+    z-index: 3;
+    width: 1px;
+    background: var(--signal-70);
+    transform: translateX(-0.5px) skewX(calc(var(--rake) * -1));
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+
+  .plaque {
+    max-width: 26ch;
+    inset-inline: auto;
+    /* Each plaque hugs its own outer edge so the divide never crosses it. */
+  }
+
+  .plaque-start {
+    inset-inline-start: var(--gutter);
+  }
+
+  .plaque-end {
+    inset-inline-end: var(--gutter);
+    justify-items: end;
+    text-align: right;
+  }
+
+  .plaque-end .traits {
+    justify-content: flex-end;
+  }
+
+  /* Leading side gains a little presence; the other recedes. Subtle — this is
+     a weighing of two options, not a spotlight. */
+  .lead-cabin .sideB .plaque,
+  .lead-kadet .sideA .plaque {
+    opacity: 0.55;
+    transition: opacity var(--dur-2) var(--ease-hull);
+  }
+
+  .lead-cabin .sideA .plaque,
+  .lead-kadet .sideB .plaque {
+    opacity: 1;
+    transition: opacity var(--dur-2) var(--ease-hull);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rule {
+    display: none;
+  }
+}

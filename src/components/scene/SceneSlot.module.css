@@ -1,0 +1,48 @@
+.slot {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fallback {
+  width: 100%;
+  height: 100%;
+}
+
+/* A slot a scene is driven from by hand. `touch-action: none` is the part that
+   matters on a phone: without it the browser claims the first few pixels of
+   every drag as a scroll gesture and the boat only starts turning once the
+   page has already moved under it. */
+.interactive {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.interactive:active {
+  cursor: grabbing;
+}
+
+/* Set by the renderer once it has claimed a slot. Until then the attribute is
+   absent and the static art direction is simply the design.
+
+   The scene crossfades in over the photograph from its own side (a uniform,
+   not a CSS transition), so these two curves have to be the same length or one
+   of them shows through. `visibility` is delayed rather than transitioned:
+   it is not an animatable property, and setting it immediately would cut the
+   fallback out on the first frame and cancel the fade entirely. */
+.slot[data-scene-active="true"] .fallback {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-3) var(--ease-hull),
+    visibility 0s linear var(--dur-3);
+}
+
+.slot .fallback {
+  transition:
+    opacity var(--dur-3) var(--ease-hull),
+    visibility 0s linear 0s;
+}

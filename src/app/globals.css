@@ -1,0 +1,48 @@
+@import "../styles/tokens.css";
+@import "../styles/base.css";
+
+/* ── Development bench ──────────────────────────────────────────────────────
+   `/dev/pxl` inspects the PXL asset, and it has to do so inside the root
+   layout because that is where the single WebGL canvas lives — the model
+   cannot be rendered anywhere else. What it does not need is the site's own
+   chrome sitting over the viewport it is trying to measure a boat in.
+
+   The class is set by the bench itself on mount and removed on unmount, so
+   this can never affect a real page. */
+html.is-dev-bench body > header,
+html.is-dev-bench body > footer {
+  display: none;
+}
+
+html.is-dev-bench,
+html.is-dev-bench body {
+  overflow: hidden;
+}
+
+/* ── Immersive product mode ─────────────────────────────────────────────────
+   The PXL configurator is a full-viewport product experience, not a page in
+   the document flow: the vessel is the composition and the site's own header
+   and footer would be two more things competing with it for the top and bottom
+   of the screen. It still has to live inside the root layout, because that is
+   where the single WebGL canvas is mounted — the model cannot be rendered
+   anywhere else.
+
+   Set by the configurator on mount and removed on unmount, so it can never
+   affect a page that is part of the site proper. `overflow: hidden` is what
+   makes §72's "no horizontal overflow" structural here rather than a thing to
+   keep checking: nothing in a fixed, inset-0 composition can scroll the
+   document in either axis. */
+html.is-immersive body > header,
+html.is-immersive body > footer {
+  display: none;
+}
+
+html.is-immersive,
+html.is-immersive body {
+  overflow: hidden;
+  /* iOS gives a fixed element the *large* viewport and then puts the browser
+     chrome over it. Anchoring the body to the small viewport is what keeps a
+     bottom control rail above the address bar rather than behind it. */
+  block-size: 100%;
+  overscroll-behavior: none;
+}

@@ -1,0 +1,272 @@
+.section {
+  background: var(--paper);
+  color: var(--ink);
+  padding-block: var(--section-y);
+  overflow: hidden;
+}
+
+.head {
+  width: var(--shell);
+  margin-inline: auto;
+  display: grid;
+  gap: clamp(1.25rem, 2.4vw, 2rem);
+  padding-block-end: clamp(2.5rem, 5vw, 4.5rem);
+}
+
+.viewport {
+  width: 100%;
+}
+
+.track {
+  display: grid;
+  gap: clamp(2.5rem, 6vw, 4rem);
+  padding-inline: var(--gutter);
+}
+
+/* ── Entry ─────────────────────────────────────────────────────────────── */
+
+.entry {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  align-content: start;
+}
+
+.year {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-stretch: 88%;
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.entryTitle {
+  font-size: var(--fs-lead);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.16;
+}
+
+.entryCopy {
+  font-size: var(--fs-small);
+  line-height: 1.55;
+  color: var(--ink-70);
+  max-width: 42ch;
+}
+
+.entryMedia {
+  width: 100%;
+  order: -1;
+}
+
+/* ── The evolving rule ─────────────────────────────────────────────────────
+   wood → pencil → hull → wake. Each milestone renders the segment that leads
+   into it, so the material of the line advances with the story.            */
+
+.rail {
+  position: relative;
+  display: block;
+  height: 1.5rem;
+  order: -2;
+}
+
+.rail::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline: 0;
+  height: 1px;
+  translate: 0 -50%;
+}
+
+.railFirst::before {
+  /* Nothing precedes 1991. The line starts here. */
+  inset-inline-start: 0;
+}
+
+/* Timber: a doubled grain line, warm. */
+.rail-wood::before {
+  height: 3px;
+  background:
+    linear-gradient(var(--teak), var(--teak)) 0 0 / 100% 1px no-repeat,
+    linear-gradient(var(--teak-soft), var(--teak-soft)) 0 100% / 100% 1px no-repeat;
+}
+
+/* Pencil: a drawn, interrupted construction line. */
+.rail-pencil::before {
+  background: repeating-linear-gradient(
+    to right,
+    var(--ink-45) 0 6px,
+    transparent 6px 11px
+  );
+}
+
+/* Hull: a single resolved line, full weight. */
+.rail-hull::before {
+  background: var(--ink);
+}
+
+/* Wake: the line fans and fades. */
+.rail-wake::before {
+  background: linear-gradient(to right, var(--ink) 0%, var(--ink-45) 55%, transparent 100%);
+}
+
+.node {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 0;
+  width: 7px;
+  height: 7px;
+  translate: -50% -50%;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  rotate: 45deg;
+}
+
+/* ── Desktop: horizontal travel ─────────────────────────────────────────────
+   Gated on motion as well as width. The horizontal layout is only navigable
+   because ScrollTrigger pins the section and translates the track; with
+   reduced motion that tween never runs, so this layout would strand every
+   milestone past the fourth off-screen. Reduced motion therefore keeps the
+   vertical list at every width.                                            */
+
+@media (min-width: 61.25rem) and (prefers-reduced-motion: no-preference) {
+  /* Pinned, so the whole section has to fit the viewport exactly — a pinned
+     section taller than the fold silently amputates its own content. Every
+     band below is sized against vh for that reason. */
+  .section {
+    height: 100svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: clamp(5rem, 12vh, 8rem) clamp(1.5rem, 4vh, 3rem);
+  }
+
+  .head {
+    padding-block-end: clamp(1.5rem, 4vh, 3.25rem);
+  }
+
+  .viewport {
+    overflow: visible;
+    min-height: 0;
+  }
+
+  .track {
+    display: flex;
+    gap: 0;
+    padding-inline: var(--gutter) 0;
+    width: max-content;
+    will-change: transform;
+  }
+
+  .entry {
+    flex: none;
+    /* Wide enough that the horizontal travel is worth the pin: five of these
+       overrun any desktop viewport by a meaningful distance. */
+    width: clamp(21rem, 27vw, 28rem);
+    padding-inline-end: clamp(2rem, 4vw, 4rem);
+    grid-template-rows: auto auto auto;
+    align-content: start;
+  }
+
+  .entryMedia {
+    order: 0;
+    /* Fixed height rather than a ratio: the column width is fluid and a ratio
+       would let the plate grow past the fold on wide, short screens. */
+    aspect-ratio: auto;
+    height: clamp(7.5rem, 19vh, 12.5rem);
+  }
+
+  .year {
+    font-size: clamp(2.25rem, 3.6vw, 3.75rem);
+  }
+
+  .entryCopy {
+    font-size: var(--fs-label);
+    line-height: 1.6;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .rail {
+    order: -2;
+    height: 2.25rem;
+    /* Extends across the gutter so consecutive segments join into one line. */
+    margin-inline-end: calc(clamp(2rem, 4vw, 4rem) * -1);
+    padding-inline-end: clamp(2rem, 4vw, 4rem);
+  }
+
+  .entryBody {
+    display: grid;
+    gap: clamp(0.6rem, 1.2vw, 1rem);
+    align-content: start;
+    padding-block-start: clamp(0.75rem, 1.5vw, 1.25rem);
+  }
+}
+
+/* ── Mobile / reduced motion: an ordinary vertical list ─────────────────── */
+
+@media (max-width: 61.24rem), (prefers-reduced-motion: reduce) {
+  .entry {
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+    column-gap: clamp(1rem, 4vw, 1.5rem);
+    row-gap: clamp(0.75rem, 2vw, 1rem);
+    padding-block-end: clamp(1.5rem, 4vw, 2.5rem);
+  }
+
+  .rail {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    order: 0;
+    width: 1.5rem;
+    height: auto;
+    align-self: stretch;
+  }
+
+  .rail::before {
+    inset-block: 0.4rem 0;
+    inset-inline: 50% auto;
+    width: 1px;
+    height: auto;
+    translate: -50% 0;
+  }
+
+  .rail-wood::before {
+    width: 3px;
+    background:
+      linear-gradient(var(--teak), var(--teak)) 0 0 / 1px 100% no-repeat,
+      linear-gradient(var(--teak-soft), var(--teak-soft)) 100% 0 / 1px 100% no-repeat;
+  }
+
+  .rail-pencil::before {
+    background: repeating-linear-gradient(to bottom, var(--ink-45) 0 6px, transparent 6px 11px);
+  }
+
+  .rail-wake::before {
+    background: linear-gradient(to bottom, var(--ink) 0%, var(--ink-45) 55%, transparent 100%);
+  }
+
+  .node {
+    inset-block-start: 0.4rem;
+    inset-inline-start: 50%;
+  }
+
+  .entryBody,
+  .entryMedia {
+    grid-column: 2;
+  }
+
+  .entryBody {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .entryMedia {
+    order: 1;
+    margin-block-start: clamp(0.5rem, 2vw, 1rem);
+    /* A reduced-motion visitor gets this list at full desktop width too, where
+       an uncapped plate would be absurdly large. */
+    max-width: 34rem;
+  }
+}

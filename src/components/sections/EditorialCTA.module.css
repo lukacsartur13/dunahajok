@@ -1,0 +1,79 @@
+.section {
+  position: relative;
+  display: grid;
+  align-items: end;
+  min-height: min(100svh, 52rem);
+  background: var(--depth);
+  color: var(--signal);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.slot,
+.plate {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.plate :global(img) {
+  height: 100%;
+}
+
+/* The closing frame is graded down and desaturated so the question is the
+   subject and the river is the setting. A scrim alone can't do this — the
+   white hull sits right behind the second line. */
+.plate :global(img) {
+  filter: saturate(0.66) brightness(0.74) contrast(1.04);
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  width: var(--shell);
+  margin-inline: auto;
+  display: grid;
+  gap: clamp(1.25rem, 2.6vw, 2.25rem);
+  justify-items: start;
+  padding-block: clamp(6rem, 16vh, 11rem) clamp(3rem, 8vh, 6rem);
+}
+
+.label {
+  color: var(--signal-70);
+}
+
+.headline {
+  font-stretch: 84%;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.4);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(1rem, 2.5vw, 2.5rem);
+  margin-block-start: clamp(0.5rem, 1.5vw, 1.25rem);
+}
+
+.wake {
+  position: absolute;
+  z-index: 1;
+  inset-inline: 0;
+  /* Deliberately overhangs the bottom edge — the footer picks the line up. */
+  inset-block-end: -3rem;
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+@media (max-width: 47.99rem) {
+  .section {
+    min-height: min(88svh, 40rem);
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+    width: 100%;
+  }
+}

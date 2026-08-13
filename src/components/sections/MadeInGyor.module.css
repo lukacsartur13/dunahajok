@@ -1,0 +1,93 @@
+.section {
+  background: var(--paper);
+  color: var(--ink);
+  padding-block: var(--section-y);
+}
+
+.head {
+  width: var(--shell);
+  margin-inline: auto;
+  display: grid;
+  gap: clamp(1.25rem, 2.4vw, 2rem);
+  padding-block-end: clamp(2.5rem, 5vw, 4.5rem);
+}
+
+.grid {
+  width: var(--shell);
+  margin-inline: auto;
+  display: grid;
+  gap: clamp(2rem, 4.5vw, 4rem) clamp(1.25rem, 3vw, 3rem);
+}
+
+.caption {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-block-start: clamp(0.6rem, 1.2vw, 1rem);
+  color: var(--ink-45);
+}
+
+.captionIndex {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.captionRule {
+  display: block;
+  width: 1.25rem;
+  height: 1px;
+  background: var(--ink-16);
+  flex: none;
+}
+
+.copy {
+  display: grid;
+  gap: clamp(0.85rem, 1.6vw, 1.25rem);
+  justify-items: start;
+  max-width: 46ch;
+  align-content: center;
+}
+
+/* ── Desktop: an asymmetric sheet ──────────────────────────────────────── */
+
+@media (min-width: 61.25rem) {
+  .grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .area-a {
+    grid-column: 1 / span 7;
+  }
+
+  .area-b {
+    grid-column: 9 / span 4;
+    margin-block-start: clamp(3rem, 8vw, 8rem);
+  }
+
+  .copy {
+    grid-column: 1 / span 5;
+    margin-block-start: clamp(1rem, 3vw, 3rem);
+  }
+
+  .area-c {
+    grid-column: 7 / span 6;
+    margin-block-start: clamp(-6rem, -8vw, -3rem);
+  }
+
+  .area-d {
+    grid-column: 2 / span 5;
+    margin-block-start: clamp(1rem, 3vw, 3rem);
+  }
+}
+
+@media (min-width: 48rem) and (max-width: 61.24rem) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .copy {
+    grid-column: 1 / -1;
+  }
+}
