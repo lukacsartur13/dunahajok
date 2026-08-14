@@ -130,6 +130,60 @@ function gearcaseProfile(length: number, depth: number): Shape {
 }
 
 /**
+ * The midsection silhouette — PHASE 4.6 §6.
+ *
+ * §6 rules out leaving the lower half as "an abstract rectangular extrusion",
+ * and with the leg now three times longer than it was a constant-section strut
+ * is exactly what it would read as. A real midsection is an exhaust housing: it
+ * is at its widest immediately under the powerhead, where the exhaust and the
+ * water tube leave the block, and it necks down toward the gearcase. It also
+ * rakes aft, because the propeller shaft is behind the mounting face.
+ *
+ * Authored bottom-up with the shape's own +Y as down-the-leg, so `length` is the
+ * vertical run and the profile is the side view.
+ */
+function midsectionProfile(length: number, topChord: number, bottomChord: number,
+                           rake: number): Shape {
+  const h = length / 2;
+  const t = topChord / 2;
+  const b = bottomChord / 2;
+  const shape = new Shape();
+  // Forward edge: nearly straight, leaning aft by `rake` over the run.
+  shape.moveTo(t, h);
+  shape.quadraticCurveTo(t * 0.72, h * 0.1, b - rake, -h);
+  // Foot, where the gearcase picks it up.
+  shape.lineTo(-b - rake, -h);
+  /* Aft edge, and the characterful one: it stands proud under the powerhead
+     where the exhaust housing is, then falls away in a long hollow. A straight
+     aft edge is what makes a leg read as a plank. */
+  shape.quadraticCurveTo(-t * 1.06, h * 0.05, -t, h);
+  shape.closePath();
+  return shape;
+}
+
+/**
+ * The skeg — PHASE 4.6 §6, §42.
+ *
+ * The fin under the gearcase, and on this drive the lowest point of the whole
+ * boat. Drawn as a wedge that is deepest at its forward end and sweeps up to
+ * meet the gearcase again just ahead of the propeller, which is the shape that
+ * reads as a skeg rather than as a spike. `drop` is the depth below the
+ * gearcase's own underside; both are in the shape's own frame with +Y up.
+ */
+function skegProfile(length: number, drop: number): Shape {
+  const l = length / 2;
+  const shape = new Shape();
+  shape.moveTo(l, 0);
+  // Leading edge, raked aft as it goes down — the same line a keel takes.
+  shape.quadraticCurveTo(l * 0.55, -drop * 0.62, l * 0.05, -drop);
+  shape.lineTo(-l * 0.34, -drop * 0.94);
+  // Trailing edge, sweeping back up to the bullet just ahead of the wheel.
+  shape.quadraticCurveTo(-l * 0.82, -drop * 0.44, -l, 0);
+  shape.closePath();
+  return shape;
+}
+
+/**
  * Extrude a profile across the beam and orient it in the model's frame.
  *
  * `ExtrudeGeometry` builds along +Z with the shape in XY, which is exactly the
@@ -211,21 +265,42 @@ function driveMaterial(spec: PxlFinish): MeshPhysicalMaterial {
 const MOUNT = PXL_MOUNTS.transom;
 
 /**
- * How far the anti-ventilation plate sits below the transom top.
+ * THE MOUNTING CHAIN, PHASE 4.4 §15 AND §16.
  *
- * §A16, and the reason `shaft` is authored per drive rather than derived. A
- * plate has to end up at roughly the same depth relative to the hull whatever
- * engine it belongs to — that is hydrodynamics, not size — so a large drive
- * gets a longer leg to put its bigger gearcase at the right depth rather than a
- * proportionally longer one that would put it on the riverbed.
+ * Three heights, each derived from the one above it, so there is exactly one
+ * place a drive's vertical position is decided:
  *
- * The measured targets: the plate lands between 0.03 m above and 0.13 m below
- * the waterline across the four drives, and every propeller sits fully
- * submerged and clear of the keel line at y = −0.2206. The configurator tests
- * assert both, so re-tuning a `shaft` value cannot silently beach a drive.
+ *     cowlTop      MOUNT.y + spec.mountRise      measured off the reference
+ *     cowlBottom   cowlTop − spec.cowl.height    the engine's own size
+ *     plateY       cowlBottom − spec.shaft       the engine's own leg
+ *
+ * WHAT THIS REPLACES. Until 4.4 the chain started at the cowling's UNDERSIDE —
+ * `cowl.position.y = MOUNT.y + height/2`, so every powerhead stood on top of
+ * the transom and a standard drive reached y 1.128 against a sheer of 0.703.
+ * The plate then hung from the transom independently, which meant the two ends
+ * of the same engine were positioned by two unrelated numbers.
+ *
+ * §16 — MOUNTING MUST STAY PLAUSIBLE, and lowering the cowling alone would have
+ * broken that: the clamp would have stayed at the transom top with the engine
+ * hanging in space beside it. So `buildDrive` now builds the clamp AROUND the
+ * cowling's top rather than under its bottom — see the bracket comment there.
+ *
+ * The plate targets are unchanged in spirit and re-tuned per drive: it lands
+ * between 0.02 m above and 0.12 m below the waterline across the four, and
+ * every propeller sits fully submerged and clear of the keel line at
+ * y = −0.2206. The configurator tests assert both, so re-tuning a `shaft` or a
+ * `mountRise` cannot silently beach a drive or bury one in the platform.
  */
+function cowlTop(spec: PxlDriveSpec): number {
+  return MOUNT.y + spec.mountRise;
+}
+
+function cowlBottom(spec: PxlDriveSpec): number {
+  return cowlTop(spec) - spec.cowl.height;
+}
+
 function plateHeight(spec: PxlDriveSpec): number {
-  return MOUNT.y - spec.shaft;
+  return cowlBottom(spec) - spec.shaft;
 }
 
 /** A propeller: hub plus three blades, turning about the fore-aft axis. */
@@ -288,27 +363,43 @@ export function buildDrive(variant: PxlDriveVariant): DriveHandle {
 
   const plateY = plateHeight(spec);
 
+  const top = cowlTop(spec);
+  const bottom = cowlBottom(spec);
+
   /* ── Bracket ────────────────────────────────────────────────────────────
      The clamp, flush to the transom and standing proud of it by `bracket`.
      Its forward face is the transom plane exactly, so the drive touches the
      boat and never enters it — §A16's first clearance, satisfied by
-     construction rather than by inspection.                                */
+     construction rather than by inspection.
+
+     PHASE 4.4 §16 — IT NOW SPANS THE COWLING'S TOP RATHER THAN ITS BOTTOM.
+     The clamp is the one part whose height is fixed by the BOAT: it hangs over
+     the top of the transom at `MOUNT.y`, and it does that whatever engine is
+     bolted to it. Once §15 dropped the powerhead to the capping line, a clamp
+     positioned relative to `cowl.height` left the engine hanging in free air
+     beside it. So the block is authored between the transom top and the
+     cowling's own upper third, which is where a swivel bracket actually grips,
+     and the two are guaranteed to overlap because `mountRise` is small and
+     positive on every drive.                                                */
+  const clampTop = Math.max(MOUNT.y, top) + 0.012;
+  const clampBottom = Math.min(MOUNT.y, top) - spec.cowl.height * 0.34;
   const bracket = new Mesh(
     extrude(
-      roundedRect(spec.bracket, spec.cowl.height * 0.52, spec.bracket * 0.34),
+      roundedRect(spec.bracket, clampTop - clampBottom, spec.bracket * 0.34),
       spec.leg.width * 1.45,
       spec.bracket * 0.12,
     ),
     alloyMaterial,
   );
-  bracket.position.set(-spec.bracket / 2, MOUNT.y - spec.cowl.height * 0.12, 0);
+  bracket.position.set(-spec.bracket / 2, (clampTop + clampBottom) / 2, 0);
   group.add(bracket);
 
   /* ── Cowling ────────────────────────────────────────────────────────────
      The visible mass, and the part the eye actually measures a drive by. Its
-     underside sits on the transom top so that the whole range shares one datum
-     — a drive whose cowling floated would read as a mounting error long before
-     it read as a size.                                                      */
+     TOP is the datum — see `cowlTop` — so the whole range shares the one
+     relationship the reference actually fixes, and the four drives differ
+     downward from it by their own heights rather than upward from a common
+     floor.                                                                  */
   const cowl = new Mesh(
     extrude(
       roundedRect(
@@ -321,26 +412,50 @@ export function buildDrive(variant: PxlDriveVariant): DriveHandle {
     ),
     cowlMaterial,
   );
-  cowl.position.set(-spec.bracket - spec.cowl.length / 2, MOUNT.y + spec.cowl.height / 2, 0);
+  cowl.position.set(-spec.bracket - spec.cowl.length / 2, (top + bottom) / 2, 0);
   group.add(cowl);
 
+  const legX = -spec.bracket - spec.cowl.length * 0.5;
+
+  /* ── Apron ──────────────────────────────────────────────────────────────
+     PHASE 4.6 §6. The collar between the powerhead and the midsection — on a
+     real engine the lower cowling and its seal. It is 40 mm of moulding and it
+     does one job: it stops the leg from appearing to grow out of the middle of
+     the cowling's underside, which is what a bare strut against a large flat
+     face looks like from three metres away.                                 */
+  const apronHeight = spec.cowl.height * 0.10;
+  const apron = new Mesh(
+    extrude(
+      roundedRect(spec.cowl.length * 0.72, apronHeight, apronHeight * 0.42),
+      spec.cowl.width * 0.80,
+      apronHeight * 0.18,
+    ),
+    cowlMaterial,
+  );
+  apron.position.set(legX - spec.cowl.length * 0.02, bottom - apronHeight * 0.34, 0);
+  group.add(apron);
+
   /* ── Midsection ─────────────────────────────────────────────────────────
-     The leg. A narrow rounded strut, and the one part that is genuinely just a
-     shape — everything characterful about an outboard is above it or below it. */
-  const shaftLength = MOUNT.y + spec.cowl.height * 0.06 - plateY;
+     THE PART PHASE 4.6 §2 IS ABOUT. It used to be 0.21 m of rounded rectangle;
+     it is now 0.59–0.79 m depending on the drive, and at that length it cannot
+     be a constant section — see `midsectionProfile`. It runs from just inside
+     the apron down to the plate, so no seam can open between the two.       */
+  const shaftLength = bottom + spec.cowl.height * 0.06 - plateY;
+  /* The midsection's chord, top and bottom. Measured off the reference rather
+     than chosen: on the stern three-quarter the leg under the powerhead is
+     about two fifths of the gearcase's own length and necks to a quarter of it
+     at the foot. The first pass used 0.52 and 0.33 and drew a plank. */
+  const legTop = spec.leg.caseLength * 0.40;
+  const legFoot = spec.leg.caseLength * 0.25;
   const leg = new Mesh(
     extrude(
-      roundedRect(spec.leg.caseLength * 0.5, shaftLength, spec.leg.width * 0.42),
+      midsectionProfile(shaftLength, legTop, legFoot, spec.leg.caseLength * 0.06),
       spec.leg.width,
       spec.leg.width * 0.16,
     ),
     alloyMaterial,
   );
-  leg.position.set(
-    -spec.bracket - spec.cowl.length * 0.5,
-    plateY + shaftLength / 2,
-    0,
-  );
+  leg.position.set(legX, plateY + shaftLength / 2, 0);
   group.add(leg);
 
   /* ── Anti-ventilation plate ─────────────────────────────────────────────
@@ -355,10 +470,24 @@ export function buildDrive(variant: PxlDriveVariant): DriveHandle {
     ),
     alloyMaterial,
   );
-  plate.position.set(-spec.bracket - spec.cowl.length * 0.5, plateY, 0);
+  plate.position.set(legX, plateY, 0);
   group.add(plate);
 
-  /* ── Gearcase and propeller ─────────────────────────────────────────────*/
+  /* A trim tab under the plate's trailing edge. Small, and the detail that
+     makes the anti-ventilation region read as a region rather than as one fin:
+     the reference shows two horizontal elements there, not one.             */
+  const tab = new Mesh(
+    extrude(
+      roundedRect(spec.plate.length * 0.26, 0.012, 0.004),
+      spec.leg.width * 0.5,
+      0.003,
+    ),
+    alloyMaterial,
+  );
+  tab.position.set(legX - spec.plate.length * 0.30, plateY - 0.026, 0);
+  group.add(tab);
+
+  /* ── Lower unit: gearcase, skeg, propeller ──────────────────────────────*/
   const gearcase = new Mesh(
     extrude(
       gearcaseProfile(spec.leg.caseLength, spec.leg.caseDepth),
@@ -368,19 +497,40 @@ export function buildDrive(variant: PxlDriveVariant): DriveHandle {
     alloyMaterial,
   );
   const gearcaseY = plateY - spec.leg.caseDepth / 2;
-  gearcase.position.set(
-    -spec.bracket - spec.cowl.length * 0.5 + spec.leg.caseLength * 0.06,
-    gearcaseY,
-    0,
-  );
+  const gearX = legX + spec.leg.caseLength * 0.06;
+  gearcase.position.set(gearX, gearcaseY, 0);
   group.add(gearcase);
 
+  /* The skeg, sized to land exactly on `lowerDrop` below the plate — which is
+     the reference's row-1401 reading and the number §42 is judged on. It is
+     built from the gearcase's underside down, so growing the gearcase does not
+     silently push the lowest point past the target. */
+  const gearcaseBottom = plateY - spec.leg.caseDepth;
+  /* HOW FAR THE SKEG HANGS BELOW THE GEARCASE, which is the drop below the
+     PLATE less the gearcase's own depth.
+     Written the other way round first — `plateY - lowerDrop - gearcaseBottom` —
+     which is the same two numbers subtracted in the wrong order and comes out
+     negative on every drive. The guard below then skipped the skeg silently on
+     all four, and the model shipped with the propeller as its lowest point at
+     y −0.724 instead of the skeg at −0.852. `npm run vessel` caught it: it
+     measures the built bounding box rather than the arithmetic, which is the
+     entire reason it measures the built bounding box. */
+  const skegDrop = spec.lowerDrop - spec.leg.caseDepth;
+  if (skegDrop > 0.004) {
+    const skeg = new Mesh(
+      extrude(
+        skegProfile(spec.leg.caseLength * 0.66, skegDrop),
+        spec.leg.width * 0.52,
+        spec.leg.width * 0.07,
+      ),
+      alloyMaterial,
+    );
+    skeg.position.set(gearX - spec.leg.caseLength * 0.08, gearcaseBottom, 0);
+    group.add(skeg);
+  }
+
   const propeller = buildPropeller(spec, alloyMaterial);
-  propeller.position.set(
-    -spec.bracket - spec.cowl.length * 0.5 - spec.leg.caseLength * 0.52,
-    gearcaseY,
-    0,
-  );
+  propeller.position.set(legX - spec.leg.caseLength * 0.52, gearcaseY, 0);
   group.add(propeller);
 
   for (const child of group.children) {
@@ -414,8 +564,14 @@ export function buildDrive(variant: PxlDriveVariant): DriveHandle {
     variant,
     group,
     materials: [cowlMaterial, alloyMaterial],
-    /** The lowest point the drive reaches. Asserted against the keel in tests. */
-    depth: gearcaseY - spec.propeller / 2,
+    /**
+     * The lowest point the drive reaches. Asserted against the keel in tests.
+     *
+     * PHASE 4.6 — the skeg, not the propeller. Taking the minimum rather than
+     * assuming which is deeper is what keeps this honest if a later spec grows
+     * a wheel past its own fin.
+     */
+    depth: Math.min(plateY - spec.lowerDrop, gearcaseY - spec.propeller / 2),
     plateY,
   };
 }

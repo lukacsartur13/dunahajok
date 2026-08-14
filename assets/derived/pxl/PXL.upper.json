@@ -1,0 +1,119 @@
+{
+  "plate": {
+    "file": "assets/source/pxl/pxl-side-20240719.jpg",
+    "width": 3034,
+    "height": 1994
+  },
+  "calibration": {
+    "pxPerMetre": 345.1,
+    "transomPx": 699,
+    "sheerPx": 796
+  },
+  "console": {
+    "x0": -0.503,
+    "x1": -0.222,
+    "aftZ": 1.009,
+    "fwdZ": 1.091,
+    "medianZ": 1.059,
+    "deckZ": 0.947,
+    "aboveDeck": 0.112,
+    "n": 87
+  },
+  "helmEnvelope": {
+    "x0": -0.503,
+    "x1": -0.152,
+    "length": 0.351,
+    "apexZ": 1.285,
+    "apexX": -0.45,
+    "aboveDeck": 0.349,
+    "aftZ": 1.009,
+    "fwdZ": 1.059,
+    "deckZ": 0.935,
+    "cols": [
+      1432,
+      1553
+    ]
+  },
+  "screen": {
+    "x0": -0.503,
+    "x1": -0.152,
+    "length": 0.351,
+    "apexZ": 1.377,
+    "apexX": -0.25,
+    "aboveDeck": 0.419,
+    "aftZ": 1.143,
+    "fwdZ": 1.059,
+    "deckZ": 0.958,
+    "cols": [
+      1432,
+      1553
+    ]
+  },
+  "wheel": {
+    "x0": -0.642,
+    "x1": -0.604,
+    "length": 0.038,
+    "apexZ": 1.091,
+    "apexX": -0.61,
+    "aboveDeck": 0.165,
+    "aftZ": 1.021,
+    "fwdZ": 1.088,
+    "deckZ": 0.926,
+    "cols": [
+      1384,
+      1397
+    ]
+  },
+  "accents": [
+    {
+      "x0": -2.056,
+      "x1": -0.256,
+      "length": 1.799,
+      "topZ": 0.96,
+      "bottomZ": 0.81,
+      "thickness": 0.151,
+      "aboveDeck": 0.036,
+      "n": 627,
+      "cols": [
+        896,
+        1517
+      ]
+    },
+    {
+      "x0": -1.41,
+      "x1": -1.32,
+      "length": 0.09,
+      "topZ": 1.024,
+      "bottomZ": 0.888,
+      "thickness": 0.136,
+      "aboveDeck": 0.178,
+      "n": 32,
+      "cols": [
+        1119,
+        1150
+      ]
+    },
+    {
+      "x0": 2.215,
+      "x1": 2.555,
+      "length": 0.339,
+      "topZ": 0.998,
+      "bottomZ": 0.937,
+      "thickness": 0.061,
+      "aboveDeck": 0.059,
+      "n": 122,
+      "cols": [
+        2370,
+        2487
+      ]
+    }
+  ],
+  "figure": {
+    "headZ": 1.488,
+    "lowestVisibleZ": 0.67,
+    "x0": -1.754,
+    "x1": -0.306,
+    "heightVisible": 0.817,
+    "pixels": 17905
+  }
+}

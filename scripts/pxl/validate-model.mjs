@@ -48,8 +48,45 @@ const HULL_ZONES = new Set(["hull_primary", "hull_lower", "hull_accent", "transo
 const REQUIRED_NODES = [
   "PXL_ROOT",
   "hull_primary", "hull_lower", "hull_accent", "transom_black",
-  "deck_main", "console_body", "helm_wheel", "rails", "motor",
+  /* Phase 4.2 split `deck_main` — one mesh carrying the liner, the sole and
+     eighty-four stray slivers — into the surfaces the references show; Phase
+     4.3 renamed two of them for what they physically are and replaced the
+     third with real cushions. `upholstery_primary` is the only zone the cockpit
+     colour is allowed to reach, so it is the one whose absence would silently
+     un-fix §15. */
+  "interior_hard_liner", "cockpit_sole", "upholstery_primary",
+  "coaming_inlay", "bow_fitting",
+  /* The helm, rebuilt in Phase 4.3. `windshield` is the load-bearing one: it
+     is the surface the PXL plexi mark is projected onto at load, so losing it
+     costs a mark as well as a screen. */
+  "console_body", "console_detail", "windshield", "helm_wheel",
+  "rails", "motor",
+  /* PHASE 4.4. The capping §4 asked for, and the platform §20 asked for. All
+     three are addressed by name at runtime — the capping takes the exterior
+     channel, the platform's two are switched by `zoneVisible` — so losing one
+     silently would be a control that does nothing. */
+  "gunwale_capping", "platform_frame", "platform_deck",
 ];
+
+/**
+ * PHASE 4.4 §29 — WHAT THE PLATFORM IS DECLARED TO OCCUPY, mirrored from
+ * `src/webgl/scenes/pxl/pxlModel.ts` and checked against what was actually
+ * built.
+ *
+ * The clearance arithmetic that keeps four drives out of the teak lives on the
+ * TypeScript side, and the geometry lives in Blender. This is the seam between
+ * them, and a seam nobody checks is a seam that opens: widen the motor well in
+ * `pxl_upper.SPEC` and the configurator tests keep passing against the old
+ * number until somebody notices a propeller through a plank.
+ *
+ * Restated rather than imported because this script is plain node and the
+ * constant is TypeScript. `npm run qa` runs both, so the two ends are checked
+ * in the same command; the tolerance is 10 mm, which is wider than the bevel
+ * `bevel_object` adds and far tighter than any change worth making.
+ */
+const PLATFORM = { topY: 0.179, bottomY: 0.073, aft: 0.504, wellForward: 0.280, wellAft: 0.470 };
+const PLATFORM_TOLERANCE = 0.010;
+const TRANSOM_X = -2.6266;
 
 const failures = [];
 const warnings = [];
@@ -71,6 +108,7 @@ const gltf = await new Promise((resolve, reject) => {
 /* ── Walk ──────────────────────────────────────────────────────────────────*/
 
 const meshes = [];
+const meshBoxes = new Map();
 const materials = new Map();
 const textures = new Set();
 const names = new Set();
@@ -125,6 +163,7 @@ gltf.scene.traverse((node) => {
   }
 
   geometry.computeBoundingBox();
+  meshBoxes.set(node.name, new THREE.Box3().setFromObject(node));
   const size = geometry.boundingBox.getSize(new THREE.Vector3());
   meshes.push({
     name: node.name,
@@ -163,6 +202,62 @@ check(
   `beam along Z is ${hull.size.z.toFixed(3)} m, expected ~${EXPECT.beam} m`,
 );
 check(size.y < size.x, "the model is taller than it is long — check the up axis");
+
+/* ── §29 · the platform occupies what the clearance calculation thinks ─────*/
+{
+  const frame = meshBoxes.get("platform_frame");
+  const teak = meshBoxes.get("platform_deck");
+  if (frame && teak) {
+    // glTF is Y-up with the beam on Z; the declared numbers are in the model's
+    // own frame, where Z is up and Y is the beam. Swap on the way in.
+    const near = (got, want, what) =>
+      check(
+        Math.abs(got - want) <= PLATFORM_TOLERANCE,
+        `platform ${what} is ${got.toFixed(3)} m, declared ${want} m in pxlModel.PXL_PLATFORM`,
+      );
+    near(teak.max.y, PLATFORM.topY, "tread top");
+    near(frame.min.y, PLATFORM.bottomY, "frame underside");
+    near(TRANSOM_X - frame.min.x, PLATFORM.aft, "aft projection");
+
+    /* The well is the gap between the two bearers, and it is TAPERED — so it
+       is measured at the aft edge, where it is widest and where the clearance
+       calculation's worst case lives. Taking the tread's inner edge within
+       50 mm of that station: a well cut wider than declared would pass a
+       clearance test it should have failed.
+
+       The forward end cannot be measured the same way, because the tread runs
+       continuously across the cross-member there — which is the point of the
+       cross-member, and is why `wellForward` is checked against the BEARERS
+       instead. */
+    const aftEdge = TRANSOM_X - PLATFORM.aft;
+    let innerAft = Infinity;
+    let innerFwd = Infinity;
+    gltf.scene.traverse((node) => {
+      if (!node.isMesh) return;
+      const wantsAft = node.name === "platform_deck";
+      const wantsFwd = node.name === "platform_frame";
+      if (!wantsAft && !wantsFwd) return;
+      const position = node.geometry.getAttribute("position");
+      const v = new THREE.Vector3();
+      for (let i = 0; i < position.count; i += 1) {
+        v.fromBufferAttribute(position, i).applyMatrix4(node.matrixWorld);
+        if (wantsAft && Math.abs(v.x - aftEdge) < 0.05) {
+          innerAft = Math.min(innerAft, Math.abs(v.z));
+        }
+        // The bearers' inboard face at the transom, abaft the cross-member.
+        if (wantsFwd && v.x < TRANSOM_X - 0.14 && v.x > TRANSOM_X - 0.20) {
+          innerFwd = Math.min(innerFwd, Math.abs(v.z));
+        }
+      }
+    });
+    if (Number.isFinite(innerAft)) near(innerAft, PLATFORM.wellAft, "motor well, aft");
+    if (Number.isFinite(innerFwd)) {
+      const t = 0.17 / PLATFORM.aft;
+      const want = PLATFORM.wellForward + (PLATFORM.wellAft - PLATFORM.wellForward) * t;
+      near(innerFwd, want, "motor well, forward taper");
+    }
+  }
+}
 check(gltf.animations.length === 0, `${gltf.animations.length} animation(s) — none expected`);
 if (Math.abs(hull.centre.x) > 0.20) {
   warnings.push(`hull origin is ${hull.centre.x.toFixed(2)} m off the longitudinal centre`);

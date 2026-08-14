@@ -106,9 +106,21 @@ for (const variant of ["compact", "standard", "large", "electric"]) {
     `${variant}: nothing reaches forward of the transom (max x ${b.max.x.toFixed(3)})`,
   );
   ok(b.min.y < 0, `${variant}: the drive reaches the water`);
+  /* PHASE 4.6 §2, §3, §42 — THE BOUND IS INVERTED FROM PHASE 4.4's.
+     It used to be `> keel − 0.2`: a lower unit that stopped just below the
+     bottom of the boat, which is the geometry §42 now fails by name. The
+     delivered stern three-quarter puts the skeg 0.684 transom-depths below the
+     keel — 0.63 m — so the drive is required to reach well past the hull and
+     bounded only against the absurd. See `PXL_STERN_REFERENCE.hullNormalised`. */
   ok(
-    b.min.y > HULL.keel - 0.2,
-    `${variant}: and does not hang absurdly below the keel (${b.min.y.toFixed(3)})`,
+    b.min.y < HULL.keel - 0.30,
+    `${variant}: the lower unit extends well below the hull ` +
+      `(${(HULL.keel - b.min.y).toFixed(3)} m under the keel, want > 0.30)`,
+  );
+  ok(
+    b.min.y > HULL.keel - 0.85,
+    `${variant}: and not past the reference's own 0.63 m by more than a third ` +
+      `(${b.min.y.toFixed(3)})`,
   );
   ok(
     Math.abs(b.max.z + b.min.z) < 1e-3,

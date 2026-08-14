@@ -39,14 +39,23 @@ finds.
 | 02 | `hull_detail` | Lower hull | `lower` | 2 | `side` |
 | 03 | `interior` | Cockpit · Console · Surface | `interior` `console` `surface` | 5 · 3 · 2 | `interior` |
 | 04 | `propulsion` | Drive | `propulsion` | 4 | `stern_3q` |
+| 05 | `equipment` | Boarding platform | `platform` | 2 | `stern_3q` |
 
 The middle level exists because INTERIOR is genuinely more than one decision.
 Flattening it would force either three categories for one part of the boat or a
 category that secretly renders three different things.
 
 **The index a category shows is its position among the categories that exist.**
-Four exist, so they read 01–04. There is no arrangement of the data that
-produces "01 / 05".
+Five exist as of Phase 4.4, so they read 01–05. There is no arrangement of the
+data that produces a number for a category that is not there.
+
+**EQUIPMENT arrived under the rule that had excluded it.** Phase Four deferred
+it with a checkable reason — no configurable equipment geometry existed on the
+boat — and Phase 4.4 built some: the aft boarding platform, measured off the
+August views sheet and switched by a real geometry toggle. The standard did not
+move; the asset did. §25 of that brief is explicit that one genuine option is
+enough and that inventing a second to pad the tab is not allowed, so the
+category has exactly one control and `npm test` asserts it.
 
 ### Deferred categories
 
@@ -57,8 +66,12 @@ before somebody picks a different one.
 
 | Category | Param | Why not |
 |---|---|---|
-| `equipment` | `equipment` | no equipment range supplied; the only optional mesh is an undocumented flush cockpit cover, and one undocumented cover is not a category |
 | `accessories` | `accessories` | no accessory range supplied |
+
+`equipment` left this table in Phase 4.4. Its reserved parameter is still
+reserved and still unused — the platform control claims `platform` — so links
+written before the change sanitise exactly as they did. The flush cockpit cover
+is still undocumented and is still not offered.
 
 ---
 
@@ -97,7 +110,7 @@ decision in front of a reviewer.
 |---|---|---|
 | EXTERIOR | material colour on `EXTERIOR_HULL`, travelling behind the Duna Line sweep | unchanged |
 | HULL DETAIL | material colour on `HULL_BOTTOM`, resolved from the treatment, same sweep | **unchanged — nothing is hidden** |
-| INTERIOR | material colour + sheen + grain amplitude on `INTERIOR_LINER` and `CONSOLE` | unchanged |
+| INTERIOR | material colour + sheen + grain amplitude on **`UPHOLSTERY`** and `CONSOLE` | unchanged |
 | PROPULSION | a proxy drive built at runtime, crossfaded | **changes** — see PXL_CONFIGURATOR_MODEL_MAP §7 |
 
 **HULL DETAIL is a treatment, not a colour.** `PxlConfiguration.exterior` holds
@@ -138,11 +151,19 @@ The configuration object (`PxlConfiguration`) is deliberately dull: plain data,
 }
 ```
 
-Six of these fields are customer-configurable — `hullPrimary`,
-`lowerTreatment`, `interior.primary`, `interior.secondary`, `interior.surface`
-and `propulsion.variant`. `hullAccent` and `interior.metal` are delivered state
-the renderer needs; `equipment` is the component-visibility registry and no
-category writes to it.
+Seven of these fields are customer-configurable — `hullPrimary`,
+`lowerTreatment`, `interior.primary`, `interior.secondary`, `interior.surface`,
+`propulsion.variant` and, from Phase 4.4, `equipment`. `hullAccent` and
+`interior.metal` are delivered state the renderer needs.
+
+**`equipment` is the one field with no scalar behind it**, and that is
+deliberate. It is a zone-keyed visibility registry, and the EQUIPMENT control
+writes a SET of mesh visibilities into it rather than a value naming itself.
+There is no `equipment.boardingPlatform: boolean`: the truth is which zones are
+drawn, and the control's current option is read back OUT of that by
+`FIELDS.boardingPlatform.read`. A second field holding the same fact is a second
+field that can disagree with the first, and the disagreement would show as a
+highlighted option that is not the boat on screen.
 
 Each configurable field is reached through exactly one accessor in
 `pxlConfig.FIELDS`, keyed by `PxlConfigField`. There is no other way to write a
@@ -189,6 +210,24 @@ Neither option hides a single triangle.
 | Surface | `pxl_surface_grained` | `grained` | Grained | — |
 
 Defaults: **cognac**, **console graphite**, **grained**.
+
+**WHAT THE COCKPIT CONTROL ACTUALLY PAINTS — NARROWED IN PHASE 4.2.** It reaches
+`upholstery_primary`, the cushions, and nothing else: 4.9 m² of the
+boat. Until 4.2 it was bound to `deck_main`, a single mesh carrying the whole
+17.6 m² interior, so choosing Cognac turned the sole, the coaming walls and the
+inner shell cognac as well — a flat recolour rather than a trim choice. The
+references show three interior materials and the model now has three zones:
+
+| Surface | Zone | Driven by |
+|---|---|---|
+| Upholstery | `upholstery_primary` | **the Cockpit control** |
+| Sole | `cockpit_sole` | `sole` — one finish, not offered |
+| Liner, coaming, foredeck | `interior_hard_liner` | **the EXTERIOR control** — the liner is the topsides seen from inboard |
+| Console shell, windscreen, rails | `console_detail`, `windshield`, `rails` | **nothing** — §15 forbids the cockpit colour from reaching any of them, and `npm test` asserts it from both ends |
+
+Choosing an exterior finish therefore now changes the inside of the boat too,
+which is what a moulded liner does and what every reference shows.
+`npm test` asserts `zonesForChannel("interiorPrimary") === ["upholstery_primary"]`.
 
 **SLUGS ARE UNIQUE WITHIN A RANGE, NOT GLOBALLY.** The honest names for the
 interior are Light, Sand, Cognac, Graphite and Black, two of which the hull range
@@ -500,6 +539,10 @@ npm run qa      # all of the above, plus typecheck and GLSL validation
   name — `PXL_CATALOGUE_FORBIDDEN`, run against every customer-visible string.
 - A catalogue string containing the word "upholstery" while the model has no
   cushion geometry.
+- **The cockpit colour reaching more than the upholstery zone.** Added in Phase
+  4.2, and it is the assertion that phase existed to make: the regression it
+  guards against leaves the schema valid, the URL round-tripping and the console
+  clean, and makes the boat wrong. No other test in the suite can see it.
 - A drive whose dimensions have converged toward a uniform scale factor.
 - A drive that reaches forward of the transom, or whose propeller is out of the
   water — measured on the **built** geometry, where a bevel had in fact pushed

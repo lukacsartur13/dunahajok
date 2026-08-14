@@ -57,12 +57,16 @@ import {
   PXL_CATALOGUE_IS_PROVISIONAL,
   PXL_CATALOGUE_OPTIONS,
   PXL_CATEGORIES,
+  PXL_CATEGORY_BY_ID,
   PXL_CONTROLS,
   PXL_DEFERRED_CATEGORIES,
   PXL_DRIVE_SPECS,
   catalogueVisibleStrings,
   defaultOption,
+  normaliseAgainstTransom,
   optionBySlug,
+  platformClearance,
+  sternLandmarks,
   type PxlCatalogControl,
   type PxlDriveVariant,
 } from "../../src/webgl/scenes/pxl/pxlCatalog";
@@ -73,6 +77,12 @@ import {
   PXL_INK_PLEXI,
   PXL_MAX_HULL_MARKS_PER_SIDE,
   groundLuminance,
+  PXL_BADGE_BRIGHT,
+  PXL_BADGE_DARK,
+  PXL_BADGE_RELIEF,
+  PXL_BADGE_SCRIPT,
+  badgeForGround,
+  badgeForInk,
   inkForGround,
 } from "../../src/webgl/scenes/pxl/pxlBranding";
 import {
@@ -131,10 +141,14 @@ import {
   PXL_CONSOLE_ZONES,
   PXL_MODEL,
   PXL_MOUNTS,
+  PXL_PLATFORM,
+  PXL_STERN_REFERENCE,
   PXL_ZONES,
+  PXL_ZONE_BY_ID,
   channelForRole,
   zonesForChannel,
   zonesForRole,
+  type PxlZone,
 } from "../../src/webgl/scenes/pxl/pxlModel";
 import {
   PXL_CONFIGURATOR_VIEWS,
@@ -144,6 +158,11 @@ import {
   PXL_PRESETS,
   PXL_PRESET_BY_ID,
 } from "../../src/webgl/scenes/pxl/pxlPresets";
+import type { PxlPresetId } from "../../src/webgl/scenes/pxl/pxlPresets";
+import {
+  PXL_VISUAL_CASES,
+  PXL_VISUAL_TOLERANCE,
+} from "../../src/webgl/scenes/pxl/pxlVisualCases";
 
 let failures = 0;
 let checks = 0;
@@ -211,7 +230,15 @@ group("finishes", () => {
        single number somebody could reasonably "tidy up". */
     if (PXL_INTERIOR_FINISHES.includes(f)) {
       eq(f.clearcoat, 0, `${f.id} has no clear coat — it is not paint`);
-      ok((f.sheen ?? 0) > 0.2, `${f.id} carries a sheen lobe`);
+      /* LOWERED IN PHASE 4.3 FROM 0.2, AND THE MEASUREMENT IS WHY. §24 reports
+         the cognac rendering as flat orange; sampled, the live cushions
+         returned #ca7d48 against the reference's #985127. The cause was this
+         lobe — 0.34 of a light sheen colour over a curved cushion acts as a
+         second, brighter albedo. The floor still exists, because a dark
+         upholstery with NO sheen goes flat and that is the failure this
+         assertion was written for; it is now at the level below which that
+         starts, rather than at the level Phase Four happened to author. */
+      ok((f.sheen ?? 0) >= 0.15, `${f.id} carries a sheen lobe`);
       ok(f.roughness > 0.7, `${f.id} is textile-rough, not sprayed-smooth`);
       ok((f.microNormal ?? 0) > 0, `${f.id} asks for a micro-normal`);
     }
@@ -238,15 +265,28 @@ group("finishes", () => {
 /* ── Categories, controls and options ──────────────────────────────────────*/
 
 group("catalogue", () => {
-  /* §A2: FOUR CATEGORIES, BECAUSE FOUR HAVE OPTIONS.
+  /* §A2: A CATEGORY IS OFFERED BECAUSE IT HAS OPTIONS, AND FOR NO OTHER REASON.
      The number is asserted rather than the names, because the failure this
-     catches is a fifth appearing with nothing behind it — a greyed EQUIPMENT
-     tab, or a rail that counts to five and shows four. */
-  eq(PXL_AVAILABLE_CATEGORIES.length, 4, "four categories are offered");
+     catches is one appearing with nothing behind it — a greyed tab, or a rail
+     that counts to five and shows four.
+
+     PHASE 4.4 §25 — IT IS FIVE NOW, AND THE RULE IS WHY. EQUIPMENT spent four
+     phases in `PXL_DEFERRED_CATEGORIES` under a reason that was checkable:
+     there was no configurable equipment geometry on the boat. There is now —
+     the aft boarding platform — so the category qualifies under the same rule
+     that excluded it, unchanged. §25 is explicit that one real option is
+     enough and that inventing a second to pad the tab is not allowed, so the
+     control count below is asserted at one. */
+  eq(PXL_AVAILABLE_CATEGORIES.length, 5, "five categories are offered");
   eq(
     PXL_AVAILABLE_CATEGORIES.map((c) => c.id),
-    ["exterior", "hull_detail", "interior", "propulsion"],
+    ["exterior", "hull_detail", "interior", "propulsion", "equipment"],
     "in the authored order",
+  );
+  eq(
+    PXL_CATEGORY_BY_ID.get("equipment")!.controls.length,
+    1,
+    "§25: EQUIPMENT carries exactly the one option that earned it the tab",
   );
   eq(
     PXL_AVAILABLE_CATEGORIES.length,
@@ -532,23 +572,59 @@ group("propulsion", () => {
     "and it takes its own finish rather than the combustion black",
   );
 
-  /* §A16 — EVERY DRIVE SITS CORRECTLY ON THE TRANSOM.
+  /* §A16, and PHASE 4.4 §14–§18 — EVERY DRIVE SITS CORRECTLY ON THE TRANSOM,
+     AND NOW ALSO AT THE RIGHT HEIGHT ON IT.
      The numbers are geometry rather than taste, so they are checked rather than
      eyeballed: the plate near the waterline, the propeller submerged, and
      nothing reaching forward of the transom into the hull. */
+  const MOUNT_Y = PXL_MOUNTS.transom.y;
   for (const variant of ["compact", "standard", "large", "electric"] as const) {
     const spec = PXL_DRIVE_SPECS[variant];
-    const plateY = PXL_MOUNTS.transom.y - spec.shaft;
-    const gearcaseY = plateY - spec.leg.caseDepth / 2;
-    const deepest = gearcaseY - spec.propeller / 2;
+    const lm = sternLandmarks(variant, MOUNT_Y, PXL_MOUNTS.transom.x);
 
-    ok(plateY < 0.06, `${variant}: the anti-ventilation plate is at the waterline, not above it`);
-    ok(plateY > -0.16, `${variant}: and not buried`);
-    ok(deepest < -0.05, `${variant}: the propeller is submerged`);
+    /* PHASE 4.6 §2, §3, §42 — THESE FOUR ASSERTIONS ARE INVERTED FROM 4.4's.
+       4.4 asserted `lm.plate < 0.06 && lm.plate > -0.16` and `lm.lowest > -0.42`
+       — a plate at the waterline and a lower unit that stopped just below the
+       keel. That is the geometry §42 now fails by name: "if a viewer can still
+       say *the motor ends around the bottom of the boat* then FAIL". The old
+       bounds cannot be kept alongside the new requirement, because the old
+       bounds ARE the old requirement.
+
+       What is checked instead is the reference relationship, normalised the way
+       `PXL_STERN_REFERENCE.hullNormalised` reads it: the plate a real fraction
+       of a transom-depth below the keel, and the lowest point far enough below
+       that no viewer can mistake it for the bottom of the boat. */
+    const KEEL = -PXL_MODEL.draft;
+    const DEPTH = PXL_STERN_REFERENCE.transomDepth;
+    const belowKeel = (y: number) => (KEEL - y) / DEPTH;
+
     ok(
-      deepest > -0.42,
-      `${variant}: and does not hang absurdly below the keel at ${PXL_MODEL.draft.toFixed(3)} m`,
+      lm.plate < KEEL,
+      `${variant}: the anti-ventilation plate is below the keel, not at the waterline`,
     );
+    ok(
+      belowKeel(lm.plate) > 0.15,
+      `${variant}: and meaningfully below it ` +
+        `(${belowKeel(lm.plate).toFixed(3)} transom-depths, want > 0.15)`,
+    );
+    /* §42's acceptance test, as a number. The reference reads 0.684; a drive
+       inside a fifth of that of it reads the same way, and one below 0.35 does
+       not. */
+    ok(
+      belowKeel(lm.lowest) > 0.35,
+      `${variant}: the lower unit extends well below the hull ` +
+        `(${belowKeel(lm.lowest).toFixed(3)} transom-depths below the keel, want > 0.35)`,
+    );
+    ok(
+      belowKeel(lm.lowest) < 0.85,
+      `${variant}: and not past the reference's own 0.684 by more than a fifth`,
+    );
+    /* §6 — the skeg is the lowest point, which is what an outboard is. */
+    ok(
+      lm.skeg <= lm.propeller - PXL_DRIVE_SPECS[variant].propeller / 2 + 1e-9,
+      `${variant}: the skeg reaches below the propeller`,
+    );
+    ok(lm.gearcaseBottom > lm.skeg, `${variant}: and hangs below the gearcase`);
 
     /* Nothing forward of the transom. The bracket's forward face IS the
        transom plane, so the whole assembly lives aft of it — which is what
@@ -559,6 +635,103 @@ group("propulsion", () => {
       forwardMost <= -PXL_MODEL.loa / 2 + 1e-6,
       `${variant}: the drive mounts at or aft of the transom`,
     );
+
+    /* §14, §15 — THE POWERHEAD NO LONGER TOWERS OVER THE GUNWALE.
+       The measured reference puts the cowling's top 0.031 transom-heights ABOVE
+       the transom moulding — level with the capping, in other words. Phase 4.3
+       put a standard drive's at 1.128 m against a transom top of 0.6275, which
+       is −0.601 on the same scale: half a metre of engine over the sheer. The
+       tolerance is a tenth of a transom height (83 mm), which is generous
+       against a plate reading good to about 5 mm and tight against the error
+       being corrected. */
+    const nTop = normaliseAgainstTransom(
+      lm.cowlTop, MOUNT_Y, PXL_STERN_REFERENCE.transomHeight,
+    );
+    ok(
+      Math.abs(nTop - PXL_STERN_REFERENCE.normalised.cowlTop) < 0.10,
+      `${variant}: the cowling's top is at the reference's height ` +
+        `(${nTop.toFixed(3)} against ${PXL_STERN_REFERENCE.normalised.cowlTop})`,
+    );
+    ok(
+      lm.cowlTop < 0.703,
+      `${variant}: and does not stand above the sheer at the transom`,
+    );
+
+    /* §16 — MOUNTING STAYS PLAUSIBLE. The clamp grips the top of the transom,
+       so the cowling has to reach it: a positive rise means the cowling's top
+       is at or above the clamp's datum and the two overlap. A drive whose
+       `mountRise` went negative would be hanging below its own bracket. */
+    ok(spec.mountRise > 0, `${variant}: the cowling reaches its own clamp`);
+    ok(
+      spec.mountRise < 0.09,
+      `${variant}: and is not propped up on it — §14's original defect`,
+    );
+
+    /* §18 — PER-VARIANT, NOT ONE GLOBAL TRANSFORM. The four rises differ
+       because the four engines do; if they were ever collapsed to one number
+       the taller cowlings would climb back over the sheer. */
+    ok(
+      lm.cowlBottom < MOUNT_Y,
+      `${variant}: the cowling hangs below the transom top rather than standing on it`,
+    );
+
+    /* §29 — PLATFORM / MOTOR CLEARANCE, FOR EVERY DRIVE.
+       "The aft platform geometry must be designed around the propulsion
+       installation… no intersection, no impossible geometry."
+
+       WHICH PART MATTERS DEPENDS ON THE DRIVE, which is why this asks the
+       geometry rather than assuming. A compact drive's cowling stops 68 mm
+       above the tread and it is the leg that passes through the well; a large
+       drive hangs low enough that the bottom of the COWLING is what goes
+       through. Both have to fit, and the propeller — which is the widest thing
+       on any of them — never counts, because on all four it hangs clear below
+       the frame and cannot reach the platform at any angle. */
+    const band = {
+      bottomY: PXL_PLATFORM.bottomY,
+      topY: PXL_PLATFORM.topY,
+      forwardX: PXL_MOUNTS.transom.x,
+      aftX: PXL_MOUNTS.transom.x - PXL_PLATFORM.aft,
+      wellHalfForward: PXL_PLATFORM.wellHalfForward,
+      wellHalfAft: PXL_PLATFORM.wellHalfAft,
+    };
+    const through = lm.parts.filter(
+      (p) => p.topY > band.bottomY && p.bottomY < band.topY,
+    );
+    ok(through.length > 0, `${variant}: something of the drive passes through the well`);
+    ok(
+      lm.lowest < PXL_PLATFORM.bottomY,
+      `${variant}: the lower unit hangs clear below the platform`,
+    );
+    for (const part of through) {
+      ok(
+        part.halfWidth < PXL_PLATFORM.wellHalfForward,
+        `${variant}: the ${part.name} fits the motor well at its narrowest ` +
+          `(${part.halfWidth.toFixed(3)} m against ${PXL_PLATFORM.wellHalfForward} m)`,
+      );
+    }
+
+    const clearance = platformClearance(
+      lm, band, PXL_PLATFORM.steeringPivotX, PXL_PLATFORM.steeringLockDeg,
+    );
+    ok(
+      clearance.needed < clearance.available,
+      `${variant}: the ${clearance.part} still clears the well at ` +
+        `${PXL_PLATFORM.steeringLockDeg}° of lock — needs ` +
+        `${clearance.needed.toFixed(3)} m at x ${clearance.atX.toFixed(3)}, ` +
+        `has ${clearance.available.toFixed(3)} m`,
+    );
+  }
+
+  /* §18 again, stated once rather than per drive: the four mounting heights are
+     genuinely four numbers. An accidental find-and-replace that made them equal
+     would pass every assertion above and quietly undo the phase. */
+  {
+    const rises = new Set(
+      (["compact", "standard", "large", "electric"] as const).map(
+        (v) => PXL_DRIVE_SPECS[v].mountRise,
+      ),
+    );
+    eq(rises.size, 4, "§18: each drive carries its own mounting offset");
   }
 
   /* The cowling colour is a CONSEQUENCE of the variant, never a choice beside
@@ -644,6 +817,71 @@ group("branding", () => {
     }
   }
 
+  /* ── PHASE 4.6 §25 – §31 · THE HULL MARKS ARE PHYSICAL BADGES ──────────
+     §25: "Not printed text. Not flat orange/black paint. Not HTML-style logo
+     decals." What the marks were is not observable from this file — the
+     geometry is built in three — so what is asserted here is everything that
+     DECIDES it: the relief exists and is small, the two marks do not share a
+     depth, the material is a metal rather than an ink, and the plexi mark is
+     excluded from all of it. */
+  ok(PXL_BADGE_RELIEF.wordmark > 0, "§26 — the PXL hull mark stands proud of its panel");
+  ok(PXL_BADGE_RELIEF.script > 0, "§27 — and so does the Duna script");
+  ok(
+    PXL_BADGE_RELIEF.script < PXL_BADGE_RELIEF.wordmark,
+    "§27 — the script's relief is the shallower of the two: it is finer typography " +
+      `(${(PXL_BADGE_RELIEF.script * 1000).toFixed(1)} mm against ` +
+      `${(PXL_BADGE_RELIEF.wordmark * 1000).toFixed(1)} mm)`,
+  );
+  ok(
+    PXL_BADGE_RELIEF.wordmark < 0.004,
+    "§29 — and both are restrained: under 4 mm, so the mark still reads as " +
+      "typography rather than as a block from any distance",
+  );
+  ok(
+    PXL_BADGE_RELIEF.bevel > 0 && PXL_BADGE_RELIEF.bevel < 0.5,
+    "§26 — there is a real edge break, and it is a chamfer rather than a round-over",
+  );
+
+  for (const [name, badge] of [
+    ["bright", PXL_BADGE_BRIGHT],
+    ["dark", PXL_BADGE_DARK],
+    ["script", PXL_BADGE_SCRIPT],
+  ] as const) {
+    eq(badge.metalness, 1, `§28 — the ${name} badge is a conductor, not painted metal`);
+    ok(
+      badge.roughness > 0.12 && badge.roughness < 0.45,
+      `§28 — the ${name} badge is brushed: not a chrome mirror, not grey plastic ` +
+        `(roughness ${badge.roughness})`,
+    );
+    ok(
+      badge.anisotropy > 0.3,
+      `§28 — the ${name} badge carries directional brushing`,
+    );
+  }
+
+  /* §30 — THE TWO RESOLVERS AGREE, FROM EITHER END. `badgeForInk` reads an ink
+     and `badgeForGround` reads a ground, and the comparison inside them is
+     inverted because `inkForGround` already flipped once. That is exactly the
+     kind of double negative that survives review and fails in the scene, so it
+     is checked on every published finish rather than reasoned about. */
+  for (const ground of PXL_ALL_FINISHES) {
+    for (const slot of ["pxl_wordmark", "duna_script"]) {
+      eq(
+        badgeForInk(inkForGround(ground.base), slot).colour,
+        badgeForGround(ground.base, slot).colour,
+        `§30 — the ${slot} badge resolves the same from the ink as from the ` +
+          `ground on ${ground.id}`,
+      );
+    }
+  }
+
+  /* §31 — AND THE WINDSCREEN MARK IS NOT ONE OF THEM.
+     "Do NOT turn the windshield mark into a thick metal badge." The exclusion
+     is structural: the plexi placement carries `inkFollowsGround: false`, which
+     is the same flag the re-badge pass in `PxlVessel` filters on, so a mark on
+     glazing cannot be reached by the metal treatment at all. */
+  eq(PXL_INK_PLEXI.metalness, 0, "§31 — and its ink is a print, not a metal");
+
   /* NO OUTLINE, NO DROP SHADOW. §A11 rules both out as things that are not
      part of the product design, so the ink treatments are colour and surface
      parameters and nothing else. */
@@ -674,6 +912,12 @@ group("branding", () => {
   eq(PXL_MAX_HULL_MARKS_PER_SIDE, 2, "two hull marks per side, as a stated limit");
   eq(PXL_CENTRELINE_MARKS, ["pxl_plexi"], "and the plexi mark is not mirrored");
   ok(plexiSlot.zone.includes("screen"), "the plexi mark is on the screen, not the hull");
+  eq(
+    plexiSlot.ground,
+    "glazing",
+    "§31 — and its ground is the glazing rather than a hull moulding, which is " +
+      "what keeps the metal badge treatment away from it",
+  );
   ok(pxlSlot.zone === "transom_black" && dunaSlot.zone === "hull_accent",
      "the hull marks are on the moulding and the capping respectively");
 
@@ -947,11 +1191,15 @@ group("url state", () => {
   );
   eq(bad.rejected, ["exterior"], "and the parameter is reported as rejected");
 
-  const reserved = parseConfiguration("exterior=gold&equipment=radar&accessories=tender");
+  /* `equipment` is no longer among these: it left `PXL_DEFERRED_CATEGORIES` in
+     Phase 4.4 and the platform control claims `platform` rather than reusing
+     the reserved key, so both survive — one as a live parameter, one as a
+     reservation. */
+  const reserved = parseConfiguration("exterior=gold&accessories=tender");
   eq(reserved.configuration.exterior.hullPrimary, "pxl_gold", "valid parameters still apply");
   eq(
     reserved.rejected,
-    ["equipment", "accessories"],
+    ["accessories"],
     "reserved parameters are rejected, not stored",
   );
 
@@ -1047,8 +1295,9 @@ group("summary", () => {
   );
   eq(
     lines.map((l) => l.category),
-    ["exterior", "hull_detail", "interior", "interior", "interior", "propulsion"],
-    "grouped by category, with INTERIOR contributing three",
+    ["exterior", "hull_detail", "interior", "interior", "interior", "propulsion",
+     "equipment"],
+    "grouped by category, with INTERIOR contributing three and EQUIPMENT one",
   );
   eq(lines[0].value, "Sage Green", "and prints the working name on a preview surface");
   eq(lines[0].slug, "sage", "and carries the stable token");
@@ -1237,21 +1486,335 @@ group("editorial content", () => {
   ok(SUZUKI_BLOCKERS.length >= 3, "the section records what it cannot yet say");
 });
 
+/* ── §36 · Visual regression cases ─────────────────────────────────────────*/
+
+group("visual regression cases", () => {
+  /* THIS GROUP CANNOT RENDER, AND THAT IS THE POINT OF SPLITTING IT.
+     `npm test` runs on plain node with no GPU. What it CAN assert is that the
+     declaration §36 asks for still exists, still covers the five changes it
+     names, and still describes two genuinely different configurations in each
+     case — which is what stops a case being quietly deleted or defanged. The
+     pixel comparison itself runs in the browser through
+     `window.__pxlQa.visual()`, and its measured results are recorded in
+     PXL_REFERENCE_QA.md §5. */
+  const required = [
+    "default vs navy",
+    "default vs full-body lower treatment",
+    "cognac vs dark interior",
+    "compact vs large motor",
+    "combustion vs electric",
+  ];
+  for (const requirement of required) {
+    ok(
+      PXL_VISUAL_CASES.some((c) => c.requirement === requirement),
+      `§36 requires a case for "${requirement}"`,
+    );
+  }
+
+  const ids = PXL_VISUAL_CASES.map((c) => c.id);
+  eq(new Set(ids).size, ids.length, "case ids are unique");
+
+  for (const c of PXL_VISUAL_CASES) {
+    ok(c.a !== c.b, `${c.id} compares two different configurations`);
+    /* A CASE WITH A ZERO FLOOR WOULD PASS ON ANTI-ALIASING. §36 says a pixel
+       diff of zero must fail; a floor of zero makes "not zero" the whole test,
+       and one edge moving by a pixel is not zero. Every case declares a real
+       share of the frame. */
+    ok(c.minChanged > 0.001, `${c.id} declares a floor worth failing against`);
+    ok(c.minChanged < 1, `${c.id} floor is a fraction`);
+    ok(c.expect.length > 20, `${c.id} says what a viewer should see change`);
+    ok(
+      PXL_PRESET_BY_ID.has(c.camera as PxlPresetId),
+      `${c.id} names a camera that exists`,
+    );
+    /* Both sides have to survive the parser, or the case silently compares the
+       default configuration with itself — which would diff to zero and be read
+       as a broken configurator rather than as a broken test. */
+    for (const query of [c.a, c.b]) {
+      const parsed = parseConfiguration(query);
+      ok(parsed.configuration !== undefined, `${c.id} "${query}" parses`);
+    }
+  }
+  ok(PXL_VISUAL_TOLERANCE > 0 && PXL_VISUAL_TOLERANCE < 32,
+     "the per-channel tolerance rejects noise without hiding a finish change");
+});
+
+/* ── The aft boarding platform ─────────────────────────────────────────────*/
+
+/**
+ * PHASE 4.4 §33 — THE REQUIRED CONFIGURATOR TESTS, all nine, in the order the
+ * brief lists them.
+ *
+ * They divide into two kinds and the difference is worth naming, because the
+ * second kind is the one that has caught real defects on this project. The
+ * first four are "does the option work" — visibility, URL, reset, share link.
+ * The last five are "does the option stay in its lane": that switching a motor
+ * does not forget the platform, that an interior colour cannot reach the
+ * capping or the teak, that an exterior colour cannot reach the teak.
+ *
+ * §15 of the 4.3 brief exists because a channel was once bound too widely, and
+ * §10 of this one is the same instruction about a new part. Both are satisfied
+ * here by construction rather than by care — `zonesForChannel` returns exactly
+ * the zones a channel can reach, and these assertions read that rather than
+ * inspecting a render — but a construction nobody checks is a construction that
+ * survives until somebody edits `PXL_ZONES` in a hurry.
+ */
+group("aft boarding platform", () => {
+  const control = PXL_CONTROLS.find((c) => c.field === "boardingPlatform")!;
+  const off = control.options.find((o) => o.slug === "none")!;
+  const on = control.options.find((o) => o.slug === "on")!;
+
+  const configOff = applyOption(PXL_DEFAULT_CONFIGURATION, control, off);
+  const configOn = applyOption(PXL_DEFAULT_CONFIGURATION, control, on);
+
+  /* ── 1 · ON vs OFF produces a visible geometry difference ────────────── */
+  const platformZones: PxlZone[] = ["platform_frame", "platform_deck"];
+  for (const zone of platformZones) {
+    ok(!zoneVisible(configOff, zone), `${zone} is not drawn with the platform off`);
+    ok(zoneVisible(configOn, zone), `${zone} is drawn with it on`);
+  }
+  /* And the difference is GEOMETRY rather than colour: the two configurations
+     differ in which meshes are drawn and in nothing else. A platform that
+     changed a material would satisfy "visible difference" and would not be an
+     equipment option. */
+  eq(
+    configOn.exterior, configOff.exterior,
+    "§33: turning the platform on changes no exterior value",
+  );
+  eq(
+    configOn.interior, configOff.interior,
+    "and no interior value",
+  );
+  eq(
+    configOn.propulsion, configOff.propulsion,
+    "and no propulsion value",
+  );
+
+  /* §24 — THE GEOMETRY IS IN THE ASSET, NOT THE DECISION. Both zones are
+     exported in every build and carry `visibleByDefault: false`, so the two
+     states are the same file. */
+  for (const zone of platformZones) {
+    const spec = PXL_ZONES.find((z) => z.id === zone)!;
+    ok(!spec.visibleByDefault, `${zone} ships hidden rather than absent`);
+  }
+
+  /* ── 2 · URL state ───────────────────────────────────────────────────── */
+  eq(control.param, "platform", "§26: the platform serialises under its own key");
+  eq(serialiseConfiguration(configOn), "platform=on", "and appears when it is fitted");
+  eq(
+    serialiseConfiguration(configOff), "",
+    "and not when it is at its default — the delivered boat still serialises to nothing",
+  );
+  eq(
+    parseConfiguration("platform=on").configuration.equipment,
+    configOn.equipment,
+    "the parameter round-trips into the same visibility",
+  );
+  /* §26 — INVALID VALUES SANITISE INDEPENDENTLY. */
+  const messy = parseConfiguration("exterior=navy&platform=maybe");
+  eq(messy.configuration.exterior.hullPrimary, "pxl_navy", "a bad platform value keeps the colour");
+  eq(messy.rejected, ["platform"], "and reports only the parameter that was wrong");
+  eq(
+    selectedOption(messy.configuration, control).id, off.id,
+    "falling back to the platform's own default",
+  );
+
+  /* ── 3 · Reset restores the defined default ──────────────────────────── */
+  eq(
+    selectedOption(PXL_DEFAULT_CONFIGURATION, control).id,
+    "pxl_platform_none",
+    "§20: the delivered boat has no platform — the July side plate does not draw one",
+  );
+  eq(
+    clearConfigurationFromHref("/dev/pxl?platform=on&exterior=navy"),
+    "/dev/pxl",
+    "§26: reset clears the platform along with everything else",
+  );
+
+  /* ── 4 · Share link preserves it ─────────────────────────────────────── */
+  eq(
+    applyConfigurationToHref("/dev/pxl", configOn),
+    "/dev/pxl?platform=on",
+    "§26: a share link carries the platform",
+  );
+  {
+    const shared = applyConfigurationToHref("/dev/pxl?utm=x", configOn);
+    const back = parseConfiguration(new URL(shared, "https://example.test").searchParams);
+    eq(
+      selectedOption(back.configuration, control).id, on.id,
+      "and the boat that comes back off it still has one",
+    );
+  }
+
+  /* ── 5 · The platform does not affect unrelated categories ───────────── */
+  for (const other of PXL_AVAILABLE_CONTROLS) {
+    if (other.field === "boardingPlatform") continue;
+    eq(
+      selectedOption(configOn, other).id,
+      selectedOption(PXL_DEFAULT_CONFIGURATION, other).id,
+      `§33: fitting the platform leaves ${other.id} alone`,
+    );
+  }
+
+  /* ── 6 · Motor size changes preserve platform state ──────────────────── */
+  const driveControl = PXL_CONTROLS.find((c) => c.field === "propulsion")!;
+  for (const drive of driveControl.options) {
+    const both = applyOption(configOn, driveControl, drive);
+    eq(
+      selectedOption(both, control).id, on.id,
+      `§33: changing to ${drive.slug} keeps the platform fitted`,
+    );
+    const neither = applyOption(configOff, driveControl, drive);
+    eq(
+      selectedOption(neither, control).id, off.id,
+      `and to ${drive.slug} keeps it unfitted`,
+    );
+  }
+
+  /* ── 7, 8 · Interior changes recolour neither the gunwale nor the teak ─ */
+  const interiorReach = zonesForChannel("interiorPrimary");
+  eq(interiorReach, ["upholstery_primary"], "§10: the cockpit colour reaches upholstery alone");
+  for (const zone of ["gunwale_capping", ...platformZones] as PxlZone[]) {
+    ok(
+      !interiorReach.includes(zone),
+      `§33: an interior change cannot recolour ${zone}`,
+    );
+  }
+  /* Said the other way round, which is the way it would actually break: the
+     capping's channel is the EXTERIOR one, deliberately — every reference draws
+     it in the hull's tone — and the platform's zones have no channel at all. */
+  eq(
+    PXL_ZONE_BY_ID.get("gunwale_capping")!.channel,
+    "hullPrimary",
+    "§10: the capping follows the topsides, which is what the references show",
+  );
+
+  /* ── 9 · Exterior changes do not recolour the teak ───────────────────── */
+  for (const channel of ["hullPrimary", "hullLower", "hullAccent", "sternMoulding"] as const) {
+    for (const zone of platformZones) {
+      ok(
+        !zonesForChannel(channel).includes(zone),
+        `§33: an exterior change on ${channel} cannot recolour ${zone}`,
+      );
+    }
+  }
+  for (const zone of platformZones) {
+    eq(
+      PXL_ZONE_BY_ID.get(zone)!.channel, null,
+      `${zone} takes no configuration channel at all`,
+    );
+  }
+  eq(
+    PXL_ZONE_BY_ID.get("platform_deck")!.finish, "wood",
+    "§23: and the tread is its own surface family, not paint",
+  );
+
+  /* §27 — THE SUMMARY NAMES IT, AND CARRIES NO PRICE. */
+  {
+    const lines = summariseConfiguration(configOn, "preview");
+    const line = lines.find((l) => l.category === "equipment")!;
+    ok(line !== undefined, "§27: the summary shows an EQUIPMENT line");
+    eq(line.value, "Aft Boarding Platform", "naming the option");
+    for (const pattern of PXL_CATALOGUE_FORBIDDEN) {
+      ok(!pattern.test(line.value ?? ""), `§27: and no forbidden term (${pattern})`);
+    }
+    /* §27 — "do not include provisional price". There is no price field on a
+       summary line to omit, which is the strongest form of the requirement,
+       and the label carries no currency either. */
+    eq(
+      Object.keys(line).includes("price"), false,
+      "§27: a summary line has no price to print",
+    );
+  }
+
+  /* §28 — THE CAMERA IS A SUGGESTION. `suggestedView` is the same one-shot
+     mechanism the other four categories use, and the assertion that matters is
+     that it is a CUSTOMER view: a reference composition is framed for
+     measurement and must never be suggested to a viewer. */
+  {
+    const category = PXL_CATEGORY_BY_ID.get("equipment")!;
+    eq(category.suggestedView, "stern_3q", "§28: EQUIPMENT suggests the stern quarter");
+    ok(
+      PXL_CONFIGURATOR_VIEWS.includes(category.suggestedView),
+      "and it is a view a customer can hold",
+    );
+  }
+});
+
 /* ── Material roles ────────────────────────────────────────────────────────*/
 
 group("material roles", () => {
-  eq(PXL_ZONES.length, 13, "thirteen zones, one per mesh in the GLB");
+  /* PHASE 4.4 adds three: the capping that §4 asked for, and the boarding
+     platform's two materials. `npm run model` checks the other direction —
+     that every name here is a node the exported GLB actually contains — so a
+     zone declared and never built fails the build rather than this count. */
+  eq(PXL_ZONES.length, 20, "twenty zones, one per mesh in the GLB");
 
   const zoneIds = PXL_ZONES.map((z) => z.id);
   eq(new Set(zoneIds).size, zoneIds.length, "zone ids are unique");
 
   for (const z of PXL_ZONES) ok(z.role.length > 0, `${z.id} declares a material role`);
 
+  /* ── §15: THE COCKPIT COLOUR REACHES UPHOLSTERY AND NOTHING ELSE ────────
+     The defect Phase 4.2 existed to fix and Phase 4.3 finished, so it is the
+     assertion worth having. `interiorPrimary` was bound to `deck_main` — the
+     entire interior, plus eighty-four stray slivers on the OUTSIDE of the hull
+     — then to the raised platform band, which was a moulding rather than a
+     cushion. It is now bound to `upholstery_primary`, which is the only
+     upholstery on the boat.
+
+     §15 lists what it must NOT recolour: structural liner, hard deck, floor,
+     hull interior shell, console, rails, windshield. Each of those is asserted
+     below by its own binding, so the requirement is checked from both ends —
+     one zone in, and seven zones out. If any of this binds wider again the
+     regression is invisible from every other test in this file: the schema
+     stays valid, the URL round-trips, and the boat looks wrong. */
+  eq(
+    zonesForChannel("interiorPrimary"),
+    ["upholstery_primary"],
+    "the cockpit colour reaches the upholstery and nothing else",
+  );
+  eq(zonesForRole("UPHOLSTERY"), ["upholstery_primary"], "one mesh carries the soft trim");
+  eq(zonesForRole("SOLE"), ["cockpit_sole"], "the sole is its own zone");
+  eq(
+    zonesForRole("INTERIOR_SHELL"),
+    ["interior_hard_liner"],
+    "and the moulded shell is a third, separate from both",
+  );
+  /* §15, the other end. None of these may move when the cockpit colour does. */
+  for (const zone of [
+    "interior_hard_liner", "cockpit_sole", "hull_primary",
+    "console_body", "console_detail", "rails", "windshield",
+  ] as const) {
+    const spec = PXL_ZONES.find((z) => z.id === zone);
+    ok(
+      spec !== undefined && spec.channel !== "interiorPrimary",
+      `§15 — the cockpit colour does not reach ${zone}`,
+    );
+  }
+  /* The liner is the topsides seen from inboard, so it follows the exterior
+     finish rather than the cockpit one. Every reference shows it that way. */
+  eq(
+    channelForRole("INTERIOR_SHELL"),
+    "hullPrimary",
+    "the interior shell follows the exterior finish, not the cockpit colour",
+  );
+  eq(
+    finishForRole(PXL_DEFAULT_CONFIGURATION, "INTERIOR_SHELL"),
+    finishForRole(PXL_DEFAULT_CONFIGURATION, "EXTERIOR_HULL"),
+    "so liner and topsides resolve to the same finish",
+  );
+  ok(
+    finishForRole(PXL_DEFAULT_CONFIGURATION, "UPHOLSTERY") !==
+      finishForRole(PXL_DEFAULT_CONFIGURATION, "SOLE"),
+    "upholstery and sole are not the same material",
+  );
+
   // §3: the configurable surface is reachable by role, not by index.
   eq(
     zonesForRole("EXTERIOR_HULL"),
-    ["hull_primary", "deck_trim"],
-    "EXTERIOR_HULL binds the topsides and the deck panels together",
+    ["hull_primary"],
+    "EXTERIOR_HULL is the topsides — Phase 4.2 folded `deck_trim` into the liner",
   );
   eq(channelForRole("EXTERIOR_HULL"), "hullPrimary", "and resolves to the exterior channel");
   eq(
@@ -1267,7 +1830,17 @@ group("material roles", () => {
   );
   eq(finishForRole(PXL_DEFAULT_CONFIGURATION, "HELM"), null, "an unconfigurable role has no finish");
 
-  eq(zonesForChannel("glazing"), [], "the declared-but-unbound glazing channel paints nothing");
+  /* §7 — THE GLAZING CHANNEL HAS A MESH NOW, AND STILL PAINTS NOTHING.
+     `windshield` is bound to it so that the zone is addressable and the model
+     validator can require it, but the catalogue offers no glazing finish, so
+     `applyConfiguration` skips the zone and the transmission material
+     `indexZones` installed is never overwritten. Both halves are asserted:
+     the binding exists, and the range is empty. */
+  eq(zonesForChannel("glazing"), ["windshield"], "the glazing channel reaches the screen");
+  ok(
+    PXL_RANGES.glazing === undefined,
+    "and no finish range is offered on it, so the plexi is never repainted",
+  );
 
   /* Phase Four split the stern moulding off `hullLower` so that FULL BODY
      COLOUR could repaint the bottom without repainting the mark's ground. The
@@ -1330,10 +1903,22 @@ group("camera presets", () => {
     ok(d.distance > 0, `${p.id} stands somewhere`);
     ok(d.hfov > 8 && d.hfov < 80, `${p.id} uses a plausible lens`);
     ok(d.minVfov >= 0 && d.minVfov < 62, `${p.id} declares a usable vertical floor`);
-    // §19: no preset may put the camera under the water or over the pole.
+    /* §19: no preset may put the camera under the water or over the pole.
+       THE BOUND DEPENDS ON WHETHER A VIEWER CAN DRAG FROM IT. Customer-facing
+       presets have to sit inside the orbit's own limits, because a viewer who
+       nudges one and finds the camera snapping 20° is looking at a bug.
+       Reference compositions are never entered by the orbit — they are chosen
+       on the development bench to be compared against a plate — and Phase 4.4's
+       `reference_plan` is the first that needs the difference: a plan view is
+       88° and the orbit stops at 62°, deliberately, because 88° is not a
+       composition anybody should be able to drag a product into. The physical
+       bound still applies: never under the water, never past the pole. */
+    const draggable = !p.id.startsWith("reference_");
+    const minEl = draggable ? PXL_ORBIT_LIMITS.minElevation : -4;
+    const maxEl = draggable ? PXL_ORBIT_LIMITS.maxElevation : 89;
     ok(
-      d.elevation >= PXL_ORBIT_LIMITS.minElevation && d.elevation <= PXL_ORBIT_LIMITS.maxElevation,
-      `${p.id} sits inside the orbit's own elevation limits`,
+      d.elevation >= minEl && d.elevation <= maxEl,
+      `${p.id} sits inside the elevation limits that apply to it`,
     );
     ok(
       d.distance >= PXL_ORBIT_LIMITS.minDistance && d.distance <= PXL_ORBIT_LIMITS.maxDistance,
@@ -1348,18 +1933,27 @@ group("camera presets", () => {
   // no longer the shot design decisions get checked in.
   eq(PXL_PRESET_BY_ID.get("side")?.desktop.azimuth, 0, "profile is exactly abeam");
 
-  // A vertical floor is needed by exactly the presets that look STEEPLY DOWN,
-  // where the subject's projection is nearly square and a fixed horizontal angle
-  // lets the derived vertical one collapse. Two do: the cockpit view and the
-  // reference top three-quarter that Phase 4.1 added beside it. If another one
-  // gains a steep elevation later it will need one too, and this is where that
-  // gets noticed — so the assertion is the RULE rather than the list.
+  /* A vertical floor is needed where the subject's PROJECTION is nearly square
+     and a fixed horizontal angle lets the derived vertical one collapse.
+     Looking steeply down at a boat usually does that, which is why the rule
+     used to be written as `elevation >= 30`.
+
+     PHASE 4.4 SHOWED THAT WAS THE SYMPTOM RATHER THAN THE CAUSE. `reference_plan`
+     is the steepest preset on the boat at 88°, and it is the one view that
+     needs no floor at all: looking straight down, the projection is the boat's
+     own 5.25 × 2.09 plan — an aspect of 2.5, the least square of anything the
+     camera sees. The presets that need a floor are the ones between, where the
+     hull is foreshortened toward square without being flattened past it.
+
+     So the rule is stated as what it actually is, and the plan is the declared
+     exception rather than a silently loosened bound. */
   for (const preset of PXL_PRESETS) {
-    const steep = preset.desktop.elevation >= 30;
+    const el = preset.desktop.elevation;
+    const nearlySquare = el >= 30 && el < 80;
     eq(
       preset.desktop.minVfov > 0,
-      steep,
-      `${preset.id} declares a vertical floor exactly when it looks steeply down`,
+      nearlySquare,
+      `${preset.id} declares a vertical floor exactly when its projection needs one`,
     );
   }
 });

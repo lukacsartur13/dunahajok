@@ -70,13 +70,18 @@ import {
 import {
   PXL_INK_PLEXI,
   disposePlacement,
+  badgeForInk,
   inkForGround,
   placeDunaScript,
   placePlexiMark,
   placeWordmark,
   type PxlDecalPlacement,
 } from "./pxlDecals";
-import { createScreen, disposeScreen, type PxlScreen } from "./pxlGlazing";
+import {
+  createPlexiMaterial,
+  measureScreenFrame,
+  type PxlScreenFrame,
+} from "./pxlGlazing";
 import {
   createPropulsionState,
   disposePropulsion,
@@ -189,13 +194,18 @@ export interface PxlVesselHandle {
   /** The ground the hull marks were last inked for, so a repaint can be skipped. */
   decalGround: string | null;
   /**
-   * The authored windscreen. §9.
+   * The delivered windscreen's front face, as a basis for the plexi mark. §9.
    *
-   * Null when the console is missing from the asset, which is a case worth
-   * distinguishing from "not built yet": the plexi mark has nowhere to go, and
-   * the vessel renders without a screen rather than putting one at the origin.
+   * NOT THE SCREEN ITSELF ANY MORE. Until Phase 4.3 the runtime built the
+   * glazing; it is geometry in the GLB now, and what survives here is the one
+   * thing a GLB cannot carry — where on that geometry the mark goes, measured
+   * by ray at load.
+   *
+   * Null when the asset has no `windshield`, which is worth distinguishing from
+   * "not measured yet": the mark has nowhere to go, and the vessel renders
+   * without it rather than putting it at the origin.
    */
-  screen: PxlScreen | null;
+  screen: PxlScreenFrame | null;
 }
 
 /**
@@ -314,23 +324,39 @@ function installSweep(material: MeshPhysicalMaterial): SweepUniforms {
  * COLOUR *and* changing the exterior finish in the same commit paints the
  * topsides and the bottom in the same colour behind the same line, which is
  * exactly what a hull being repainted looks like.
+ *
+ * INTERIOR_SHELL JOINS IN PHASE 4.2, and it has to. The cockpit liner is the
+ * same moulding as the topsides seen from inboard, so 4.2 bound it to
+ * `hullPrimary` — which means an exterior finish change now repaints the
+ * inside of the boat as well. Left off the sweep it would snap to the new
+ * colour on frame one while the hull outside it took 520 ms, and the cockpit
+ * view is the one preset where you can see both at once.
  */
 function sweeps(spec: PxlZoneSpec): boolean {
-  return spec.role === "EXTERIOR_HULL" || spec.role === "HULL_BOTTOM";
+  return spec.role === "EXTERIOR_HULL" || spec.role === "HULL_BOTTOM"
+    || spec.role === "INTERIOR_SHELL";
 }
 
 /**
  * Which zones carry the interior grain. §A9.
  *
- * The two interior roles, and nothing else. A grain on the hull would be a
+ * The soft and textured roles, and nothing else. A grain on the hull would be a
  * texture on a sprayed topcoat, which is wrong; a grain on the rails would be a
  * texture on a lacquered inlay, which is also wrong. The cost of the injection
- * is three texture fetches per fragment, so keeping it to the two zones that
- * want it is not only correct but the difference between paying for it on 8,000
- * triangles and paying for it on 20,000.
+ * is three texture fetches per fragment, so keeping it to the zones that want
+ * it is not only correct but the difference between paying for it on a few
+ * hundred triangles and paying for it on 20,000.
+ *
+ * PHASE 4.2 SPLIT THE OLD `INTERIOR_LINER` AND ONLY TWO PIECES KEPT THE GRAIN.
+ * The upholstery has it because it is leather and the sole because it is a
+ * textured deck covering. INTERIOR_SHELL does NOT: it is now bound to
+ * `hullPrimary` and wears the same sprayed finish as the topsides, so graining
+ * it would put a leather texture on paint — which is what the whole interior
+ * looked like before this phase.
  */
 function grained(spec: PxlZoneSpec): boolean {
-  return spec.role === "INTERIOR_LINER" || spec.role === "CONSOLE";
+  return spec.role === "UPHOLSTERY" || spec.role === "SOLE"
+    || spec.role === "CONSOLE";
 }
 
 /**
@@ -378,6 +404,11 @@ const ENV_INTENSITY: Record<PxlZoneSpec["finish"], number> = {
   moulding: 0.42,
   soft: 0.3,
   metal: 1.15,
+  /* PHASE 4.4. Oiled marine teak sits between a moulding and a paint: it has a
+     sheen along the grain and almost none across it, and at 0.68 roughness the
+     environment response is what carries that. Above ~0.7 the tread goes flat
+     and the planks stop reading as separate boards. */
+  wood: 0.55,
   glass: 1.2,
 };
 
@@ -431,8 +462,18 @@ export function indexZones(root: Object3D): PxlZoneMap {
     if (!(child instanceof Mesh)) return;
     const spec = PXL_ZONE_BY_ID.get(child.name as PxlZone);
     if (!spec) return;
-    const material = promote(child.material as MeshStandardMaterial);
+    /* GLAZING IS NOT PROMOTED, IT IS REPLACED. §8 needs a transmission
+       material, and glTF's own transmission would arrive through `promote` as a
+       plain physical material and then be overwritten by the first
+       `applyConfiguration`. Built here instead, before the program is first
+       compiled, and left alone afterwards: `windshield` is bound to the
+       `glazing` channel, the catalogue offers nothing on it, and
+       `applyConfiguration` skips a zone whose channel resolves to no finish. */
+    const material = spec.role === "GLAZING"
+      ? createPlexiMaterial()
+      : promote(child.material as MeshStandardMaterial);
     child.material = material;
+    if (spec.role === "GLAZING") child.renderOrder = 2;
     child.castShadow = false;
     child.receiveShadow = false;
     // Nothing here is picked or measured, and the model is always fully in
@@ -464,8 +505,11 @@ export function indexZones(root: Object3D): PxlZoneMap {
        installed early to avoid. The liner is the only zone whose range carries
        sheen, so it is floored here at a value too small to see and large enough
        to be true, and `applyConfiguration` writes the real number before the
-       first draw. Nothing else on the boat is ever given any. */
-    if (spec.role === "INTERIOR_LINER") material.sheen = Math.max(material.sheen, 1e-3);
+       first draw. The upholstery is the only zone whose range carries sheen —
+       it is the only leather on the boat — so it is floored here at a value too
+       small to see and large enough to be true, and `applyConfiguration` writes
+       the real number before the first draw. Nothing else is ever given any. */
+    if (spec.role === "UPHOLSTERY") material.sheen = Math.max(material.sheen, 1e-3);
   });
 
   if (process.env.NODE_ENV !== "production") {
@@ -679,7 +723,7 @@ function inkWordmark(vessel: PxlVesselHandle, config: PxlConfiguration): void {
     if (moulding) vessel.decals.push(...placeWordmark(moulding.mesh, ink));
     if (capping) vessel.decals.push(...placeDunaScript(capping.mesh, ink));
     if (vessel.screen) {
-      vessel.decals.push(placePlexiMark(vessel.screen.frame, PXL_INK_PLEXI));
+      vessel.decals.push(placePlexiMark(vessel.screen, PXL_INK_PLEXI));
     }
     for (const placement of vessel.decals) vessel.root.add(placement.mesh);
 
@@ -695,12 +739,26 @@ function inkWordmark(vessel: PxlVesselHandle, config: PxlConfiguration): void {
       }
     }
   } else {
+    /* PHASE 4.6 §25, §30 — RE-BADGE, NOT RE-INK.
+       The hull marks stopped being paint this phase, so applying the ink's own
+       colour and surface here would have undone the whole of §25 the first time
+       anybody changed finish: a brushed emblem would have become flat cognac at
+       metalness 0 the moment the sweep landed. The ink still DECIDES — one rule,
+       `badgeForInk`, on the same luminance threshold — but what it selects is
+       one of the two metal tones §30 asks be tested across the range.
+
+       The plexi mark is untouched, as it has been since Phase Four: it carries
+       `inkFollowsGround: false` because its ground is glazing, and §31 requires
+       it stay a print. */
     for (const placement of vessel.decals) {
       if (!placement.inkFollowsGround) continue;
-      placement.material.color.set(ink.colour);
-      placement.material.roughness = ink.roughness;
-      placement.material.metalness = ink.metalness;
-      placement.material.clearcoat = ink.clearcoat;
+      const badge = badgeForInk(ink, placement.slot);
+      placement.material.color.set(badge.colour);
+      placement.material.roughness = badge.roughness;
+      placement.material.metalness = badge.metalness;
+      placement.material.anisotropy = badge.anisotropy;
+      placement.material.anisotropyRotation = badge.anisotropyRotation;
+      placement.material.clearcoat = 0;
     }
   }
 
@@ -827,14 +885,15 @@ function buildVessel(model: Object3D): PxlVesselHandle {
   if (existing) return existing;
 
   const zones = indexZones(model);
-  /* §9 — the screen, built from the console's own measured box before any
-     configuration is applied, because the plexi mark's placement needs its
-     basis and the mark is built on the first `applyConfiguration`. */
-  const console_ = zones.get("console_body");
-  const screen = console_ ? createScreen(console_.mesh) : null;
-  if (screen) model.add(screen.root);
+  /* §9 — the plexi mark's basis, measured off the DELIVERED glazing before any
+     configuration is applied, because the mark is built on the first
+     `applyConfiguration` and needs a surface to sit on by then.
+     `installGlazing` also puts the transmission material on, which has to
+     happen before the material's program is first built. */
+  const glazing = zones.get("windshield");
+  const screen = glazing ? measureScreenFrame(glazing.mesh) : null;
   if (process.env.NODE_ENV !== "production" && !screen) {
-    console.warn("PXL: no console in the asset — the windscreen was not built");
+    console.warn("PXL: no windshield in the asset — the plexi mark was not placed");
   }
 
   const vessel: PxlVesselHandle = {
@@ -884,7 +943,6 @@ export function PxlVessel({ onReady }: PxlVesselProps) {
       disposePropulsion(vessel.propulsion, vessel.root);
       for (const placement of vessel.decals) disposePlacement(placement);
       vessel.decals = [];
-      disposeScreen(vessel.screen);
       model.traverse((child) => {
         if (!(child instanceof Mesh)) return;
         const material = child.material;

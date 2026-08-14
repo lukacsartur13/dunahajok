@@ -1,0 +1,371 @@
+{
+  "model": "public/models/PXL.glb",
+  "rows": [
+    {
+      "name": "bow tip",
+      "axis": "x",
+      "reference": 2.627,
+      "live": 2.626601457595825,
+      "absolute": -0.00007586659639354763,
+      "relative": null,
+      "refRel": null,
+      "liveRel": null,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "stern tip",
+      "axis": "x",
+      "reference": -2.6266,
+      "live": -2.660876989364624,
+      "absolute": -0.006524973228627161,
+      "relative": null,
+      "refRel": null,
+      "liveRel": null,
+      "note": "the plate carries 774 mm of moulding abaft the sheer that the STL lacks",
+      "status": "MATCHED"
+    },
+    {
+      "name": "sheer maximum",
+      "axis": "z",
+      "reference": 0.9428,
+      "live": 0.9428014159202576,
+      "absolute": 0.0000012170536854022337,
+      "relative": -0.007544106750199666,
+      "refRel": 0.008799999999999919,
+      "liveRel": 0.000023186206817626953,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "console aft face",
+      "axis": "x",
+      "reference": -0.503,
+      "live": -1.4352325201034546,
+      "absolute": -0.17745993301291682,
+      "relative": null,
+      "refRel": null,
+      "liveRel": null,
+      "note": "SOURCE CONFLICT: the July plate stations the console at 0.47–0.55 LOA from the transom, the August views sheet and the STL at 0.24–0.35. The model follows the two that agree; the fore-aft error below is that conflict, not a build error. Its SIZE agrees across sources to 0.02 m.",
+      "status": "SOURCE"
+    },
+    {
+      "name": "console fwd face",
+      "axis": "x",
+      "reference": -0.152,
+      "live": -0.9802451133728027,
+      "absolute": -0.15766487348145944,
+      "relative": null,
+      "refRel": null,
+      "liveRel": null,
+      "note": "SOURCE CONFLICT: the July plate stations the console at 0.47–0.55 LOA from the transom, the August views sheet and the STL at 0.24–0.35. The model follows the two that agree; the fore-aft error below is that conflict, not a build error. Its SIZE agrees across sources to 0.02 m.",
+      "status": "SOURCE"
+    },
+    {
+      "name": "console dash, aft",
+      "axis": "z",
+      "reference": 1.009,
+      "live": 0.9088351726531982,
+      "absolute": -0.08609663688052403,
+      "relative": 0.006643201937846905,
+      "refRel": 0.13033919999999988,
+      "liveRel": 0.13806790113449097,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "console dash, fwd",
+      "axis": "z",
+      "reference": 1.091,
+      "live": 0.9929413199424744,
+      "absolute": -0.08428629882888568,
+      "relative": -0.013001209120006884,
+      "refRel": 0.19930079999999994,
+      "liveRel": 0.18417519330978394,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "windshield apex",
+      "axis": "z",
+      "reference": 1.377,
+      "live": 1.2920233011245728,
+      "absolute": -0.07304168718878051,
+      "relative": 0.0006737002437828012,
+      "refRel": 0.48660000000000003,
+      "liveRel": 0.48738378286361694,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "windshield, aft wing",
+      "axis": "z",
+      "reference": 1.143,
+      "live": 1.033569574356079,
+      "absolute": -0.09406087815361949,
+      "relative": -0.0013210393352485561,
+      "refRel": 0.2643392,
+      "liveRel": 0.2628023028373718,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "steering wheel, rim top",
+      "axis": "z",
+      "reference": 1.091,
+      "live": 0.9954930543899536,
+      "absolute": -0.08209295651542578,
+      "relative": 0.009026709709541328,
+      "refRel": 0.21730399999999994,
+      "liveRel": 0.22780567407608032,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "cockpit rail, top",
+      "axis": "z",
+      "reference": 0.96,
+      "live": 0.9072144031524658,
+      "absolute": -0.045371838445533906,
+      "relative": -0.022778942979691616,
+      "refRel": 0.07191999999999998,
+      "liveRel": 0.04541897773742676,
+      "note": "",
+      "status": "CLOSE"
+    },
+    {
+      "name": "cockpit rail, aft end",
+      "axis": "x",
+      "reference": -2.056,
+      "live": -2.0619454383850098,
+      "absolute": -0.0011317746107153196,
+      "relative": null,
+      "refRel": null,
+      "liveRel": null,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "cockpit rail, fwd end",
+      "axis": "x",
+      "reference": -0.256,
+      "live": -0.25,
+      "absolute": 0.0011421609685525024,
+      "relative": null,
+      "refRel": null,
+      "liveRel": null,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "bow rail, aft end",
+      "axis": "x",
+      "reference": 2.215,
+      "live": 2.2022783756256104,
+      "absolute": -0.002421690469502305,
+      "relative": null,
+      "refRel": null,
+      "liveRel": null,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "bow rail, fwd end",
+      "axis": "x",
+      "reference": 2.555,
+      "live": 2.568279266357422,
+      "absolute": 0.0025278432874099054,
+      "relative": null,
+      "refRel": null,
+      "liveRel": null,
+      "note": "",
+      "status": "MATCHED"
+    },
+    {
+      "name": "backrest, top",
+      "axis": "z",
+      "reference": 1.024,
+      "live": 0.925480842590332,
+      "absolute": -0.08468210195089221,
+      "relative": -0.001741285549795828,
+      "refRel": 0.1849333333333334,
+      "liveRel": 0.18290752172470093,
+      "note": "station transposed with the console — see the conflict above",
+      "status": "MATCHED"
+    },
+    {
+      "name": "seat cushion, top",
+      "axis": "z",
+      "reference": 0.67,
+      "live": 0.6621867418289185,
+      "absolute": -0.006715882904488209,
+      "relative": 0.10857586445053438,
+      "refRel": -0.1856,
+      "liveRel": -0.05928283929824829,
+      "note": "reference is the drawn figure's own lowest point (§26); its station is only known to about 0.5 m, and the delivered moulding fixes the live value — the cushion sits on the platform the STL has",
+      "status": "PARTIAL"
+    }
+  ],
+  "stern": [
+    {
+      "landmark": "top of cowling",
+      "variant": "compact",
+      "model": -0.02403846153846156,
+      "reference": -0.031,
+      "delta": 0.006961538461538439,
+      "status": "MATCHED"
+    },
+    {
+      "landmark": "bottom of cowling",
+      "variant": "compact",
+      "model": 0.4567307692307693,
+      "reference": 0.75,
+      "delta": -0.2932692307692307,
+      "status": "SIZE"
+    },
+    {
+      "landmark": "anti-ventilation plate",
+      "variant": "compact",
+      "model": 0.7301682692307693,
+      "reference": 1.956,
+      "delta": -1.2258317307692308,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "propeller centre",
+      "variant": "compact",
+      "model": 0.8052884615384617,
+      "reference": 2.219,
+      "delta": -1.4137115384615382,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "lowest lower-unit point",
+      "variant": "compact",
+      "model": 0.9465144230769231,
+      "reference": 2.469,
+      "delta": -1.5224855769230767,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "top of cowling",
+      "variant": "standard",
+      "model": -0.03245192307692311,
+      "reference": -0.031,
+      "delta": -0.0014519230769231076,
+      "status": "MATCHED"
+    },
+    {
+      "landmark": "bottom of cowling",
+      "variant": "standard",
+      "model": 0.5685096153846154,
+      "reference": 0.75,
+      "delta": -0.18149038461538458,
+      "status": "SIZE"
+    },
+    {
+      "landmark": "anti-ventilation plate",
+      "variant": "standard",
+      "model": 0.8263221153846154,
+      "reference": 1.956,
+      "delta": -1.1296778846153845,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "propeller centre",
+      "variant": "standard",
+      "model": 0.9134615384615385,
+      "reference": 2.219,
+      "delta": -1.3055384615384613,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "lowest lower-unit point",
+      "variant": "standard",
+      "model": 1.0817307692307692,
+      "reference": 2.469,
+      "delta": -1.3872692307692307,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "top of cowling",
+      "variant": "large",
+      "model": -0.03966346153846158,
+      "reference": -0.031,
+      "delta": -0.008663461538461578,
+      "status": "MATCHED"
+    },
+    {
+      "landmark": "bottom of cowling",
+      "variant": "large",
+      "model": 0.6995192307692307,
+      "reference": 0.75,
+      "delta": -0.050480769230769273,
+      "status": "MATCHED"
+    },
+    {
+      "landmark": "anti-ventilation plate",
+      "variant": "large",
+      "model": 0.8984375,
+      "reference": 1.956,
+      "delta": -1.0575625,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "propeller centre",
+      "variant": "large",
+      "model": 1.0006009615384617,
+      "reference": 2.219,
+      "delta": -1.2183990384615382,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "lowest lower-unit point",
+      "variant": "large",
+      "model": 1.1959134615384617,
+      "reference": 2.469,
+      "delta": -1.2730865384615382,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "top of cowling",
+      "variant": "electric",
+      "model": -0.028846153846153872,
+      "reference": -0.031,
+      "delta": 0.0021538461538461277,
+      "status": "MATCHED"
+    },
+    {
+      "landmark": "bottom of cowling",
+      "variant": "electric",
+      "model": 0.4098557692307692,
+      "reference": 0.75,
+      "delta": -0.3401442307692308,
+      "status": "SIZE"
+    },
+    {
+      "landmark": "anti-ventilation plate",
+      "variant": "electric",
+      "model": 0.850360576923077,
+      "reference": 1.956,
+      "delta": -1.1056394230769229,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "propeller centre",
+      "variant": "electric",
+      "model": 0.9314903846153846,
+      "reference": 2.219,
+      "delta": -1.2875096153846153,
+      "status": "SOURCE"
+    },
+    {
+      "landmark": "lowest lower-unit point",
+      "variant": "electric",
+      "model": 1.111778846153846,
+      "reference": 2.469,
+      "delta": -1.3572211538461538,
+      "status": "SOURCE"
+    }
+  ]
+}

@@ -59,6 +59,7 @@ import { getSceneSlot, setSceneActive } from "@/components/scene/SceneSlot";
 import { applyPxlCamera, resolvePreset } from "./pxlCamera";
 import { PXL_PRESET_BY_ID, type PxlPresetId } from "./pxlPresets";
 import { parseConfiguration } from "./pxlConfig";
+import { PXL_VISUAL_CASES, PXL_VISUAL_TOLERANCE } from "./pxlVisualCases";
 import { applyConfiguration, type PxlVesselHandle } from "./PxlVessel";
 
 /** What the scene hands over. Registered once, on mount. */
@@ -101,6 +102,8 @@ interface PxlQaApi {
   state: () => Record<string, unknown>;
   /** What colour every zone actually ended up. §27. */
   zones: () => PxlZoneReport[];
+  /** §36 — every declared configuration pair, as a pixel diff. */
+  visual: () => PxlVisualResult[];
 }
 
 /**
@@ -328,6 +331,97 @@ export function capturePxlFrame(spec: PxlFrameSpec = {}): string | null {
   return out.toDataURL("image/png");
 }
 
+/* ── Visual regression ────────────────────────────────────────────────────*/
+
+/**
+ * Read the slot's pixels back into a buffer.
+ *
+ * `readRenderTargetPixels` is not usable here — the frame was drawn to the
+ * default framebuffer, not to a target — so this goes through the same 2D
+ * canvas `capturePxlFrame` uses and takes the `ImageData` instead of a data
+ * URL. Both have to run before the browser composites, because
+ * `preserveDrawingBuffer` is false.
+ */
+function readFramePixels(spec: PxlFrameSpec): ImageData | null {
+  const result = renderPxlFrame(spec);
+  if (!result.ok || !bridge) return null;
+  const { gl } = bridge;
+  const box = bridge.bounds();
+  const dpr = gl.getPixelRatio();
+  const sw = Math.round(box.width * dpr);
+  const sh = Math.round(box.height * dpr);
+  const out = document.createElement("canvas");
+  out.width = sw;
+  out.height = sh;
+  const ctx = out.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(
+    gl.domElement,
+    Math.round(box.left * dpr), Math.round(box.top * dpr), sw, sh,
+    0, 0, sw, sh,
+  );
+  return ctx.getImageData(0, 0, sw, sh);
+}
+
+export interface PxlVisualResult {
+  id: string;
+  requirement: string;
+  /** Fraction of the frame whose pixels differ by more than the tolerance. */
+  changed: number;
+  /** Required floor, from `PXL_VISUAL_CASES`. */
+  minChanged: number;
+  /** Mean absolute per-channel difference over the whole frame, 0–255. */
+  meanDelta: number;
+  pass: boolean;
+  reason?: string;
+}
+
+/**
+ * §36 — RUN EVERY DECLARED CONFIGURATION PAIR AND COUNT WHAT MOVED.
+ *
+ * The two frames are drawn back to back from the same camera with the same
+ * clock and no transition, so the ONLY difference between them is the
+ * configuration. Anything that changes is therefore attributable, and anything
+ * that does not change is a control that does nothing.
+ *
+ * A zero diff fails, which §36 requires — but so does a diff below the case's
+ * own floor, because "not zero" is too weak a test. A single anti-aliased edge
+ * moving by one pixel is not zero and is not a configurator working either.
+ */
+export function runPxlVisualCases(): PxlVisualResult[] {
+  if (process.env.NODE_ENV === "production") return [];
+  const out: PxlVisualResult[] = [];
+  for (const c of PXL_VISUAL_CASES) {
+    const base = { id: c.id, requirement: c.requirement, minChanged: c.minChanged };
+    const a = readFramePixels({ configuration: c.a, camera: c.camera as PxlPresetId });
+    const b = readFramePixels({ configuration: c.b, camera: c.camera as PxlPresetId });
+    if (!a || !b || a.data.length !== b.data.length) {
+      out.push({ ...base, changed: 0, meanDelta: 0, pass: false, reason: "no frame" });
+      continue;
+    }
+    let changed = 0;
+    let total = 0;
+    const pixels = a.data.length / 4;
+    for (let i = 0; i < a.data.length; i += 4) {
+      const dr = Math.abs(a.data[i] - b.data[i]);
+      const dg = Math.abs(a.data[i + 1] - b.data[i + 1]);
+      const db = Math.abs(a.data[i + 2] - b.data[i + 2]);
+      total += dr + dg + db;
+      if (dr > PXL_VISUAL_TOLERANCE || dg > PXL_VISUAL_TOLERANCE || db > PXL_VISUAL_TOLERANCE) {
+        changed += 1;
+      }
+    }
+    const fraction = changed / pixels;
+    out.push({
+      ...base,
+      changed: fraction,
+      meanDelta: total / (pixels * 3),
+      pass: fraction >= c.minChanged,
+    });
+  }
+  return out;
+}
+
 /* ── The contact sheet ────────────────────────────────────────────────────*/
 
 /**
@@ -480,6 +574,10 @@ export function installPxlQa(): () => void {
       };
     },
     zones: readZones,
+    visual: () => {
+      setSceneActive("pxl-product", true);
+      return runPxlVisualCases();
+    },
   };
 
   return () => {

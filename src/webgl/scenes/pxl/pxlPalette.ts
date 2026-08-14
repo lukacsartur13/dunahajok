@@ -161,11 +161,25 @@ export const PXL_HULL_FINISHES: readonly PxlFinish[] = [
     previewLabel: "Sage Green",
     published: false,
     label: "Sage green",
-    base: "#61817b",
-    roughness: 0.24,
+    /**
+     * RE-MEASURED IN PHASE 4.3, §23, AND IT MOVED TOWARD GREY.
+     *
+     * The plate's topsides were sampled at six stations and run
+     * #526362 → #586764 → #5b6c5c → #677264 → #717967 → #82908d from shadow to
+     * highlight: a grey-green at 8–13% saturation. The old #61817b renders as
+     * #4d746e, which is 34% saturation and a good 20° round toward cyan — the
+     * "flatter and more pastel" §22 complains of is partly this, a hull that is
+     * simultaneously too colourful and too cool reading as a tint rather than
+     * as a paint.
+     *
+     * Desaturated and warmed, and the clearcoat raised to carry the depth the
+     * saturation was doing badly. §22: do not merely increase saturation.
+     */
+    base: "#66796f",
+    roughness: 0.21,
     metalness: 0,
-    clearcoat: 0.62,
-    clearcoatRoughness: 0.10,
+    clearcoat: 0.72,
+    clearcoatRoughness: 0.075,
     reference: "pxl-water-sage",
   },
   {
@@ -250,11 +264,26 @@ export const PXL_STRUCTURE_FINISHES: readonly PxlFinish[] = [
     previewLabel: "Structural Black",
     published: false,
     label: "Structural black",
-    base: "#101215",
-    roughness: 0.44,
+    /**
+     * LIFTED IN PHASE 4.3, §22 — "dark values that remain dimensional".
+     *
+     * Measured rather than judged. The plate's bottom sweeps #000000 in its own
+     * shadow to #414141 where it faces the light, so it has a 65-level range;
+     * the live hull returned #070401 at the equivalent station — four levels off
+     * zero, which is a silhouette with a chine drawn on it.
+     *
+     * The old note here was already right about the cause ("a base colour at or
+     * near zero, after which no amount of light produces a gradient") and had
+     * set the base too low to act on it. 0x1b1e21 is still unmistakably black
+     * beside a white hull; what changes is that it now has somewhere to go. The
+     * clearcoat carries most of the rest — a bottom is a painted surface, and
+     * at 0.20 it was answering the studio ring with almost nothing.
+     */
+    base: "#17191c",
+    roughness: 0.40,
     metalness: 0,
-    clearcoat: 0.20,
-    clearcoatRoughness: 0.28,
+    clearcoat: 0.38,
+    clearcoatRoughness: 0.24,
   },
 ] as const;
 
@@ -266,11 +295,22 @@ export const PXL_ACCENT_FINISHES: readonly PxlFinish[] = [
     previewLabel: "Capping Black",
     published: false,
     label: "Capping black",
-    base: "#14161a",
-    roughness: 0.36,
+    /**
+     * §25 — THE DARK FAMILIES ARE NOT ONE GREY, AND ROUGHNESS IS WHAT SEPARATES
+     * THEM. The capping is a lacquered moulding at the deck edge, the bottom is
+     * antifoul-adjacent paint below the chine, and the stern moulding is
+     * between the two. Three bases within nine levels of each other, three very
+     * different roughnesses and three clearcoats: under one light they read as
+     * three materials rather than as one colour used three times.
+     *
+     * Lifted with the bottom, and by slightly more — it is the higher, more
+     * exposed of the two and the plate has it at #2b2b2b.
+     */
+    base: "#191c20",
+    roughness: 0.28,
     metalness: 0,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.20,
+    clearcoat: 0.46,
+    clearcoatRoughness: 0.15,
   },
 ] as const;
 
@@ -347,18 +387,37 @@ export const PXL_INTERIOR_FINISHES: readonly PxlFinish[] = [
     previewLabel: "Cognac",
     published: false,
     label: "Cognac",
-    // The interior of both delivered renders. Deeper and browner than the
-    // cognac on the rails — the rails are a lacquered inlay catching the sky,
-    // this is a matt surface a metre away from it, and reading the same hex off
-    // both is what turns the trim into orange plastic.
-    base: "#8a4d24",
-    roughness: 0.78,
+    /**
+     * §24 — THE COGNAC WAS RENDERING AS FLAT ORANGE, AND THE HEX WAS NOT THE
+     * REASON.
+     *
+     * Measured: the views sheet's cushions are #985127 and #985028, a warm
+     * brown. The live cushions returned #ca7d48 at the same semantic point and
+     * #f5a06e where the light catches them — half again as bright and a good
+     * deal more orange. #8a4d24 is a perfectly good cognac; what was wrong was
+     * everything applied on top of it.
+     *
+     * THE SHEEN WAS DOING IT. 0.34 of a #c98a52 lobe is a broad retro-reflective
+     * lift across the whole surface, and on a cushion — which is curved
+     * everywhere, so most of it is at a grazing angle to something — it acts as
+     * a second, lighter albedo. It is halved and its colour pulled back to a
+     * tint of the base rather than a highlight two steps up from it.
+     *
+     * Then the base is deepened to land the RENDER on the reference rather than
+     * the swatch: the target is what the boat looks like, not what the number
+     * says. Two passes were needed — #77401d still returned #ae6b45 against the
+     * reference's #985127, so it went down again. Roughness comes down slightly because 0.78 with a weakened sheen
+     * goes chalky, and the micro-normal stays — §24 asks for subtle
+     * microstructure and that is what carries it.
+     */
+    base: "#6c3818",
+    roughness: 0.72,
     metalness: 0,
     clearcoat: 0,
     clearcoatRoughness: 0,
-    sheen: 0.34,
-    sheenColour: "#c98a52",
-    microNormal: 0.65,
+    sheen: 0.16,
+    sheenColour: "#9c6338",
+    microNormal: 0.68,
     reference: "pxl-hero-side",
   },
   {
@@ -476,11 +535,23 @@ export const PXL_METAL_FINISHES: readonly PxlFinish[] = [
     previewLabel: "Cognac Rail",
     published: false,
     label: "Cognac rail",
-    base: "#a2571f",
-    roughness: 0.44,
-    metalness: 0.10,
-    clearcoat: 0.30,
-    clearcoatRoughness: 0.22,
+    /**
+     * §17 — ORANGE ACCENT IS NOT COGNAC UPHOLSTERY, and Phase 4.3 widens the
+     * gap rather than narrowing it. The upholstery has just moved to a deeper,
+     * browner #77401d; if the rail followed it the two material systems would
+     * collapse into one and the boat would lose the warm/soft distinction every
+     * reference makes.
+     *
+     * So the rail stays where it is in hue and gains what a lacquered extrusion
+     * actually has: a tighter coat, a little more flake, and a specular
+     * response the matt cushions beside it cannot produce. Same family, plainly
+     * different material.
+     */
+    base: "#a85a1d",
+    roughness: 0.36,
+    metalness: 0.16,
+    clearcoat: 0.46,
+    clearcoatRoughness: 0.16,
     reference: "pxl-hero-side",
   },
 ] as const;
@@ -539,11 +610,25 @@ export const PXL_DRIVE_FINISHES: readonly PxlFinish[] = [
     previewLabel: "Drive Alloy",
     published: false,
     label: "Drive alloy",
-    base: "#4a4e52",
-    roughness: 0.48,
-    metalness: 0.28,
-    clearcoat: 0.12,
-    clearcoatRoughness: 0.34,
+    /**
+     * PHASE 4.6 §2, §47 — DARKENED FROM #4a4e52.
+     *
+     * The leg is now three times longer than it was, and at that length the old
+     * value was doing visible harm: a mid-grey column 0.9 m tall hanging under a
+     * near-black cowling read as a separate object bolted to the engine rather
+     * than as part of it. The delivered stern three-quarter draws the whole
+     * drive in one dark family — the lower unit is a shade lighter than the
+     * cowling and no more.
+     *
+     * Still not the same value as `pxl_motor_black`, and still more metallic:
+     * a gearcase is cast alloy under paint and a cowling is a moulding, so they
+     * part company under a moving light even where they agree in base colour.
+     */
+    base: "#2a2d31",
+    roughness: 0.44,
+    metalness: 0.34,
+    clearcoat: 0.14,
+    clearcoatRoughness: 0.30,
   },
 ] as const;
 

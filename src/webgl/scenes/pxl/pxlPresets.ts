@@ -54,6 +54,8 @@ export type PxlPresetId =
    */
   | "reference_side"
   | "reference_top_3q"
+  /** PHASE 4.4 §6 — the plan. The only view a capping's width can be read in. */
+  | "reference_plan"
   | "reference_stern_3q"
   | "reference_water_side";
 
@@ -231,6 +233,26 @@ export const PXL_PRESETS: readonly PxlPreset[] = [
     // the hull into a plan.
     desktop: { azimuth: 48, elevation: 34, distance: 13.4, hfov: 30, minVfov: 26, target: [-0.35, 0.30, 0] },
     mobile: { azimuth: 44, elevation: 38, distance: 15.0, hfov: 27, minVfov: 26, target: [-0.35, 0.28, 0] },
+  },
+  {
+    id: "reference_plan",
+    label: "Reference — plan",
+    /* PHASE 4.4, §6 and §34. THE VIEW THE PHASE IS JUDGED IN.
+       §6: "the current model was previously validated heavily from the side.
+       That is no longer sufficient." A capping's width is invisible in profile
+       and nearly invisible in a three-quarter — the one composition that shows
+       it is looking straight down, where the top perimeter is a band with two
+       edges and both of them can be measured against the reference's.
+       Nearly orthographic for the same reason `reference_side` is: at 26 m on
+       a 13° lens the bow and the stern of a 5.25 m hull differ in scale by
+       under 6%, so the plan outline is an outline rather than a perspective. */
+    // Measured: 80% of frame width, the whole boat inside it. `minVfov` is 0
+    // rather than the interior presets' 26–30: those look down at a boat that
+    // still has height, and this one does not — the beam is 2.09 m against a
+    // 5.25 m length, so the long axis is the only one that needs framing and a
+    // vertical floor here only pushes the camera back until the boat is a chip.
+    desktop: { azimuth: 0, elevation: 88, distance: 26, hfov: 13.4, minVfov: 0, target: [0, 0.55, 0] },
+    mobile: { azimuth: 0, elevation: 88, distance: 26, hfov: 13.4, minVfov: 0, target: [0, 0.55, 0] },
   },
   {
     id: "reference_stern_3q",

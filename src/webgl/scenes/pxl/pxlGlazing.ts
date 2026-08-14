@@ -1,66 +1,77 @@
 /**
- * THE WINDSCREEN. §9, §10, §11.
+ * THE WINDSCREEN'S MATERIAL, AND THE MARK'S BASIS.  §7, §8, §9.
  *
- * ── WHY THERE IS GEOMETRY HERE AT ALL ─────────────────────────────────────
+ * ── WHAT THIS FILE STOPPED DOING IN PHASE 4.3 ─────────────────────────────
  *
- * §9 requires the PXL mark that the design renders show on the plexi. A mark
- * needs a surface, and the delivered STL does not contain one — that fact has
- * been recorded in `PXL_UNSUPPORTED_CHANNELS` since Phase Four and was, until
- * this phase, a sufficient answer.
+ * It used to BUILD the screen. The delivered STL had no glazing, so Phase 4.1
+ * authored one at runtime: a flat slab sized as a fraction of the console's
+ * bounding box, standing on that box's crest. It was the honest move at the
+ * time and it had two failures that only a three-quarter view shows.
  *
- * §29 forbids replacing accurate PXL geometry with generic geometry. It does not
- * forbid adding geometry that is missing, and §34 is explicit that a
- * PXL-specific implementation beats a reusable component where product accuracy
- * is at stake. So the screen is authored, here, and three things keep it honest:
+ * It was FLAT. A plane across the console has no side return, so it vanishes
+ * edge-on and reads as a decal from anywhere off the beam — which is where the
+ * cockpit and stern reference cameras both sit. §7 asks for a wraparound and no
+ * amount of material work makes a plane into one.
  *
- *   • every dimension is a FRACTION OF THE CONSOLE'S OWN MEASURED BOX, so the
- *     screen is sized by the boat rather than by a remembered number, and a
- *     revised console carries it along instead of leaving it floating where the
- *     old one used to be;
- *   • the proportions come from the plate — see `PXL_SCREEN`, where the 4° rake
- *     is the drawing's own 5.8-pixels-over-101 rather than the console's much
- *     steeper face;
- *   • it is built at runtime and disposed with the mount, like the proxy drives,
- *     so it never becomes a second GLB and never has to be re-exported.
+ * And it was MOUNTED ON A BOUNDING BOX. The console it measured was the STL's
+ * wedge, whose highest point is its AFT face, so the screen stood behind the
+ * driver's hands rather than in front of them, and the PXL mark stood in free
+ * air above it.
  *
- * IT IS STILL A RECONSTRUCTION, and the phase report files the real screen with
- * the real console as one asset requirement. What it is not is absent.
+ * §7 of the 4.3 brief settles both: "It must have genuine 3D geometry. Do NOT
+ * use a flat decorative plane." The screen is now built in Blender with the
+ * console it belongs to — a front face, two side returns, a swept upper profile
+ * and a 9.2° rake, all measured off the July plate — and arrives as the
+ * `windshield` zone in the GLB. See `scripts/pxl/pxl_upper.py`.
  *
- * ── THE GLASS ────────────────────────────────────────────────────────────
+ * ── WHAT IS LEFT HERE, AND WHY IT IS STILL HERE ───────────────────────────
  *
- * §11 asks for marine glazing and rules out five specific failures: opaque black
- * plastic, mirror glass, excessive blue tint, an invisible transparent sheet,
- * and an overly strong Fresnel. Those are five different mistakes and they have
- * one common cause — reaching for `transparent: true` and an opacity, which is
- * an alpha blend rather than a material.
+ * Two things that cannot live in a GLB.
  *
- * What this uses instead is three's own transmission model: `transmission` 0.92
- * with `thickness` set to the real 9 mm, `ior` 1.49 (which is acrylic's, not
- * glass's 1.52 — the drawing shows a plexi screen and the difference is
- * measurable at a grazing angle), and a very slight cool-neutral `attenuation`
- * over that thickness rather than a tinted base colour. A tint applied as
- * albedo colours the reflection too, which is exactly what produces "excessive
- * blue"; attenuation colours only what passes THROUGH, which is what real
- * tinted acrylic does and what leaves the reflected sky neutral.
+ * THE MATERIAL. glTF can carry transmission, but the runtime promotes every
+ * delivered material to `MeshPhysicalMaterial` and drives it from the finish
+ * catalogue; a transmission material that arrived through that path would be
+ * overwritten by the first `applyConfiguration`. So the glazing is installed
+ * once, at index time, and no channel writes to it.
  *
- * The Fresnel is left where the IOR puts it. `reflectivity` is 0.5 — the neutral
- * value — because raising it is the usual way an "invisible sheet" gets fixed
- * and it is the direct cause of "mirror glass" one step later. What actually
- * makes the screen readable is that it has a FRAME and a THICKNESS: an edge-lit
- * dark surround and 9 mm of visible section give the eye something to find,
- * which no amount of reflectivity on a zero-thickness plane can.
+ * THE MARK'S BASIS. §9 requires the PXL mark on the plexi, "attached correctly
+ * at every camera angle", and re-projected onto the rebuilt surface rather than
+ * kept at its old transform. `measureScreenFrame` fires a ray at the delivered
+ * glazing and takes the surface point and normal from whatever it hits — the
+ * same discipline `pxlDecals` uses for the hull marks, and the reason those
+ * survived Phase 4.2's re-export without being touched.
+ *
+ * ── THE GLASS ─────────────────────────────────────────────────────────────
+ *
+ * §8 asks for marine tinted acrylic and rules out five specific failures:
+ * opaque black, an invisible sheet, mirror glass, blue sci-fi glass, and no
+ * thickness. Those are five mistakes with one common cause — reaching for
+ * `transparent: true` and an opacity, which is an alpha blend rather than a
+ * material.
+ *
+ * What this uses instead is three's transmission model: `transmission` 0.92
+ * with `thickness` set to the real 9 mm, `ior` 1.49 (acrylic's, not glass's
+ * 1.52 — the drawing shows plexi and the difference is measurable at a grazing
+ * angle), and a restrained cool attenuation over that thickness rather than a
+ * tinted base colour. A tint applied as albedo colours the reflection too,
+ * which is exactly what produces "blue sci-fi glass"; attenuation colours only
+ * what passes THROUGH, which is what real tinted acrylic does.
+ *
+ * The Fresnel is left where the IOR puts it. `reflectivity` is 0.5 — the
+ * neutral value — because raising it is the usual way an "invisible sheet" gets
+ * fixed and the direct cause of "mirror glass" one step later. What actually
+ * makes the screen readable is that it has a FRAME and a THICKNESS, and both
+ * are now geometry: a 24 mm dark cap along its top edge and two posts closing
+ * the wings, in `console_detail`, plus 9 mm of real section on the glass.
  */
 
 import {
-  BufferAttribute,
-  BufferGeometry,
   Box3,
-  DoubleSide,
   Color,
-  MathUtils,
+  DoubleSide,
   Mesh,
   MeshPhysicalMaterial,
-  Object3D,
+  Raycaster,
   Vector3,
 } from "three";
 import { PXL_SCREEN } from "./pxlReference";
@@ -82,165 +93,61 @@ export interface PxlScreenFrame {
 }
 
 /**
- * WHERE THE SCREEN STANDS, FOUND FROM THE CONSOLE RATHER THAN AUTHORED.
+ * The delivered glazing's own front face, found by ray rather than authored.
  *
- * The console is a faceted box whose top is a single steep forward-facing plane
- * — rays fired down at it find its crest at x ≈ −1.16, y = 1.147, and nothing
- * above that. So the screen's foot is the crest, its width is a fraction of the
- * console's beam, and its height a fraction of the console's own height.
+ * §9 — "re-project/reposition the PXL branding onto the actual plexi surface.
+ * It must remain attached correctly at every camera angle." A transform
+ * remembered from the old runtime screen would satisfy neither half: the old
+ * screen stood on a different console in a different place.
  *
- * Returns null when the console is missing, which is the honest outcome: a
- * screen placed at a fallback position is a screen in the wrong place, and an
- * absent one is something `npm run model` and the configurator tests can catch.
+ * So the frame is measured. A ray is fired aft along the centreline at the
+ * screen's own mid-height; the first hit is the outside of the front face, and
+ * its normal is that face's. Width comes from the mesh's beam and height from
+ * the part of its box that stands above the hit — not from the whole box, which
+ * includes the wings sweeping down and would make the mark a third too small.
+ *
+ * Returns null when there is no glazing, which is the honest outcome: a mark
+ * placed at a fallback position is a mark in the wrong place, and an absent one
+ * is something `npm run model` and the configurator tests can catch.
  */
-export function measureScreenFrame(console_: Object3D): PxlScreenFrame | null {
-  const box = new Box3().setFromObject(console_);
+export function measureScreenFrame(screen: Mesh): PxlScreenFrame | null {
+  const box = new Box3().setFromObject(screen);
   if (box.isEmpty()) return null;
 
-  const consoleHeight = box.max.y - box.min.y;
-  const consoleBeam = box.max.z - box.min.z;
-  if (consoleHeight <= 0 || consoleBeam <= 0) return null;
+  const width = box.max.z - box.min.z;
+  if (width <= 0) return null;
 
-  const height = consoleHeight * PXL_SCREEN.height;
-  const width = consoleBeam * PXL_SCREEN.width;
-  const rake = MathUtils.degToRad(PXL_SCREEN.rake);
+  /* Aimed at the upper third rather than the middle. The wings descend to the
+     dash, so a ray at the box's mid-height can pass under the front face
+     entirely on a screen whose top sweeps as far as this one's does. */
+  const aim = box.min.y + (box.max.y - box.min.y) * 0.66;
+  const from = new Vector3(box.max.x + 1.5, aim, (box.min.z + box.max.z) / 2);
+  const caster = new Raycaster(from, new Vector3(-1, 0, 0), 0, 4);
+  const hit = caster.intersectObject(screen, false)[0];
+  if (!hit) return null;
 
-  /* The crest. The console's own highest point is where its raked forward face
-     meets its top, and that is the edge a screen is bolted to. Taken from the
-     bounding box's maximum rather than by raycasting because the box already
-     reports it exactly and a ray would only rediscover it — the console is one
-     convex-ish faceted shell and its highest point is its highest point. */
-  const crest = new Vector3(
-    // The crest sits aft of the console's forward face by the amount its own
-    // rake carries it. Measured on this asset at 0.206 of the box's length.
-    box.min.x + (box.max.x - box.min.x) * 0.51,
-    box.max.y,
-    (box.min.z + box.max.z) / 2,
-  );
+  const normal = (hit.normal ?? new Vector3(1, 0, 0)).clone();
+  /* Face normals arrive in object space. The vessel is not rotated, so this is
+     a copy rather than a transform — but it is written as one so that a scene
+     which does rotate the boat keeps working. */
+  normal.transformDirection(screen.matrixWorld).normalize();
+  if (normal.x < 0) normal.negate();
 
-  /* The screen's basis. `up` leans aft as it rises, `normal` is perpendicular to
-     it in the same plane, and `right` runs along the beam — which the rake never
-     touches.
-
-     RIGHT IS −Z, NOT +Z, AND THE SIGN IS NOT COSMETIC. `Matrix4.makeBasis`
-     followed by `Quaternion.setFromRotationMatrix` requires a RIGHT-HANDED
-     basis: right × up must equal normal. With +Z it equals −normal, the matrix
-     is a reflection rather than a rotation, and the quaternion extracted from it
-     is meaningless — which showed up on the boat as the plexi mark lying flat
-     across the beam and facing the camera from every angle. */
-  const up = new Vector3(-Math.sin(rake), Math.cos(rake), 0).normalize();
-  const normal = new Vector3(Math.cos(rake), Math.sin(rake), 0).normalize();
+  /* `up` is the screen's own rake: perpendicular to the face normal in the
+     fore-aft plane, leaning aft as it rises. */
+  const up = new Vector3(-normal.y, normal.x, 0).normalize();
+  if (up.y < 0) up.negate();
+  /* RIGHT × UP MUST EQUAL NORMAL. `Matrix4.makeBasis` followed by
+     `Quaternion.setFromRotationMatrix` needs a right-handed basis; get the sign
+     wrong and the matrix is a reflection, the extracted quaternion is
+     meaningless, and the mark lies flat across the beam facing the camera from
+     every angle. That is not hypothetical — it happened in Phase 4.1. */
   const right = new Vector3().crossVectors(up, normal).normalize();
 
-  const centre = crest.clone().addScaledVector(up, height / 2);
+  const height = Math.max((box.max.y - hit.point.y) * 2, 0.06);
+  const centre = hit.point.clone();
 
   return { centre, right, up, normal, width, height };
-}
-
-/* ── Geometry ─────────────────────────────────────────────────────────────*/
-
-/**
- * A rounded rectangle's outline, as points in the face's own 2D frame.
- *
- * Authored rather than taken from `Shape.roundedRect` because the screen's
- * corners are not all the same: the drawing's top corners are generously
- * radiused and its bottom corners are square, since the bottom edge is where the
- * screen enters the console and a radius there would leave a gap.
- */
-function facePoints(width: number, height: number, radius: number, segments = 5) {
-  const hw = width / 2;
-  const hh = height / 2;
-  const r = Math.min(radius, hw * 0.6, hh * 0.6);
-  const points: [number, number][] = [];
-
-  points.push([-hw, -hh]);
-  points.push([hw, -hh]);
-  points.push([hw, hh - r]);
-  for (let i = 1; i <= segments; i += 1) {
-    const a = (i / (segments + 1)) * (Math.PI / 2);
-    points.push([hw - r + r * Math.cos(a), hh - r + r * Math.sin(a)]);
-  }
-  points.push([hw - r, hh]);
-  points.push([-hw + r, hh]);
-  for (let i = 1; i <= segments; i += 1) {
-    const a = Math.PI / 2 + (i / (segments + 1)) * (Math.PI / 2);
-    points.push([-hw + r + r * Math.cos(a), hh - r + r * Math.sin(a)]);
-  }
-  points.push([-hw, hh - r]);
-  return points;
-}
-
-/**
- * An extruded slab from a 2D outline, in the frame's own basis.
- *
- * Written out rather than built with `ExtrudeGeometry` because the extrusion is
- * 9 mm along a known axis and `ExtrudeGeometry` would want a `Shape`, a
- * triangulation, a bevel configuration and a UV generator to produce the same
- * forty triangles. The face is triangulated as a fan from the centroid, which is
- * exact for a convex outline and this one is convex by construction.
- */
-function slab(
-  points: [number, number][],
-  depth: number,
-  frame: PxlScreenFrame,
-): BufferGeometry {
-  const n = points.length;
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const half = depth / 2;
-
-  const world = (u: number, v: number, w: number, out: Vector3) =>
-    out
-      .copy(frame.centre)
-      .addScaledVector(frame.right, u)
-      .addScaledVector(frame.up, v)
-      .addScaledVector(frame.normal, w);
-
-  const a = new Vector3();
-  const b = new Vector3();
-  const c = new Vector3();
-  const push = (v: Vector3, normal: Vector3) => {
-    positions.push(v.x, v.y, v.z);
-    normals.push(normal.x, normal.y, normal.z);
-  };
-
-  // Two faces, fanned from the centre.
-  for (const side of [1, -1] as const) {
-    const facing = frame.normal.clone().multiplyScalar(side);
-    for (let i = 0; i < n; i += 1) {
-      const j = (i + 1) % n;
-      world(0, 0, half * side, a);
-      world(points[i][0], points[i][1], half * side, b);
-      world(points[j][0], points[j][1], half * side, c);
-      if (side > 0) { push(a, facing); push(b, facing); push(c, facing); }
-      else { push(a, facing); push(c, facing); push(b, facing); }
-    }
-  }
-
-  // The rim.
-  const edge = new Vector3();
-  const d = new Vector3();
-  for (let i = 0; i < n; i += 1) {
-    const j = (i + 1) % n;
-    world(points[i][0], points[i][1], half, a);
-    world(points[j][0], points[j][1], half, b);
-    world(points[j][0], points[j][1], -half, c);
-    world(points[i][0], points[i][1], -half, d);
-    edge
-      .set(points[j][1] - points[i][1], -(points[j][0] - points[i][0]), 0)
-      .normalize();
-    const rim = frame.right
-      .clone()
-      .multiplyScalar(edge.x)
-      .addScaledVector(frame.up, edge.y);
-    push(a, rim); push(b, rim); push(c, rim);
-    push(a, rim); push(c, rim); push(d, rim);
-  }
-
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new BufferAttribute(Float32Array.from(positions), 3));
-  geometry.setAttribute("normal", new BufferAttribute(Float32Array.from(normals), 3));
-  return geometry;
 }
 
 /* ── Materials ────────────────────────────────────────────────────────────*/
@@ -272,10 +179,19 @@ export function createPlexiMaterial(): MeshPhysicalMaterial {
     /* Neutral. Raising it is the usual fix for an invisible sheet and the usual
        cause of a mirror one step later — see the file note. */
     reflectivity: 0.5,
-    /* A cool neutral over 90 mm, which at 9 mm of section is a barely-there
-       grey. The drawing's screen is tinted, not smoked. */
-    attenuationColor: new Color("#b9c6cd"),
-    attenuationDistance: 0.09,
+    /* §8 — RESTRAINED TINT, AND THE OLD ONE WAS NOT RESTRAINED, IT WAS ABSENT.
+       `attenuationDistance` is the distance at which the transmitted light
+       reaches `attenuationColor`, so 90 mm on a 9 mm section applies a tenth of
+       the tint: the screen returned #75797b in the side frame, which is the
+       studio reflected off clear plastic. The colour studies show a screen you
+       can see is tinted while still seeing the boat through it.
+
+       14 mm over a 9 mm section lands about two thirds of the way to the
+       attenuation colour — visible, and a long way short of the smoked-black
+       §8 rules out. The colour itself stays a cool NEUTRAL rather than a blue,
+       which is the difference between marine acrylic and "blue sci-fi glass". */
+    attenuationColor: new Color("#8d9aa6"),
+    attenuationDistance: 0.014,
     clearcoat: 0.25,
     clearcoatRoughness: 0.08,
     /* Both faces. The orbit crosses the screen's plane, and a single-sided
@@ -288,94 +204,30 @@ export function createPlexiMaterial(): MeshPhysicalMaterial {
     depthWrite: true,
   });
   material.name = "pxl_plexi";
-  material.envMapIntensity = 1.35;
+  material.envMapIntensity = 1.05;
   return material;
 }
 
-/** The frame. A dark structural surround, not paint — it never follows the hull. */
-function createFrameMaterial(): MeshPhysicalMaterial {
-  const material = new MeshPhysicalMaterial({
-    color: new Color("#16181b"),
-    roughness: 0.34,
-    metalness: 0,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.2,
-    side: DoubleSide,
-  });
-  material.name = "pxl_screen_frame";
-  material.envMapIntensity = 0.9;
-  return material;
-}
-
-/* ── Assembly ─────────────────────────────────────────────────────────────*/
-
-export interface PxlScreen {
-  root: Object3D;
-  frame: PxlScreenFrame;
-  glass: Mesh;
-  glassMaterial: MeshPhysicalMaterial;
-  surroundMaterial: MeshPhysicalMaterial;
-}
+/* ── Installation ─────────────────────────────────────────────────────────*/
 
 /**
- * Build the screen and hang it off the vessel.
+ * Put the plexi on the delivered glazing, and hand back the mark's basis.
  *
- * Two slabs: the surround, which is the full face, and the glazing, which is the
- * same outline inset by the frame depth. The glazing sits very slightly PROUD of
- * the surround on both sides rather than flush, because two coplanar faces
- * z-fight and the fix that does not cost a stencil is a tenth of a millimetre.
+ * Called once, from `indexZones`, before the material's program is first built.
+ * Nothing else writes to this material: `windshield` is bound to the `glazing`
+ * channel and the catalogue offers nothing on it, so a configuration change
+ * cannot reach the glass.
  */
-export function createScreen(console_: Object3D): PxlScreen | null {
-  const frame = measureScreenFrame(console_);
-  if (!frame) return null;
-
-  const radius = frame.height * PXL_SCREEN.radius;
-  const surroundPoints = facePoints(frame.width, frame.height, radius);
-  const glassPoints = facePoints(
-    frame.width - PXL_SCREEN.frame * 2,
-    frame.height - PXL_SCREEN.frame * 2,
-    Math.max(0.001, radius - PXL_SCREEN.frame),
-  );
-
-  const surroundMaterial = createFrameMaterial();
-  const glassMaterial = createPlexiMaterial();
-
-  const surround = new Mesh(
-    slab(surroundPoints, PXL_SCREEN.thickness, frame),
-    surroundMaterial,
-  );
-  surround.name = "pxl_screen_frame";
-
-  const glass = new Mesh(
-    slab(glassPoints, PXL_SCREEN.thickness + 0.0002, frame),
-    glassMaterial,
-  );
-  glass.name = "pxl_screen_glass";
-
-  const root = new Object3D();
-  root.name = "pxl_screen";
-  root.add(surround, glass);
-  for (const mesh of [surround, glass]) {
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    mesh.frustumCulled = false;
-  }
+export function installGlazing(mesh: Mesh): PxlScreenFrame | null {
+  const material = createPlexiMaterial();
+  const previous = mesh.material;
+  if (previous instanceof MeshPhysicalMaterial) previous.dispose();
+  mesh.material = material;
   /* Drawn after the hull. A transmission material samples the frame buffer for
      what is behind it, so anything that should be visible THROUGH the screen has
      to have been drawn already — and the console directly behind it is the one
      object a viewer will check. */
-  glass.renderOrder = 2;
-  surround.renderOrder = 1;
-
-  return { root, frame, glass, glassMaterial, surroundMaterial };
-}
-
-export function disposeScreen(screen: PxlScreen | null): void {
-  if (!screen) return;
-  screen.root.traverse((child) => {
-    if (child instanceof Mesh) child.geometry.dispose();
-  });
-  screen.glassMaterial.dispose();
-  screen.surroundMaterial.dispose();
-  screen.root.removeFromParent();
+  mesh.renderOrder = 2;
+  mesh.frustumCulled = false;
+  return measureScreenFrame(mesh);
 }

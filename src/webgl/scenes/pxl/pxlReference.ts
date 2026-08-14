@@ -214,12 +214,29 @@ export const PXL_DUNA_BAND_PLATE = { top: 818, bottom: 866 } as const;
  */
 export const PXL_PLEXI_MARK = {
   file: "assets/source/pxl/pxl-colours-02.jpg",
-  /** Across the screen's face from its forward edge, to the mark's centre. */
-  across: 0.62,
+  /**
+   * Across the screen's face from its forward edge, to the mark's centre.
+   *
+   * RE-CENTRED IN PHASE 4.3. 0.62 was calibrated against the flat runtime
+   * screen, whose whole face was flat. The rebuilt plexi wraps: its front face
+   * is 0.38 m across the beam but only the middle 0.21 m is flat, the rest
+   * being the two corner radii turning aft. An off-centre mark ran onto the
+   * starboard radius and the last letter bent away from the camera — visible in
+   * the very first `detail` frame of the rebuild.
+   */
+  across: 0.50,
   /** Down the screen's face from its top edge, to the mark's centre. */
-  down: 0.52,
-  /** Cap height as a fraction of the screen's own height. */
-  capHeight: 0.20,
+  down: 0.55,
+  /**
+   * Cap height as a fraction of the screen's own height.
+   *
+   * REDUCED WITH THE RE-CENTRING, AND FOR THE SAME REASON. At 0.20 the lockup
+   * resolves to 0.253 m on this screen, which is wider than the flat middle it
+   * has to sit inside. 0.15 puts it at 0.184 m with 13 mm of flat glass either
+   * side, so the mark stays on one plane at every camera angle — which is what
+   * §9 actually asks for.
+   */
+  capHeight: 0.15,
   /**
    * The mark reads as a light grey rather than as the cognac.
    *

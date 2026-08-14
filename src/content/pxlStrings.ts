@@ -150,6 +150,9 @@ const EN: PxlStrings = {
     hull_detail: "Hull",
     interior: "Interior",
     propulsion: "Propulsion",
+    /* PHASE 4.4 §25. The category Phase Four deferred, offered now that the
+       aft boarding platform gives it something to contain. */
+    equipment: "Equipment",
   },
   controls: {
     exteriorFinish: "Finish",
@@ -158,6 +161,7 @@ const EN: PxlStrings = {
     interiorSecondary: "Console",
     interiorSurface: "Surface",
     propulsion: "Drive",
+    boardingPlatform: "Boarding platform",
   },
   optionLabel: "{control}: {name}",
   optionSelected: "{control} set to {name}",
@@ -239,6 +243,7 @@ const HU: PxlStrings = {
     hull_detail: "Hajótest",
     interior: "Belső tér",
     propulsion: "Hajtás",
+    equipment: "Felszereltség",
   },
   controls: {
     exteriorFinish: "Szín",
@@ -247,6 +252,7 @@ const HU: PxlStrings = {
     interiorSecondary: "Konzol",
     interiorSurface: "Felület",
     propulsion: "Hajtómű",
+    boardingPlatform: "Beszállóplató",
   },
   optionLabel: "{control}: {name}",
   optionSelected: "{control} beállítva: {name}",

@@ -28,6 +28,7 @@ import {
 } from "@/webgl/scenes/pxl/pxlCatalog";
 import {
   PXL_CONSOLE_REVISION,
+  PXL_GEOMETRY_REVISION,
   PXL_MODEL,
   PXL_UNSUPPORTED_CHANNELS,
   PXL_ZONES,
@@ -200,8 +201,10 @@ export function PxlDebugPanel() {
             <dl>
               <dt>url</dt>
               <dd>{PXL_MODEL.url}</dd>
-              <dt>revision</dt>
+              <dt>console revision</dt>
               <dd>{PXL_CONSOLE_REVISION}</dd>
+              <dt>geometry revision</dt>
+              <dd>{PXL_GEOMETRY_REVISION}</dd>
               <dt>loa · beam</dt>
               <dd>
                 {PXL_MODEL.loa.toFixed(3)} × {PXL_MODEL.beam.toFixed(3)} m

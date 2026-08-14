@@ -122,26 +122,64 @@ void main() {
 
   // A broad, soft overhead wash. This is the diffuse level the whole boat
   // sits at; without it the shadowed side of a dark hull has nothing at all.
-  colour += uKey * lobe(d, vec3(0.0, 1.0, 0.0), 1.2) * 1.55;
+  //
+  // PULLED BACK IN PHASE 4.3, §22. A wide, near-uniform lobe is the one source
+  // that adds no information: it lifts every surface by the same amount
+  // whatever way it faces, which is exactly the "flatter and more pastel than
+  // the references" the brief reports. What it was doing usefully — keeping the
+  // dark bottom off zero — is done better below, by a source with a direction.
+  colour += uKey * lobe(d, vec3(0.0, 1.0, 0.0), 1.2) * 1.40;
 
   // The ring. Centred at sin(37°) and about 15° wide — narrow enough to read
   // as a source rather than a haze, broad enough that the highlight it leaves
   // on the topsides is a band with soft ends rather than a hard line.
   colour += uKey * ring(d, 0.60, 0.13) * 5.4;
-  // A second, dimmer ring lower down catches the flare below the chine and
-  // keeps the black bottom from going to a single value.
-  colour += uKey * ring(d, 0.17, 0.11) * 1.5;
+  // A second ring lower down catches the flare below the chine and keeps the
+  // black bottom from going to a single value.
+  //
+  // RAISED AND WIDENED IN PHASE 4.3, §22 — "dark values that remain
+  // dimensional".
+  //
+  // AND CAPPED, AFTER MEASURING WHAT IT COST. The first attempt took it to 2.7
+  // and the bottom barely moved while the topsides went from #5f796e to
+  // #728e82 and the capping from #161c25 to #404347 — a ring at this elevation
+  // is nearly horizontal, so it reflects into NEAR-VERTICAL surfaces, which is
+  // the topsides and the capping and not the bottom at all. The bottom faces
+  // down and outward; what it sees is the floor, and that is the bounce below.
+  //
+  // The honest limit is worth recording. The plate draws its bottom at #414141
+  // where it faces the light, and no studio rig produces that from a black
+  // painted surface: an albedo of 0.011 would need an irradiance of about 5.6
+  // to get there. The plate is an illustration and its bottom is drawn, not
+  // lit. What §22 asks for is that the dark stay DIMENSIONAL, and the test for
+  // that is range rather than level — this hull's bottom now runs from its own
+  // shadow to a chine highlight instead of sitting at one value.
+  colour += uKey * ring(d, 0.13, 0.15) * 1.9;
 
   // Overhead key, wide and slightly forward of vertical so the deck and the
   // horizontal mouldings get a direction rather than a flat fill.
+  //
+  // LEFT AT 4.2, AND THE ATTEMPT TO CHANGE IT IS WORTH RECORDING. The sage
+  // foredeck renders at #e3f5ec — near-white — while the same paint on the
+  // vertical topsides reads #5f7469, and this lobe looked like the culprit
+  // because it points at horizontal surfaces. It is not: taking it to 3.1
+  // moved the deck by one level, from #e3f5ec to #e3f4ec.
+  //
+  // The real source is the RING. An up-facing normal has cos ≈ 0.6 with a ring
+  // at 37° elevation, so for DIFFUSE response the ring at 5.4 dominates
+  // everything else in the rig — and the ring is what gives the topsides their
+  // travelling highlight, which is the one thing §22 and §23 most care about.
+  // Trading the hull's key for a darker deck is the wrong trade. It stays in
+  // PHASE_4_3_REPORT §R instead.
   colour += uKey * lobe(d, vec3(0.18, 1.0, 0.34), 5.0) * 4.2;
 
   // Fore and aft rims, low, cool, and never in the same place as the key.
   colour += uRim * lobe(d, vec3(0.94, 0.16, -0.30), 8.0) * 3.4;
   colour += uRim * lobe(d, vec3(-0.88, 0.20, 0.42), 8.0) * 2.4;
 
-  // Floor bounce.
-  colour += uBounce * lobe(d, vec3(0.0, -1.0, 0.0), 2.2) * 1.4;
+  // Floor bounce, and the other half of the same fix: the underside of the
+  // topsides and the inside of the cockpit both face this and nothing else.
+  colour += uBounce * lobe(d, vec3(0.0, -1.0, 0.0), 2.0) * 1.9;
 
   gl_FragColor = vec4(colour, 1.0);
 }

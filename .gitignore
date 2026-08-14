@@ -29,3 +29,12 @@ assets/derived/pxl/dump/
 # naming and not a legitimate "duna61.ts" or "phase2.ts".
 * [0-9].*
 * [0-9][0-9].*
+
+# Blender's Python bytecode. `pxl_blender.py` imports `pxl_upper.py` as a
+# sibling module from Phase 4.3 on, which is the first time anything here has
+# been importable and therefore the first time this appears.
+scripts/pxl/__pycache__/
+
+# Blender's own rolling backup of the working file. One copy of the .blend
+# is the archive; the second is Blender saving over it.
+*.blend1

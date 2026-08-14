@@ -51,7 +51,27 @@ import { MeshoptSimplifier } from "meshoptimizer/meshopt_simplifier.module.js";
 import { MeshoptEncoder } from "meshoptimizer/meshopt_encoder.module.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
-const SOURCE = path.join(ROOT, "assets", "derived", "pxl", "PXL.source.glb");
+/**
+ * THE CORRECTED ASSET, NOT THE ARCHIVAL MASTER. Changed in Phase 4.2.
+ *
+ * `build_pxl.py` still writes `PXL.source.glb` and it is still the honest STL
+ * recovery — nothing edits it. `pxl_blender.py` reads that and writes
+ * `PXL.production.glb`, which is the same hull surface with its zone partition
+ * corrected, its inverted deck faces turned upright and the interior split into
+ * the three materials the references show. That is the file the site ships.
+ *
+ * Falls back to the master if the Blender stage has never been run, so a fresh
+ * clone that only has Python still produces a loadable boat — an out-of-date
+ * one, and it says so.
+ */
+const CORRECTED = path.join(ROOT, "assets", "derived", "pxl", "PXL.production.glb");
+const MASTER = path.join(ROOT, "assets", "derived", "pxl", "PXL.source.glb");
+const { existsSync } = await import("node:fs");
+const SOURCE = existsSync(CORRECTED) ? CORRECTED : MASTER;
+if (SOURCE === MASTER) {
+  console.warn("  ! PXL.production.glb missing — compressing the uncorrected " +
+               "master. Run `npm run pxl:blender` first.");
+}
 const OUT = path.join(ROOT, "public", "models", "PXL.glb");
 
 /**
@@ -72,17 +92,44 @@ const OUT = path.join(ROOT, "public", "models", "PXL.glb");
 const MAX_ERROR_M = 0.004;
 
 /**
- * Tighter budget for the surfaces a moving highlight travels across. The
- * topsides, the bottom and the transom are sprayed, clear-coated panels: they
- * are the reason this is a product visualisation and not a diagram, and they
- * are the only place on the boat where a millimetre of surface error is
+ * Tighter budget, for two different reasons that happen to want the same number.
+ *
+ * REFLECTIVE SURFACES. The topsides, the bottom and the transom are sprayed,
+ * clear-coated panels: they are the reason this is a product visualisation and
+ * not a diagram, and they are the place where a millimetre of surface error is
  * cheaper than the reflection it disturbs.
+ *
+ * SMALL AUTHORED PARTS. §32 of the 4.3 brief lists what optimisation may not
+ * damage — silhouette, cushion shapes, console, plexi, rails, design edges —
+ * and every one of those is now a part measuring tens of millimetres in at
+ * least one direction. At the general 4 mm budget a quadric collapse eats them,
+ * because losing a 27 mm tube or a 22 mm cushion fillet costs almost nothing in
+ * position and everything in what the boat looks like. The 30 mm coaming inlay
+ * was the first casualty of exactly this, in Phase 4.2.
+ *
+ * It is not "protect everything": the hull's two big shells still carry 11,000
+ * faces apiece into the collapse and come out at a fifth of that.
  */
-const REFLECTIVE_ERROR_M = 0.0012;
-const REFLECTIVE = new Set([
+const TIGHT_ERROR_M = 0.0012;
+const TIGHT = new Set([
   "hull_primary", "hull_lower", "hull_accent", "transom_black",
-  "console_body", "motor",
+  "motor",
+  "coaming_inlay", "bow_fitting",
+  /* Phase 4.3 — the authored upper boat, all of it. */
+  "upholstery_primary", "console_body", "console_detail", "windshield",
+  "helm_wheel", "rails",
+  /* PHASE 4.4. The capping is a 46 mm section on a 5.25 m sweep and the whole
+     point of it is that its top surface has width and its edges are chamfered
+     — a general-budget collapse would spend the 4 mm it is allowed on exactly
+     those chamfers and hand back the thin edge §4 exists to remove. The
+     platform's teak is laid in 92 mm planks with 8 mm seams between them,
+     which is under the general budget by an order of magnitude. */
+  "gunwale_capping", "platform_frame", "platform_deck",
 ]);
+
+/* The sole and the liner fall under MIN_TRIANGLES below and are therefore never
+   collapsed at all, which is the right answer for two surfaces already at their
+   irreducible triangle count. */
 
 /**
  * How much the collapse cares about the normal field relative to position.
@@ -234,7 +281,7 @@ for (const mesh of json.meshes) {
       extent = Math.max(extent, hi - lo);
     }
 
-    const budget = REFLECTIVE.has(mesh.name) ? REFLECTIVE_ERROR_M : MAX_ERROR_M;
+    const budget = TIGHT.has(mesh.name) ? TIGHT_ERROR_M : MAX_ERROR_M;
     let achieved = 0;
     if (before >= MIN_TRIANGLES && extent > 0) {
       const target = budget / extent;

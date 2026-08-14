@@ -45,7 +45,9 @@
  */
 
 import {
+  BufferGeometry,
   DoubleSide,
+  ExtrudeGeometry,
   Matrix4,
   Mesh,
   MeshPhysicalMaterial,
@@ -60,7 +62,12 @@ import { PXL_PLEXI_MARK } from "./pxlReference";
 import { pxlLockup, pxlLockupBounds } from "./pxlLockup";
 import { dunaBounds, dunaContours } from "./pxlScript";
 import type { PxlScreenFrame } from "./pxlGlazing";
-import type { PxlDecalInk } from "./pxlBranding";
+import {
+  PXL_BADGE_RELIEF,
+  badgeForInk,
+  type PxlBadgeFinish,
+  type PxlDecalInk,
+} from "./pxlBranding";
 
 /* ── Contours to shapes ───────────────────────────────────────────────────*/
 
@@ -77,9 +84,16 @@ export {
   PXL_INK_DARK,
   PXL_INK_LIGHT,
   PXL_INK_PLEXI,
+  PXL_BADGE_BRIGHT,
+  PXL_BADGE_DARK,
+  PXL_BADGE_RELIEF,
+  PXL_BADGE_SCRIPT,
   PXL_MAX_HULL_MARKS_PER_SIDE,
+  badgeForGround,
+  badgeForInk,
   groundLuminance,
   inkForGround,
+  type PxlBadgeFinish,
   type PxlDecalGround,
   type PxlDecalInk,
   type PxlDecalSlot,
@@ -164,6 +178,103 @@ function markGeometry(
   return geometry;
 }
 
+/**
+ * The same mark as a RAISED BADGE — PHASE 4.6 §25, §26, §27, §29.
+ *
+ * The only structural difference from `markGeometry` is that the profile is
+ * extruded rather than triangulated flat, and that is the whole of §25: a mark
+ * with a side wall catches light on its edge, throws a shadow onto the panel it
+ * is on, and changes as the boat turns. A `ShapeGeometry` does none of those
+ * things at any material setting, which is why this could not be fixed in the
+ * material alone.
+ *
+ * THE RELIEF IS APPLIED AFTER THE SCALE, not before. `markGeometry` scales the
+ * artwork isotropically to reach its authored length, so extruding first and
+ * scaling second would multiply the depth by the same factor — 0.0016 m of
+ * relief on a lockup authored at cap height 1 would come out at 0.3 mm on the
+ * boat, and the Duna script's at 0.1 mm. Both would be invisible. So the shapes
+ * are scaled in 2D first and the extrusion depth is a real-world number.
+ *
+ * `bevelSegments: 1` is deliberate and is §28's "no exaggerated normal map" in
+ * geometry terms: one segment is a chamfer, which is what a machined emblem has.
+ * Two or more round the edge over and the mark starts to look moulded in plastic.
+ */
+function badgeGeometry(
+  shapes: Shape[],
+  bounds: { x0: number; y0: number; x1: number; y1: number },
+  length: number,
+  relief: number,
+): BufferGeometry {
+  const width = bounds.x1 - bounds.x0;
+  const height = bounds.y1 - bounds.y0;
+  const scale = length / width;
+
+  const scaled = shapes.map((shape) => {
+    const next = new Shape(
+      shape.getPoints(6).map((p) => p.clone()
+        .add(new Vector3(-(bounds.x0 + width / 2), -(bounds.y0 + height / 2), 0))
+        .multiplyScalar(scale)),
+    );
+    for (const hole of shape.holes) {
+      next.holes.push(new Shape(
+        hole.getPoints(6).map((p) => p.clone()
+          .add(new Vector3(-(bounds.x0 + width / 2), -(bounds.y0 + height / 2), 0))
+          .multiplyScalar(scale)),
+      ));
+    }
+    return next;
+  });
+
+  const bevel = relief * PXL_BADGE_RELIEF.bevel;
+  const geometry = new ExtrudeGeometry(scaled, {
+    depth: relief - bevel,
+    bevelEnabled: true,
+    bevelSize: bevel,
+    bevelThickness: bevel,
+    bevelSegments: 1,
+    curveSegments: 6,
+    steps: 1,
+  });
+  /* Grown from the panel outward: the badge's own back face sits on z = 0, so
+     the placement's stand-off is the gap between the emblem's base and the
+     moulding and nothing else has to know the relief. */
+  geometry.translate(0, 0, bevel);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/**
+ * The badge material — §28's brushed metal, as one place.
+ *
+ * `anisotropy` is a `MeshPhysicalMaterial` feature rather than a map, which is
+ * what makes §28's "fine anisotropic / directional brushing if supported
+ * cleanly" achievable at this scale: the highlight is stretched analytically
+ * along the material's tangent, so it stays smooth at every distance instead of
+ * shimmering the way a normal map fine enough to read as brushing would.
+ */
+function badgeMaterial(finish: PxlBadgeFinish, name: string): MeshPhysicalMaterial {
+  const material = new MeshPhysicalMaterial({
+    color: finish.colour,
+    roughness: finish.roughness,
+    metalness: finish.metalness,
+    anisotropy: finish.anisotropy,
+    anisotropyRotation: finish.anisotropyRotation,
+    /* SINGLE-SIDED, unlike the flat marks — three's default, and left as the
+       default rather than passed as `side: undefined`, which is not the same
+       thing to the constructor and prints a warning on every badge built. A
+       badge is a solid with a back, so there is no grazing angle at which it
+       vanishes and no reason to pay for the far faces; `DoubleSide` on a closed
+       extrusion also lights the inside of the letterforms, which shows through
+       the counters. */
+    /* NO POLYGON OFFSET. The flat marks needed it because a zero-thickness quad
+       a few millimetres off a curved panel still loses the depth test at
+       grazing angles. This one has 1.6 mm of its own body between its face and
+       the moulding, which is a larger separation than the offset was buying. */
+  });
+  material.name = name;
+  return material;
+}
+
 /* ── Placement ─────────────────────────────────────────────────────────────*/
 
 export interface PxlDecalPlacement {
@@ -227,6 +338,8 @@ function placeOnHull(
   shapes: Shape[],
   bounds: { x0: number; y0: number; x1: number; y1: number },
   ink: PxlDecalInk,
+  /** PHASE 4.6 — how far the badge stands proud. Metres. */
+  relief: number,
 ): PxlDecalPlacement[] {
   const placements: PxlDecalPlacement[] = [];
   target.updateWorldMatrix(true, false);
@@ -250,8 +363,13 @@ function placeOnHull(
     _right.crossVectors(_worldUp, _normal).normalize();
     _up.crossVectors(_normal, _right).normalize();
 
-    const geometry = markGeometry(shapes, bounds, anchor.length);
-    const material = decalMaterial(ink, slot);
+    /* §25, §26, §27 — THE HULL MARKS ARE BADGES NOW.
+       `ink.colour` still decides which of the two badge tones this is, because
+       the same luminance rule governs both — see `badgeForGround`. That is what
+       keeps the re-ink pass in `PxlVessel` working unchanged: it hands over an
+       ink, and the ink still selects the treatment. */
+    const geometry = badgeGeometry(shapes, bounds, anchor.length, relief);
+    const material = badgeMaterial(badgeForInk(ink, slot), slot);
 
     const mesh = new Mesh(geometry, material);
     mesh.name = `${slot}_${side > 0 ? "starboard" : "port"}`;
@@ -277,6 +395,7 @@ export function placeWordmark(target: Mesh, ink: PxlDecalInk): PxlDecalPlacement
     lockupShapes(),
     pxlLockupBounds(),
     ink,
+    PXL_BADGE_RELIEF.wordmark,
   );
 }
 
@@ -289,6 +408,7 @@ export function placeDunaScript(target: Mesh, ink: PxlDecalInk): PxlDecalPlaceme
     scriptShapes(),
     dunaBounds(),
     ink,
+    PXL_BADGE_RELIEF.script,
   );
 }
 

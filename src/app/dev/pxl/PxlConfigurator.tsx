@@ -41,7 +41,7 @@ import {
 import type { PxlCatalogOption } from "@/webgl/scenes/pxl/pxlCatalog";
 import { PXL_CONFIGURATOR_VIEWS } from "@/webgl/scenes/pxl/pxlPresets";
 import type { PxlCustomerPresetId } from "@/webgl/scenes/pxl/pxlPresets";
-import { PXL_CONSOLE_REVISION } from "@/webgl/scenes/pxl/pxlModel";
+import { PXL_CONSOLE_REVISION, PXL_GEOMETRY_REVISION } from "@/webgl/scenes/pxl/pxlModel";
 import { pxlTelemetry } from "@/webgl/scenes/pxl/pxlTelemetry";
 import {
   currentPxlPermalink,
@@ -369,7 +369,8 @@ export function PxlConfigurator() {
             {/* ── Development only. Never ships to a customer surface. §33/§34. */}
             <div className={styles.dev}>
               <p>
-                MODEL SOURCE: STL REVISION · {PXL_CONSOLE_REVISION}
+                MODEL SOURCE: STL REVISION · {PXL_CONSOLE_REVISION} ·{" "}
+                {PXL_GEOMETRY_REVISION}
                 <br />
                 CONSOLE REVISION PENDING — the colour studies show a glazed tower
                 this asset does not contain.

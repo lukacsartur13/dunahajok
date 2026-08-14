@@ -188,7 +188,47 @@ const FIELDS: Record<PxlConfigField, FieldAccessor> = {
       if (o.geometryVariant) c.propulsion.variant = o.geometryVariant;
     },
   },
+  /**
+   * PHASE 4.4 §24 — THE FIRST FIELD THAT WRITES GEOMETRY RATHER THAN A
+   * MATERIAL, and the one that finally uses the registry Phase Four built.
+   *
+   * READ is derived from the registry rather than stored beside it. There is no
+   * `equipment.boardingPlatform: boolean` anywhere in the configuration: the
+   * truth is which zones are visible, and the control's current value is read
+   * back OUT of that. A second field holding the same fact is a second field
+   * that can disagree with the first — and the disagreement would show as a
+   * control whose highlighted option is not the boat on screen.
+   *
+   * It answers with the option's own id, because that is what `selectedOption`
+   * compares against, and it does so by asking whether every zone the option
+   * names is in the state that option would put it in.
+   */
+  boardingPlatform: {
+    read: (c) => {
+      const on = PXL_PLATFORM_ZONES.every((zone) => c.equipment[zone] === true);
+      return on ? "pxl_platform_teak" : "pxl_platform_none";
+    },
+    write: (c, o) => {
+      if (!o.meshVisibility) return;
+      for (const [zone, visible] of Object.entries(o.meshVisibility)) {
+        c.equipment[zone as PxlZone] = visible;
+      }
+    },
+  },
 };
+
+/**
+ * The zones the boarding platform option owns.
+ *
+ * Derived from the catalogue's own option rather than listed again, so a third
+ * platform mesh added in Blender and declared on the option is picked up here
+ * without an edit — and cannot be picked up here if somebody forgets to declare
+ * it, which is the failure mode worth making loud.
+ */
+const PXL_PLATFORM_ZONES: readonly PxlZone[] = Object.keys(
+  PXL_CONTROLS.find((c) => c.field === "boardingPlatform")
+    ?.options.find((o) => o.slug === "on")?.meshVisibility ?? {},
+) as PxlZone[];
 
 function writeField(
   config: PxlConfiguration,
@@ -218,13 +258,32 @@ export function selectedOption(
   );
 }
 
-/** The value an option writes into its field. The other half of the match above. */
+/**
+ * The value an option writes into its field. The other half of the match above.
+ *
+ * PHASE 4.4 — THE EQUIPMENT CASE IS THE OPTION'S OWN ID, and it is last on
+ * purpose. Every other option here writes a single scalar somewhere in the
+ * configuration, and that scalar is what identifies it: a finish id, a
+ * treatment, a surface, a drive variant. An equipment option writes a SET of
+ * mesh visibilities, and no one of them names the option — `platform_frame:
+ * true` is a fact about a mesh, not about a choice.
+ *
+ * So the identity of an equipment option is its id, and `FIELDS
+ * .boardingPlatform.read` answers in the same currency by deriving which option
+ * the visible zones correspond to. Without this branch the match falls through
+ * to `undefined`, `find` returns nothing, and `selectedOption` quietly answers
+ * with the default — a control that writes correctly and reads back wrong,
+ * which is exactly the shape of the Phase 4.1 defect `pxlVisualCases` exists
+ * for. It was caught here by the round-trip assertion that has been in the
+ * suite since Phase Four.
+ */
 function optionValue(option: PxlCatalogOption): string | undefined {
   return (
     option.finishId ??
     option.lowerTreatment ??
     option.interiorSurface ??
-    option.geometryVariant
+    option.geometryVariant ??
+    (option.meshVisibility ? option.id : undefined)
   );
 }
 

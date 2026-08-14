@@ -56,10 +56,30 @@ import {
   type PxlFinishId,
 } from "./pxlPalette";
 import type { PxlCustomerPresetId } from "./pxlPresets";
+import { PXL_MOUNTS, type PxlZone } from "./pxlModel";
 
 /* ── Identifiers ───────────────────────────────────────────────────────────*/
 
-export type PxlCategoryId = "exterior" | "hull_detail" | "interior" | "propulsion";
+export type PxlCategoryId =
+  | "exterior"
+  | "hull_detail"
+  | "interior"
+  | "propulsion"
+  /**
+   * PHASE 4.4 §25 — EQUIPMENT, WHICH IS NOW A CATEGORY BECAUSE IT NOW HAS AN
+   * OPTION.
+   *
+   * Phase Four deferred it and gave a reason that was checkable rather than
+   * vague: "no equipment range supplied; the only optional mesh in the asset is
+   * an undocumented flush cockpit cover, and one undocumented cover is not a
+   * category". §25 is explicit that the deferral ends when a real configurable
+   * geometry option exists and NOT before — "do not add artificial additional
+   * equipment just to fill it. If the only equipment option is AFT BOARDING
+   * PLATFORM, that is acceptable."
+   *
+   * It is the only one. The cockpit cover stays undocumented and stays out.
+   */
+  | "equipment";
 
 /**
  * The configuration fields a control may write.
@@ -77,7 +97,9 @@ export type PxlConfigField =
   | "interiorFinish"
   | "interiorSecondaryFinish"
   | "interiorSurface"
-  | "propulsion";
+  | "propulsion"
+  /** PHASE 4.4 §24, §26. Whether the aft boarding platform is fitted. */
+  | "boardingPlatform";
 
 /** The proxy drives `pxlPropulsion` can build. Geometry lives there, not here. */
 export type PxlDriveVariant = "compact" | "standard" | "large" | "electric";
@@ -164,6 +186,17 @@ export interface PxlCatalogOption {
   interiorSurface?: PxlInteriorSurface;
   /** PROPULSION: which proxy drive `pxlPropulsion` builds. §A14. */
   geometryVariant?: PxlDriveVariant;
+  /**
+   * EQUIPMENT: which meshes this option shows or hides. §24.
+   *
+   * A ZONE MAP RATHER THAN A BOOLEAN, because that is what an equipment option
+   * physically IS — a set of parts that are either on the boat or not — and
+   * because the registry it writes into (`PxlConfiguration.equipment`) has been
+   * keyed on zones since Phase Four in anticipation of exactly this. The option
+   * names the meshes; nothing in the component layer knows the words "platform"
+   * or "teak".
+   */
+  meshVisibility?: Readonly<Partial<Record<PxlZone, boolean>>>;
 
   /**
    * WHAT MAKES THIS PROVISIONAL, in one sentence.
@@ -355,9 +388,10 @@ const INTERIOR_SECONDARY_OPTIONS: readonly PxlCatalogOption[] =
       swatch: { kind: "colour", value: finish.base },
       finishId: finish.id,
       note:
-        "the console in the asset is the STL revision, not the glazed tower the " +
-        "colour studies show; the finish is offered, the part it is offered on " +
-        "is superseded — see PXL_CONSOLE_REVISION",
+        "drives the console's aft panel only — the dark shell around it and the " +
+        "screen surround are structural black in every reference and take no " +
+        "finish; the console itself is a Phase 4.3 reconstruction measured from " +
+        "the plates, not a delivered part — see PXL_CONSOLE_REVISION",
     }),
   );
 
@@ -448,14 +482,80 @@ export interface PxlDriveSpec {
   id: PxlDriveVariant;
   /** Cowling: length (fore-aft), height, width. The visible mass. */
   cowl: { length: number; height: number; width: number };
-  /** Midsection: how far the leg drops from the cowling's underside. */
+  /**
+   * PHASE 4.4 §14–§18 — WHERE THE COWLING'S **TOP** SITS, above `PXL_MOUNTS
+   * .transom.y`. THE DATUM CHANGED, AND THAT IS THE WHOLE CORRECTION.
+   *
+   * Until this phase the cowling's UNDERSIDE stood on the transom top, so a
+   * standard drive put its powerhead at y 1.128 against a sheer of 0.703 at
+   * the transom — 425 mm of engine towering over the gunwale. §14: "the
+   * current propulsion proxy is visibly positioned too high compared with the
+   * delivered stern three-quarter."
+   *
+   * MEASURED OFF THAT REFERENCE. `scripts/pxl/_grid.mjs` over the stern
+   * three-quarter, with the transom's own visible height as the scale — top of
+   * the moulding at plate row 990, its foot at 1150, so 160 px spans the
+   * model's 0.832 m and the view runs at 192 px/m:
+   *
+   *     top of the transom moulding      row  990   datum
+   *     top of the motor cowling         row  985   26 mm ABOVE it
+   *     bottom of the motor cowling      row 1110   625 mm below it
+   *     cowling height                   125 px  =  651 mm
+   *
+   * The cowling top is level with the transom, not 425 mm over it. And the
+   * 651 mm height identifies the drawn engine as the LARGE one (0.615 m), which
+   * is why `large` carries the rise the measurement gives and the other three
+   * are spread either side of it: a bigger engine is trimmed a hole or two
+   * higher on a real bracket, and §18 asks explicitly that one global transform
+   * NOT be applied blindly to four different objects.
+   */
+  mountRise: number;
+  /**
+   * Midsection: how far the anti-ventilation plate sits below the COWLING'S
+   * OWN UNDERSIDE.
+   *
+   * PHASE 4.4 — it used to be measured from the transom top, which made it a
+   * second expression of the mounting height rather than a dimension of the
+   * engine. Now that the cowling hangs from its top, the two are independent:
+   * `mountRise` says where the powerhead is and `shaft` says how long the leg
+   * under it is, so re-tuning either cannot silently move the other.
+   */
   shaft: number;
   /** Leg width, and the gearcase's own length and depth. */
   leg: { width: number; caseLength: number; caseDepth: number };
   /** Propeller diameter. */
   propeller: number;
-  /** Anti-ventilation plate: length and width. */
+  /**
+   * Anti-ventilation plate: length and width.
+   *
+   * PHASE 4.6 §6, second iteration — each grew about 15%. The first build of
+   * the deeper leg put a 0.345 m plate under a 0.455 m gearcase and the crop at
+   * `.qa/p46-motor-crop.png` showed why that is not enough: against a leg three
+   * times longer than it used to be, the plate read as a ledge rather than as
+   * the "ANTI-VENTILATION REGION" §6 asks be visually distinguishable. It is the
+   * drive's most recognisable feature after the cowling and it has to hold its
+   * own against the new proportions.
+   *
+   * Bounded by the platform, not by taste: `platformClearance` requires every
+   * part inside the tread's height band to fit ±0.280 m at the well's narrowest,
+   * and the largest plate here is 0.150 m half-width. The configurator suite
+   * asserts it rather than this comment.
+   */
   plate: { length: number; width: number };
+  /**
+   * PHASE 4.6 §2, §42 — HOW FAR THE LOWEST POINT OF THE DRIVE FALLS BELOW THE
+   * ANTI-VENTILATION PLATE, and the number the skeg is sized from.
+   *
+   * The lower unit is no longer "whatever the gearcase and the propeller happen
+   * to add up to". §6 asks that the lower half stop being an abstract extrusion
+   * and resolve into a gearcase, an anti-ventilation region, a propeller and a
+   * skeg; the skeg is the part that reaches furthest down on a real outboard and
+   * on the delivered reference, so it is authored to a target rather than left
+   * to fall out of the other dimensions. `pxlPropulsion.buildDrive` sizes the
+   * skeg to land exactly here and `sternLandmarks` reports it, so the two agree
+   * by construction and the configurator suite can assert the reference ratio.
+   */
+  lowerDrop: number;
   /** Bracket: how far the clamp stands proud of the transom. */
   bracket: number;
   /** Which palette finish the cowling takes. */
@@ -471,14 +571,64 @@ export interface PxlDriveSpec {
   radius: number;
 }
 
+/**
+ * PHASE 4.6 §2, §3, §5, §42 — THE LEGS ARE ROUGHLY THREE TIMES LONGER, AND THE
+ * LENGTH IS THE MEASUREMENT PHASE 4.4 TOOK AND THEN DECLINED TO BUILD.
+ *
+ * `PXL_STERN_REFERENCE` has carried the reading since 4.4: the drawing puts the
+ * anti-ventilation plate 1.956 transom-heights below the transom top and the
+ * lowest point at 2.469. 4.4 built neither, and said so in its own §O — "that is
+ * a rendering of a big engine drawn nearer the camera than the transom it hangs
+ * on, and building it would put the plate on the riverbed". The plate went to
+ * y −0.060 instead, which is 52 mm below a keel at −0.2206: a lower unit that
+ * ends level with the bottom of the boat, which is exactly the failure §42 now
+ * names ("if a viewer can still say *the motor ends around the bottom of the
+ * boat* then FAIL").
+ *
+ * §3 OVERRULES THAT JUDGEMENT EXPLICITLY: "Do not 'correct' the reference
+ * because it seems mechanically unusual. For THIS phase: VISUAL REFERENCE
+ * FIDELITY is the priority." So the readings are re-taken and built.
+ *
+ * RE-MEASURED THIS PHASE, on `pxl-views-20240815c.jpg`, by column scan rather
+ * than by eye — `node -e` over the raw pixels, looking for the runs of dark and
+ * the crisp edge where the ghosted underwater body stops:
+ *
+ *     sheer at the transom            row  975   datum, 0.000
+ *     bottom of the ghosted hull      row 1228   1.000  (253 px = one depth)
+ *     cowling top                     row  986   0.043
+ *     cowling bottom                  row 1122   0.581
+ *     anti-ventilation plate          row 1306   1.308
+ *     propeller centre                row 1355   1.502
+ *     skeg, lowest point              row 1401   1.684
+ *
+ * The cowling reading is the check that the scale is right: 0.581 − 0.043 is
+ * 0.538 of a depth, and at the model's own 0.9236 m transom depth that is
+ * 0.497 m of cowling against the 0.500 m `standard` already carries. The two
+ * agree to 3 mm, so the same scale can be trusted for the rows below.
+ *
+ * IN MODEL METRES (sheer at the transom z 0.703, keel z −0.2206):
+ *
+ *     plate      0.703 − 1.308 × 0.9236  =  −0.505     0.28 m below the keel
+ *     lowest     0.703 − 1.684 × 0.9236  =  −0.852     0.63 m below the keel
+ *
+ * §5 — the four are spread around that rather than set to it. A compact engine
+ * is trimmed shallower and an electric pod deeper, because they are different
+ * objects; what all four now share is that the lower unit is unmistakably below
+ * the hull rather than level with it.
+ */
 export const PXL_DRIVE_SPECS: Readonly<Record<PxlDriveVariant, PxlDriveSpec>> = {
   compact: {
     id: "compact",
     cowl: { length: 0.34, height: 0.40, width: 0.325 },
-    shaft: 0.60,
-    leg: { width: 0.115, caseLength: 0.40, caseDepth: 0.125 },
-    propeller: 0.235,
-    plate: { length: 0.30, width: 0.195 },
+    // Trimmed lowest of the four. A small engine's leg is short, so it has to
+    // hang from a low mount to put its plate anywhere near the water.
+    mountRise: 0.020,
+    // Plate at −0.435, the shallowest of the four: 0.21 m below the keel.
+    shaft: 0.6825,
+    leg: { width: 0.115, caseLength: 0.40, caseDepth: 0.170 },
+    propeller: 0.245,
+    plate: { length: 0.345, width: 0.225 },
+    lowerDrop: 0.325,
     bracket: 0.10,
     cowlFinishId: "pxl_motor_black",
     radius: 0.30,
@@ -489,10 +639,15 @@ export const PXL_DRIVE_SPECS: Readonly<Record<PxlDriveVariant, PxlDriveSpec>> = 
     // 0.559 × 0.322 over cowling and leg together. Matching it is what keeps
     // STANDARD honest as the middle of the range rather than as a guess.
     cowl: { length: 0.45, height: 0.50, width: 0.382 },
-    shaft: 0.68,
-    leg: { width: 0.135, caseLength: 0.455, caseDepth: 0.145 },
-    propeller: 0.28,
-    plate: { length: 0.345, width: 0.225 },
+    mountRise: 0.027,
+    // THE MEASURED ONE. 0.6595 of leg puts the plate at −0.505 exactly, which
+    // is the row-1306 reading above.
+    shaft: 0.6595,
+    leg: { width: 0.135, caseLength: 0.455, caseDepth: 0.200 },
+    propeller: 0.30,
+    plate: { length: 0.400, width: 0.260 },
+    // −0.505 − 0.347 = −0.852, the row-1401 reading.
+    lowerDrop: 0.347,
     bracket: 0.115,
     cowlFinishId: "pxl_motor_black",
     radius: 0.28,
@@ -500,10 +655,15 @@ export const PXL_DRIVE_SPECS: Readonly<Record<PxlDriveVariant, PxlDriveSpec>> = 
   large: {
     id: "large",
     cowl: { length: 0.58, height: 0.615, width: 0.435 },
-    shaft: 0.73,
-    leg: { width: 0.16, caseLength: 0.49, caseDepth: 0.17 },
-    propeller: 0.325,
-    plate: { length: 0.385, width: 0.26 },
+    // 0.615 m of cowling is the 651 mm the reference draws, and 33 mm of rise
+    // puts its top at y 0.661 against the reference's 0.654.
+    mountRise: 0.033,
+    // Plate at −0.545: a big engine is hung a little deeper still.
+    shaft: 0.5905,
+    leg: { width: 0.16, caseLength: 0.49, caseDepth: 0.225 },
+    propeller: 0.345,
+    plate: { length: 0.450, width: 0.300 },
+    lowerDrop: 0.368,
     bracket: 0.135,
     cowlFinishId: "pxl_motor_black",
     radius: 0.26,
@@ -515,15 +675,243 @@ export const PXL_DRIVE_SPECS: Readonly<Record<PxlDriveVariant, PxlDriveSpec>> = 
     // four, which is what a drive with no engine block under the cover looks
     // like — the mass is in the leg and the pod, not on the transom.
     cowl: { length: 0.285, height: 0.365, width: 0.245 },
-    shaft: 0.70,
-    leg: { width: 0.10, caseLength: 0.44, caseDepth: 0.135 },
-    propeller: 0.30,
-    plate: { length: 0.275, width: 0.17 },
+    mountRise: 0.024,
+    // The longest leg of the four under the shortest cowling, which is what a
+    // pod drive with its mass in the lower unit actually looks like. Plate at
+    // −0.500.
+    shaft: 0.7865,
+    leg: { width: 0.10, caseLength: 0.44, caseDepth: 0.190 },
+    propeller: 0.315,
+    plate: { length: 0.315, width: 0.200 },
+    lowerDrop: 0.340,
     bracket: 0.095,
     cowlFinishId: "pxl_motor_graphite",
     radius: 0.10,
   },
 };
+
+/* ── Stern landmarks and platform clearance ────────────────────────────────*/
+
+/**
+ * WHERE A DRIVE'S NAMED POINTS END UP. PHASE 4.4 §17, §18, §29.
+ *
+ * The same chain `pxlPropulsion.buildDrive` builds from, expressed as numbers
+ * a test can read on plain node. It is not a second implementation: both start
+ * at `PXL_MOUNTS.transom.y + spec.mountRise` and subtract the same authored
+ * dimensions in the same order, and the configurator suite asserts that the
+ * geometry three builds agrees with the arithmetic this returns.
+ *
+ * §18 IS SATISFIED BY THIS FUNCTION EXISTING PER VARIANT. "Do NOT use one
+ * global transform blindly if it makes the different sizes mount incorrectly"
+ * — there is no global transform. Each drive resolves its own chain from its
+ * own `mountRise`, `cowl.height` and `shaft`, and the four answers are checked
+ * separately against the reference and against the platform.
+ */
+/** One assembly of a drive, as the box the clearance calculation sees. */
+export interface PxlDrivePart {
+  name: "cowling" | "leg" | "plate" | "gearcase" | "propeller" | "skeg";
+  /** Vertical extent, model metres, +Y up. */
+  bottomY: number;
+  topY: number;
+  /** Half-width athwartships. */
+  halfWidth: number;
+  /** Fore-aft extent. Both ends, because only the part over the platform counts. */
+  forwardX: number;
+  aftX: number;
+}
+
+export interface PxlSternLandmarks {
+  variant: PxlDriveVariant;
+  /** Model metres, +Y up. */
+  cowlTop: number;
+  cowlBottom: number;
+  plate: number;
+  propeller: number;
+  /** PHASE 4.6 — the bottom of the gearcase, where the skeg picks up. */
+  gearcaseBottom: number;
+  /** The tip of the skeg. On every drive this is also `lowest`. */
+  skeg: number;
+  lowest: number;
+  legX: number;
+  parts: readonly PxlDrivePart[];
+}
+
+export function sternLandmarks(
+  variant: PxlDriveVariant,
+  mountY: number,
+  transomX: number,
+): PxlSternLandmarks {
+  const spec = PXL_DRIVE_SPECS[variant];
+  const cowlTop = mountY + spec.mountRise;
+  const cowlBottom = cowlTop - spec.cowl.height;
+  const plate = cowlBottom - spec.shaft;
+  const propeller = plate - spec.leg.caseDepth / 2;
+  /* PHASE 4.6 §6 — the lower unit is four named things, not one number. The
+     gearcase hangs its own depth under the plate; the skeg reaches `lowerDrop`
+     under the plate, which is the authored target; and `lowest` is the skeg
+     rather than the propeller, which is both what an outboard is and what the
+     reference draws. The propeller is asserted to stay above it, so a spec that
+     shrank the skeg under a growing wheel would fail rather than pass quietly. */
+  const gearcaseBottom = plate - spec.leg.caseDepth;
+  const skeg = plate - spec.lowerDrop;
+  const lowest = Math.min(skeg, propeller - spec.propeller / 2);
+
+  const cowlX = transomX - spec.bracket - spec.cowl.length / 2;
+  const legX = transomX - spec.bracket - spec.cowl.length * 0.5;
+  const gearX = legX + spec.leg.caseLength * 0.06;
+  const propX = legX - spec.leg.caseLength * 0.52;
+
+  /* The same five objects `pxlPropulsion.buildDrive` adds to the group, as
+     boxes. Mirroring the builder rather than approximating it is what lets §29
+     be answered per part: on a compact drive it is the leg that passes through
+     the platform's height band and on a large one it is the bottom of the
+     cowling, and a single "widest thing anywhere" figure would charge every
+     drive for the propeller — which on all four hangs well below the platform
+     and cannot touch it at any angle of lock. */
+  const parts: PxlDrivePart[] = [
+    {
+      name: "cowling",
+      bottomY: cowlBottom,
+      topY: cowlTop,
+      halfWidth: spec.cowl.width / 2,
+      forwardX: cowlX + spec.cowl.length / 2,
+      aftX: cowlX - spec.cowl.length / 2,
+    },
+    {
+      name: "leg",
+      bottomY: plate,
+      topY: cowlBottom + spec.cowl.height * 0.06,
+      halfWidth: spec.leg.width / 2,
+      forwardX: legX + spec.leg.caseLength * 0.25,
+      aftX: legX - spec.leg.caseLength * 0.25,
+    },
+    {
+      name: "plate",
+      bottomY: plate - 0.010,
+      topY: plate + 0.010,
+      halfWidth: spec.plate.width / 2,
+      forwardX: legX + spec.plate.length / 2,
+      aftX: legX - spec.plate.length / 2,
+    },
+    {
+      name: "gearcase",
+      bottomY: plate - spec.leg.caseDepth,
+      topY: plate,
+      halfWidth: (spec.leg.width * 1.15) / 2,
+      forwardX: gearX + spec.leg.caseLength / 2,
+      aftX: gearX - spec.leg.caseLength / 2,
+    },
+    {
+      name: "propeller",
+      bottomY: propeller - spec.propeller / 2,
+      topY: propeller + spec.propeller / 2,
+      halfWidth: spec.propeller / 2,
+      forwardX: propX + spec.leg.width * 0.6,
+      aftX: propX - spec.leg.width * 0.6,
+    },
+    /* The skeg. Thin — it is a fin — and forward of the propeller, which is
+       where the water it straightens comes from. It is the deepest part of the
+       drive and therefore the one §29's platform clearance would notice first,
+       so it is a part like the others rather than a bare number. */
+    {
+      name: "skeg",
+      bottomY: skeg,
+      topY: gearcaseBottom,
+      halfWidth: spec.leg.width * 0.22,
+      forwardX: gearX + spec.leg.caseLength * 0.14,
+      aftX: gearX - spec.leg.caseLength * 0.30,
+    },
+  ];
+
+  return {
+    variant, cowlTop, cowlBottom, plate, propeller,
+    gearcaseBottom, skeg, lowest, legX, parts,
+  };
+}
+
+/**
+ * §29 — HOW WIDE THE MOTOR WELL HAS TO BE for a drive to swing inside it.
+ *
+ * A part can only foul the platform where it is inside BOTH the platform's
+ * height band and its fore-aft extent, and a part that swivels sweeps sideways
+ * by its distance aft of the steering axis times the sine of the lock. Both
+ * qualifications do real work here:
+ *
+ *   HEIGHT   the propeller is the widest thing on every drive and can never
+ *            touch the platform, because it hangs below the frame.
+ *   FORE-AFT the large cowling's aft corner reaches x −3.342 at 30° of lock,
+ *            which is 0.21 m ABAFT the platform's own aft edge — it sweeps
+ *            past the structure rather than over it. Charging the drive for
+ *            that corner would have demanded a 0.54 m well to clear a part
+ *            that is not there.
+ *
+ * So the reach is evaluated at the aft-most station where the part and the
+ * platform actually overlap. Returns the worst offender and the half-width it
+ * needs, so a failure names the part rather than the drive.
+ */
+export function platformClearance(
+  landmarks: PxlSternLandmarks,
+  band: {
+    bottomY: number;
+    topY: number;
+    forwardX: number;
+    aftX: number;
+    wellHalfForward: number;
+    wellHalfAft: number;
+  },
+  pivotX: number,
+  lockDeg: number,
+): { part: PxlDrivePart["name"]; needed: number; available: number; atX: number } {
+  const sweep = Math.sin((lockDeg * Math.PI) / 180);
+  /** The notch's own half-width at a station. Linear, as the geometry is. */
+  const wellAt = (x: number) => {
+    const t = (band.forwardX - x) / (band.forwardX - band.aftX);
+    const c = Math.min(Math.max(t, 0), 1);
+    return band.wellHalfForward + (band.wellHalfAft - band.wellHalfForward) * c;
+  };
+
+  /* BOTH ENDS OF THE OVERLAP ARE TESTED, and with a tapered notch that is not
+     pedantry. The reach grows going aft and so does the room, both linearly, so
+     the tightest point is at one end or the other — and which one depends on
+     the drive. The worst is reported as the largest shortfall rather than the
+     largest reach, because a 0.43 m reach where 0.47 m is available is fine and
+     a 0.26 m reach where 0.28 m is available is nearly not. */
+  let worst = {
+    part: "leg" as PxlDrivePart["name"],
+    needed: 0,
+    available: Infinity,
+    atX: 0,
+  };
+  let worstMargin = Infinity;
+
+  for (const part of landmarks.parts) {
+    if (part.topY <= band.bottomY || part.bottomY >= band.topY) continue;
+    const overlapAft = Math.max(part.aftX, band.aftX);
+    const overlapFwd = Math.min(part.forwardX, band.forwardX);
+    if (overlapAft > overlapFwd) continue;          // no fore-aft overlap at all
+    for (const atX of [overlapFwd, overlapAft]) {
+      const needed = part.halfWidth + Math.abs(atX - pivotX) * sweep;
+      const available = wellAt(atX);
+      if (available - needed < worstMargin) {
+        worstMargin = available - needed;
+        worst = { part: part.name, needed, available, atX };
+      }
+    }
+  }
+  return worst;
+}
+
+/**
+ * Normalise a height against the transom, the way §17 asks the comparison be
+ * made: 0 at the top of the transom moulding, 1 at its foot, positive down.
+ */
+export function normaliseAgainstTransom(
+  y: number,
+  mountY: number,
+  transomHeight: number,
+): number {
+  return (mountY - y) / transomHeight;
+}
 
 /** Cowling volume, as a fraction of the largest. Drives the control's marks. */
 function driveMagnitude(variant: PxlDriveVariant): number {
@@ -614,6 +1002,75 @@ const PROPULSION_OPTIONS: readonly PxlCatalogOption[] = [
     note:
       "a neutral electric-drive proxy; Duna builds electric boats, but no " +
       "electric drive has been specified for the PXL and none is depicted here",
+  },
+];
+
+/* ── Equipment ─────────────────────────────────────────────────────────────*/
+
+/**
+ * §20–§27 — THE AFT BOARDING PLATFORM, AND THE FIRST GENUINE GEOMETRY OPTION
+ * ON THIS BOAT.
+ *
+ * Every other control in this file changes a material. This one changes what
+ * the boat HAS, which is why §24 insists it be a real geometry toggle rather
+ * than a colour trick: "do not bake it permanently into PXL.production.glb
+ * visibility. The base model can contain the geometry, but configuration should
+ * control visibility."
+ *
+ * That is exactly the split. `platform_frame` and `platform_deck` are exported
+ * in every build and carry `visibleByDefault: false`; these two options write
+ * the override that `zoneVisible` reads. Nothing about the asset differs
+ * between the two states, so the difference cannot drift out of sync with the
+ * catalogue.
+ *
+ * WHY THE DEFAULT IS OFF. §20 leaves it to "the reference-default/configuration
+ * logic", and the delivered material answers plainly: the July side plate — the
+ * boat's own profile drawing — does not show a platform at all, and the August
+ * views sheet does. Two drawings of the same boat, one with and one without, is
+ * what an option looks like. The plate that defines the profile is the one the
+ * delivered configuration follows.
+ *
+ * NO PRICE, per §27, and none is possible: `PXL_CATALOGUE_FORBIDDEN` would fail
+ * the build on a currency symbol in any catalogue string.
+ */
+const PLATFORM_ZONES: Readonly<Partial<Record<PxlZone, boolean>>> = {
+  platform_frame: true,
+  platform_deck: true,
+};
+
+const EQUIPMENT_OPTIONS: readonly PxlCatalogOption[] = [
+  {
+    id: "pxl_platform_none",
+    category: "equipment",
+    slug: "none",
+    previewLabel: "Not fitted",
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: 0,
+    swatch: { kind: "colour", value: "#2b2c2e" },
+    meshVisibility: { platform_frame: false, platform_deck: false },
+    note:
+      "the boat as the July side plate draws it, which is the delivered " +
+      "profile and therefore the delivered configuration",
+  },
+  {
+    id: "pxl_platform_teak",
+    category: "equipment",
+    slug: "on",
+    previewLabel: "Aft Boarding Platform",
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: 1,
+    // The tread's own measured colour, so the swatch shows the material rather
+    // than a generic wood brown — sampled at #b0753f off the reference.
+    swatch: { kind: "colour", value: "#b0753f" },
+    meshVisibility: PLATFORM_ZONES,
+    note:
+      "drawn in the August views sheet and absent from the July side plate; " +
+      "the yard has confirmed neither that it is an option nor that it is " +
+      "standard, and its construction here is measured from one drawing",
   },
 ];
 
@@ -715,6 +1172,34 @@ export const PXL_CATEGORIES: readonly PxlCatalogCategory[] = [
       },
     ],
   },
+  {
+    id: "equipment",
+    sortOrder: 4,
+    // §28 — THE STERN THREE-QUARTER, SUGGESTED ONCE AND THEN LET GO.
+    //
+    // "When the Equipment category / boarding platform option is first
+    // selected, the configurator may suggest a stern three-quarter camera. Do
+    // not permanently force that camera. The user keeps control afterward."
+    //
+    // Nothing extra is needed to satisfy the second half: `suggestedView` has
+    // been a one-shot since Phase Four — the configurator moves the camera on
+    // FIRST entry to a category and never again, and any orbit the viewer makes
+    // afterwards puts them in `free` and keeps them there. So this is the same
+    // mechanism the other four categories use, and the platform gets the same
+    // treatment as a paint colour rather than a special case that could forget
+    // to let go.
+    suggestedView: "stern_3q",
+    controls: [
+      {
+        id: "platform",
+        param: "platform",
+        field: "boardingPlatform",
+        labelKey: "boardingPlatform",
+        options: EQUIPMENT_OPTIONS,
+        defaultOptionId: "pxl_platform_none",
+      },
+    ],
+  },
 ];
 
 /**
@@ -732,13 +1217,21 @@ export const PXL_DEFERRED_CATEGORIES: ReadonlyArray<{
   param: string;
   unavailable: string;
 }> = [
-  {
-    id: "equipment",
-    param: "equipment",
-    unavailable:
-      "no equipment range supplied; the only optional mesh in the asset is an " +
-      "undocumented flush cockpit cover, and one undocumented cover is not a category",
-  },
+  /* EQUIPMENT LEFT THIS LIST IN PHASE 4.4, and the entry that used to be here
+     is worth quoting rather than deleting, because it is the standard the next
+     category has to meet:
+
+       "no equipment range supplied; the only optional mesh in the asset is an
+        undocumented flush cockpit cover, and one undocumented cover is not a
+        category"
+
+     What changed is not the standard but the asset. The aft boarding platform
+     is drawn in a delivered reference, measured off it, modelled as real
+     structure, and switched by a real geometry toggle — so the category has
+     one genuine option and is offered. The cockpit cover is still undocumented
+     and is still not offered; §25's "do not add artificial additional
+     equipment just to fill it" is the reason it did not come along for the
+     ride. */
   {
     id: "accessories",
     param: "accessories",
