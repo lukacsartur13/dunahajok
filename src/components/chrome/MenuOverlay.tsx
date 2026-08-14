@@ -14,6 +14,7 @@
  * scroll locked, and the whole thing inert to screen readers when shut.
  */
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CONTACT, LANGUAGES, NAV, SOCIALS } from "@/content/site";
 import { MEDIA } from "@/lib/media.generated";
@@ -22,15 +23,20 @@ import { gsap, prefersReducedMotion } from "@/lib/motion";
 import { WakeLine } from "@/components/primitives/WakeLine";
 import styles from "./MenuOverlay.module.css";
 
-/** The plate shown beside each primary entry. */
-const PLATES = {
-  "Duna 6.1": "cabin-studio-profile",
-  Craft: "teak-bow",
-  Story: "heritage-steamer",
-  "Suzuki Marine": "suzuki-engine",
-  Journal: "brand-mark",
-  Contact: "gyor-facility",
-} as const satisfies Record<string, keyof typeof MEDIA>;
+/**
+ * §B20 — THE PLATE COMES FROM THE NAVIGATION ENTRY, NOT FROM A LOOKUP.
+ *
+ * Phase One kept a `Record<label, MediaId>` here, which worked while the labels
+ * were English constants and breaks the moment they are translated — the lookup
+ * would silently miss and every entry would show the same image. `NavNode.plate`
+ * puts the image beside the destination it belongs to, in the same file, so a
+ * new section arrives with its own plate or with none.
+ */
+const FALLBACK_PLATE = "hero-danube" as const;
+
+function plateFor(id: string | undefined): (typeof MEDIA)[keyof typeof MEDIA] {
+  return MEDIA[(id ?? FALLBACK_PLATE) as keyof typeof MEDIA] ?? MEDIA[FALLBACK_PLATE];
+}
 
 interface MenuOverlayProps {
   open: boolean;
@@ -40,7 +46,7 @@ interface MenuOverlayProps {
 export function MenuOverlay({ open, onClose }: MenuOverlayProps) {
   const root = useRef<HTMLDivElement>(null);
   const hasOpened = useRef(false);
-  const [active, setActive] = useState<keyof typeof PLATES>("Duna 6.1");
+  const [active, setActive] = useState<string | undefined>(NAV[0]?.plate);
 
   useScrollLock(open);
 
@@ -152,7 +158,7 @@ export function MenuOverlay({ open, onClose }: MenuOverlayProps) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
-  const plate = MEDIA[PLATES[active]];
+  const plate = plateFor(active);
 
   return (
     <div
@@ -169,12 +175,12 @@ export function MenuOverlay({ open, onClose }: MenuOverlayProps) {
           <ul>
             {NAV.map((item) => (
               <li key={item.label} className={styles.primaryItem}>
-                <a
+                <Link
                   href={item.href}
                   className={styles.primaryLink}
                   onClick={onClose}
-                  onPointerEnter={() => setActive(item.label as keyof typeof PLATES)}
-                  onFocus={() => setActive(item.label as keyof typeof PLATES)}
+                  onPointerEnter={() => setActive(item.plate)}
+                  onFocus={() => setActive(item.plate)}
                 >
                   <span className={`${styles.primaryIndex} t-label`} aria-hidden="true">
                     {item.index}
@@ -182,15 +188,19 @@ export function MenuOverlay({ open, onClose }: MenuOverlayProps) {
                   <span className={`${styles.primaryLine} js-menu-line`}>
                     <span>{item.label}</span>
                   </span>
-                </a>
+                </Link>
 
                 {item.children ? (
                   <ul className={styles.secondary} data-menu-fade>
                     {item.children.map((child) => (
                       <li key={child.label}>
-                        <a href={child.href} onClick={onClose} className={styles.secondaryLink}>
+                        <Link
+                          href={child.href}
+                          onClick={onClose}
+                          className={styles.secondaryLink}
+                        >
                           {child.label}
-                        </a>
+                        </Link>
                       </li>
                     ))}
                   </ul>

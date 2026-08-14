@@ -13,6 +13,13 @@ scripts/.cache/
 # PXL pipeline scratch (the archival GLB and zone previews are kept)
 assets/derived/pxl/dump/
 
+# Phase 4.1 visual-QA output: trace proofs, plate crops, mark masks. 7 MB of
+# PNGs, all of it regenerable — `npm run trace` rewrites the proofs and the
+# crops come from the scratch measuring scripts beside them. The NUMBERS these
+# produced are what matter, and those live in pxlReference.ts and in
+# PXL_REFERENCE_QA.md, under test, rather than in an image nobody diffs.
+.qa/
+
 # iCloud Drive conflict copies. This project lives in iCloud Drive, and sync
 # leaves duplicates named "layout 2.tsx" beside the real file — 29 of them at
 # the last count. They are never source, and one of them landing in the repo

@@ -11,8 +11,10 @@
  * stays correct when sections are reordered.
  */
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { SITE } from "@/content/site";
+import { NAV, SITE } from "@/content/site";
 import { useIntroReady } from "@/lib/intro";
 import { gsap, ScrollTrigger } from "@/lib/motion";
 import { MenuOverlay } from "./MenuOverlay";
@@ -20,6 +22,7 @@ import styles from "./Header.module.css";
 
 export function Header() {
   const ready = useIntroReady();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [ground, setGround] = useState<"light" | "dark">("dark");
   const bar = useRef<HTMLElement>(null);
@@ -87,9 +90,36 @@ export function Header() {
         className={[styles.bar, styles[ground], open ? styles.overMenu : ""].join(" ")}
         data-cursor-solid=""
       >
-        <a href="#top" className={styles.wordmark} aria-label={`${SITE.name} — home`}>
+        <Link href="/" className={styles.wordmark} aria-label={`${SITE.name} — home`}>
           <span aria-hidden="true">{SITE.wordmark}</span>
-        </a>
+        </Link>
+
+        {/* §B19 — THE TOP LEVEL, AND ONLY THE TOP LEVEL.
+            Seven sections is more than a floating bar should carry at every
+            width, so the desktop header shows them and the phone does not;
+            everything deeper lives in the overlay, which is where §B19 says it
+            belongs. The list is `NAV` rather than a second array, so a section
+            cannot exist in one and not the other. */}
+        <nav className={styles.links} aria-label="Sections">
+          {NAV.map((item) => {
+            const on =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.href.split("#")[0].replace(/\/[^/]*$/, "")) &&
+                  item.href.split("/")[1] === pathname.split("/")[1];
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={styles.link}
+                data-on={on || undefined}
+                aria-current={on ? "page" : undefined}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
 
         <button
           ref={trigger}

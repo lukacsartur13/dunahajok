@@ -33,12 +33,14 @@ import { PXL_MEDIA, type PxlMediaId } from "@/lib/pxl.media.generated";
 import { useReducedMotion } from "@/lib/hooks";
 import {
   PXL_AVAILABLE_CATEGORIES,
-  PXL_CATEGORIES,
+  PXL_AVAILABLE_CONTROLS,
+  optionLabel as resolveOptionLabel,
+  selectedOption,
   summariseConfiguration,
 } from "@/webgl/scenes/pxl/pxlConfig";
-import { finishLabel, type PxlFinish } from "@/webgl/scenes/pxl/pxlPalette";
+import type { PxlCatalogOption } from "@/webgl/scenes/pxl/pxlCatalog";
 import { PXL_CONFIGURATOR_VIEWS } from "@/webgl/scenes/pxl/pxlPresets";
-import type { PxlPresetId } from "@/webgl/scenes/pxl/pxlPresets";
+import type { PxlCustomerPresetId } from "@/webgl/scenes/pxl/pxlPresets";
 import { PXL_CONSOLE_REVISION } from "@/webgl/scenes/pxl/pxlModel";
 import { pxlTelemetry } from "@/webgl/scenes/pxl/pxlTelemetry";
 import {
@@ -46,11 +48,12 @@ import {
   currentPxlQuery,
   loadPxlConfigurationFromUrl,
   pxlStore,
-  setPxlConfiguration,
+  selectPxlOption,
   usePxlConfiguration,
 } from "@/webgl/scenes/pxl/pxlStore";
 import { supportsWebGL } from "@/webgl/stage/quality";
 import { PxlDebugPanel } from "./PxlDebugPanel";
+import { PxlReferenceBench } from "./PxlReferenceBench";
 import styles from "./PxlConfigurator.module.css";
 
 /** Reference render for each exterior finish, for the no-WebGL path. */
@@ -63,8 +66,16 @@ const STUDY_FOR_SLUG: Record<string, PxlMediaId> = {
   navy: "pxl-water-navy",
 };
 
-/** Exactly one category is offered today; see the file note. */
-const EXTERIOR = PXL_AVAILABLE_CATEGORIES[0];
+/**
+ * The exterior control. Still special-cased on the BENCH, and only here.
+ *
+ * The no-WebGL path below shows the six delivered colour studies, which exist
+ * for the exterior range and for nothing else — there is no reference render of
+ * a cognac interior or of a large drive. So the fallback is genuinely about the
+ * exterior specifically, rather than about "the first category", and naming it
+ * says so.
+ */
+const EXTERIOR = PXL_AVAILABLE_CATEGORIES[0].controls[0];
 
 /**
  * The name this bench may print for a finish.
@@ -74,8 +85,25 @@ const EXTERIOR = PXL_AVAILABLE_CATEGORIES[0];
  * "public")` instead and gets null for every finish in the palette — see the
  * publication rule in `pxlPalette`.
  */
-function previewName(option: PxlFinish | undefined): string {
-  return option ? (finishLabel(option, "preview") ?? option.slug) : "";
+/**
+ * The colour the bench paints a chip.
+ *
+ * The bench's chip is a flat square rather than the configurator's lit sample,
+ * so it needs one colour per option and the catalogue's swatch union carries
+ * three kinds. Colour and waterline options both have one; a propulsion option
+ * has none, and gets a neutral rather than an invented tint — this is an
+ * instrument, and a made-up colour on an engine size would be an instrument
+ * that reads out something the data does not contain.
+ */
+function swatchColour(option: PxlCatalogOption): string {
+  const swatch = option.swatch;
+  if (swatch.kind === "colour") return swatch.value;
+  if (swatch.kind === "waterline") return swatch.lower ?? "#8d9095";
+  return "#8d9095";
+}
+
+function previewName(option: PxlCatalogOption | undefined): string {
+  return option ? (resolveOptionLabel(option, "preview") ?? option.slug) : "";
 }
 
 /**
@@ -102,7 +130,7 @@ export function PxlConfigurator() {
   const config = usePxlConfiguration();
   const reducedMotion = useReducedMotion();
 
-  const [view, setView] = useState<PxlPresetId>("hero_3q");
+  const [view, setView] = useState<PxlCustomerPresetId>("hero_3q");
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [shared, setShared] = useState(false);
   const [debug, setDebug] = useState(false);
@@ -110,10 +138,7 @@ export function PxlConfigurator() {
   const orbited = useOrbited();
   const shareTimer = useRef<number | null>(null);
 
-  const selected = useMemo(() => {
-    const id = EXTERIOR.read(config);
-    return EXTERIOR.options.find((o) => o.id === id) ?? EXTERIOR.options[0];
-  }, [config]);
+  const selected = useMemo(() => selectedOption(config, EXTERIOR), [config]);
 
   /* ── URL → state, once ──────────────────────────────────────────────────
      The only place the query string is read. §6: anything unrecognised is
@@ -139,7 +164,7 @@ export function PxlConfigurator() {
   useEffect(() => {
     const url = new URL(window.location.href);
     const next = new URLSearchParams(currentPxlQuery());
-    for (const category of PXL_CATEGORIES) url.searchParams.delete(category.param);
+    for (const control of PXL_AVAILABLE_CONTROLS) url.searchParams.delete(control.param);
     next.forEach((value, key) => url.searchParams.set(key, value));
     window.history.replaceState(null, "", url);
   }, [config]);
@@ -260,21 +285,22 @@ export function PxlConfigurator() {
         <aside className={styles.rail} data-lenis-prevent>
           <div className={styles.railScroll}>
             {/* ── Configuration. Derived from the schema, never hard-coded. */}
-            {PXL_AVAILABLE_CATEGORIES.map((category) => {
-              const current = category.read(config);
+            {PXL_AVAILABLE_CONTROLS.map((control) => {
+              const current = selectedOption(config, control);
+              const label = t.controls[control.labelKey] ?? control.id;
               return (
-                <section className={styles.block} key={category.id}>
-                  <h2 className={styles.label}>{t.categories[category.id]}</h2>
+                <section className={styles.block} key={control.id}>
+                  <h2 className={styles.label}>{label}</h2>
                   <p className={styles.value} aria-live="polite">
-                    {previewName(category.options.find((o) => o.id === current))}
+                    {previewName(current)}
                   </p>
                   <div
                     className={styles.swatches}
                     role="radiogroup"
-                    aria-label={t.categories[category.id]}
+                    aria-label={label}
                   >
-                    {category.options.map((option) => {
-                      const on = option.id === current;
+                    {control.options.map((option) => {
+                      const on = option.id === current.id;
                       return (
                         <button
                           key={option.id}
@@ -283,14 +309,17 @@ export function PxlConfigurator() {
                           aria-checked={on}
                           // §28: the selected state is exposed semantically, not
                           // only as a ring somebody might not be able to see.
-                          aria-label={fill(t.colourOptionLabel, { name: previewName(option) })}
+                          aria-label={fill(t.optionLabel, {
+                            control: label,
+                            name: previewName(option),
+                          })}
                           className={styles.swatch}
                           data-on={on || undefined}
-                          onClick={() => setPxlConfiguration(patchFor(category.id, option.id))}
+                          onClick={() => selectPxlOption(control, option)}
                         >
                           <span
                             className={styles.chip}
-                            style={{ background: option.base }}
+                            style={{ background: swatchColour(option) }}
                             aria-hidden="true"
                           />
                         </button>
@@ -347,7 +376,9 @@ export function PxlConfigurator() {
               <p>COLOUR NAMES ARE PROVISIONAL. No RAL or manufacturer code supplied.</p>
               <p>SPECIFICATIONS PENDING · published: {String(PXL.published)}</p>
               <p>
-                Development bench. Append <code>?debug=1</code> for telemetry.
+                Development bench. Append <code>?debug=1</code> for telemetry,
+                {" "}
+                <code>?pxlReference=1</code> to compare against the design plates.
               </p>
             </div>
           </div>
@@ -355,6 +386,12 @@ export function PxlConfigurator() {
       </div>
 
       {debug ? <PxlDebugPanel /> : null}
+      {/* §21. Mounted unconditionally and gated on `?pxlReference=1` inside,
+          because the flag is read from `window` and reading it out here would
+          make this component's first render depend on the URL — which is the
+          hydration mismatch the debug panel already learned about. Compiles to
+          nothing in a production build. */}
+      <PxlReferenceBench />
     </div>
   );
 }
@@ -362,21 +399,12 @@ export function PxlConfigurator() {
 /** Where a configuration enquiry goes until there is a form to send it to. */
 const PXL_ENQUIRY_ADDRESS = "info@dunahajok.hu";
 
-/**
- * Translate a category into the store's patch shape.
- *
- * The one place category ids meet configuration field names, and it is a
- * switch rather than a lookup so that adding a category without wiring it here
- * is a compile error rather than a click that does nothing.
- */
-function patchFor(category: string, id: string) {
-  switch (category) {
-    case "exterior":
-      return { exterior: { hullPrimary: id } };
-    default:
-      return {};
-  }
-}
+/* Phase Three had a `patchFor(category, id)` switch here, translating a
+   category id into the store's patch shape. It is gone, and its absence is the
+   point: the catalogue now declares which field each control writes and
+   `selectPxlOption` routes through it, so there is no longer a place where a
+   new category has to be wired by hand — which was the one thing that switch
+   could not stop somebody forgetting. */
 
 /* ── The no-WebGL path ─────────────────────────────────────────────────────*/
 
@@ -458,7 +486,7 @@ function PxlColourStudies({
               >
                 <span
                   className={styles.chip}
-                  style={{ background: option.base }}
+                  style={{ background: swatchColour(option) }}
                   aria-hidden="true"
                 />
               </button>

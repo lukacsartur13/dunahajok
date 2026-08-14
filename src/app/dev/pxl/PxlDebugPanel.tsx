@@ -18,10 +18,14 @@
 
 import { useEffect, useState } from "react";
 import {
-  PXL_CATEGORIES,
   PXL_CHANNEL_OPTIONS,
   finishForChannel,
 } from "@/webgl/scenes/pxl/pxlConfig";
+import {
+  PXL_CATEGORIES,
+  PXL_DEFERRED_CATEGORIES,
+  PXL_DRIVE_SPECS,
+} from "@/webgl/scenes/pxl/pxlCatalog";
 import {
   PXL_CONSOLE_REVISION,
   PXL_MODEL,
@@ -139,7 +143,17 @@ export function PxlDebugPanel() {
                 {PXL_CATEGORIES.map((c) => (
                   <tr key={c.id}>
                     <td>{c.id}</td>
-                    <td>{c.unavailable ? `unavailable — ${c.unavailable}` : `${c.options.length} options`}</td>
+                    <td>
+                      {c.controls
+                        .map((control) => `${control.param} (${control.options.length})`)
+                        .join(" · ")}
+                    </td>
+                  </tr>
+                ))}
+                {PXL_DEFERRED_CATEGORIES.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.id}</td>
+                    <td>unavailable — {c.unavailable}</td>
                   </tr>
                 ))}
               </tbody>

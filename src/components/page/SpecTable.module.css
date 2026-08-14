@@ -1,0 +1,75 @@
+/* Verified specifications, set as numerals. See SpecTable.tsx. */
+
+.root {
+  width: 100%;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: var(--stack-3) var(--gutter);
+  margin: 0;
+  padding-block-start: var(--stack-2);
+  border-block-start: 1px solid var(--rule);
+}
+
+.item {
+  min-inline-size: 0;
+  padding-block-start: var(--stack-1);
+}
+
+.label {
+  display: block;
+  color: var(--fg-faint);
+  margin-block-end: 0.4rem;
+}
+
+/* The qualifier — "from", "max", "persons" — belongs to the label rather than
+   to the number. A "1070 kg from" reads as a figure with a word after it; a
+   "Weight · from" reads as the question the figure answers. */
+.qualifier {
+  color: var(--fg-faint);
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.value {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.2em;
+}
+
+.number {
+  font-family: var(--font-ui);
+  font-size: clamp(2rem, 3.4vw, 3.25rem);
+  font-weight: 500;
+  font-stretch: 94%;
+  letter-spacing: var(--tr-display);
+  line-height: 0.9;
+}
+
+.unit {
+  font-family: var(--font-tech);
+  font-size: var(--fs-small);
+  color: var(--fg-muted);
+  letter-spacing: 0.04em;
+}
+
+.source {
+  margin-block-start: var(--stack-3);
+  padding-block-start: var(--stack-2);
+  border-block-start: 1px solid var(--rule);
+  color: var(--fg-faint);
+}
+
+.note {
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  letter-spacing: 0;
+  text-transform: none;
+  border-block-start: 0;
+  padding-block-start: 0;
+  margin-block-start: var(--stack-1);
+  max-inline-size: var(--measure);
+}

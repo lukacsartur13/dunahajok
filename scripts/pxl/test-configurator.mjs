@@ -21,7 +21,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,25 +29,45 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const out = mkdtempSync(join(tmpdir(), "pxl-test-"));
 
+/**
+ * A THROWAWAY tsconfig, RATHER THAN A LIST OF FLAGS.
+ *
+ * `--paths` is one of the few options tsc refuses on the command line, and the
+ * tested modules need it: Phase Four's content modules import through the
+ * site's own `@/*` alias, and asking `src/content` to be the one directory
+ * that may not would be a rule nobody would remember to follow.
+ *
+ * So the compiler gets a real config file, written into the temp directory and
+ * pointed back at the project root. It sets `rootDir` explicitly as well —
+ * without it, adding a `baseUrl` changes the inferred common root and the
+ * emitted tree lands somewhere the runner then cannot find.
+ */
+const config = join(out, "tsconfig.test.json");
+writeFileSync(
+  config,
+  JSON.stringify({
+    compilerOptions: {
+      module: "commonjs",
+      moduleResolution: "node",
+      target: "ES2022",
+      strict: true,
+      // The palette and model modules are `readonly` tuples in places; the
+      // tests read them, never write them, so this only affects emit.
+      skipLibCheck: true,
+      types: ["node"],
+      baseUrl: root,
+      rootDir: root,
+      paths: { "@/*": ["src/*"] },
+      outDir: out,
+      esModuleInterop: true,
+    },
+    files: [join(root, "scripts/pxl/configurator.test.ts")],
+  }),
+);
+
 try {
   try {
-    execFileSync(
-      "npx",
-      [
-        "tsc",
-        "scripts/pxl/configurator.test.ts",
-        "--module", "commonjs",
-        "--moduleResolution", "node",
-        "--target", "ES2022",
-        "--strict",
-        // The palette and model modules are `readonly` tuples in places; the
-        // tests read them, never write them, so this only affects emit.
-        "--skipLibCheck",
-        "--types", "node",
-        "--outDir", out,
-      ],
-      { cwd: root, stdio: "pipe" },
-    );
+    execFileSync("npx", ["tsc", "--project", config], { cwd: root, stdio: "pipe" });
   } catch (error) {
     // tsc exits non-zero on any diagnostic, including ones that do not prevent
     // emit (an unrelated .d.ts in node_modules, most often). Report and carry

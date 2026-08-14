@@ -1,0 +1,23 @@
+/* §B21 — the route veil. See RouteTransition.tsx.
+
+   Fixed, non-interactive, and hidden until a navigation runs. It sits below
+   the menu and the header so that both stay operable while it crosses, and
+   above the page and the WebGL canvas so that it actually covers them. */
+
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-menu) - 5);
+  display: none;
+  background: var(--depth);
+  pointer-events: none;
+  will-change: clip-path;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Belt as well as braces: the component returns early, and if it ever did
+     not, the veil still could not appear. */
+  .veil {
+    display: none !important;
+  }
+}

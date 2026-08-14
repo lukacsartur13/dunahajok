@@ -1,0 +1,90 @@
+/* ===========================================================================
+   MATERIALS — the macro sequence
+   ---------------------------------------------------------------------------
+   §B9: large macros, material transitions, tactile scroll, minimal copy. Four
+   bands, each one surface, with the caption alternating sides so the eye
+   crosses the frame between them — that crossing is the "transition", and it
+   is produced by the layout rather than by an effect.
+   =========================================================================== */
+
+.sequence {
+  background: var(--depth);
+  color: var(--signal);
+}
+
+.band {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  min-block-size: 82svh;
+  padding-block: var(--section-y-tight);
+}
+
+.plate {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  position: relative;
+  z-index: 0;
+  margin-inline: calc(50% - 50vw);
+}
+
+.caption {
+  grid-row: 1;
+  z-index: var(--z-content);
+  padding-inline: var(--gutter);
+  padding-block-end: var(--stack-4);
+  max-inline-size: 34rem;
+}
+
+.band[data-align="start"] .caption {
+  grid-column: 2 / span 5;
+}
+
+.band[data-align="end"] .caption {
+  grid-column: 7 / span 5;
+}
+
+.index {
+  color: var(--signal-45);
+  margin-block-end: var(--stack-2);
+}
+
+.name {
+  font-size: var(--fs-d2);
+  margin-block-end: var(--stack-2);
+}
+
+.lede {
+  margin-block-end: var(--stack-2);
+}
+
+.body {
+  color: var(--signal-70);
+  margin-block-end: var(--stack-3);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+  padding-block-start: var(--stack-2);
+  border-block-start: 1px solid var(--signal-16);
+  color: var(--signal-45);
+}
+
+@media (max-width: 60rem) {
+  .band {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    gap: var(--stack-3);
+  }
+
+  .band[data-align="start"] .caption,
+  .band[data-align="end"] .caption {
+    grid-column: auto;
+    max-inline-size: none;
+    padding-block-end: 0;
+  }
+}

@@ -3,30 +3,50 @@
 /**
  * THE PXL CONFIGURATOR — the customer-facing experience.
  *
- * A luxury product film that became interactive (§4), not a control panel with
- * a boat in it. Everything about the composition follows from one decision: the
+ * A luxury product film that became interactive, not a control panel with a
+ * boat in it. Everything about the composition follows from one decision: the
  * vessel is the page, and the interface is a rail along the bottom of it. There
  * is no sidebar, because a sidebar takes a quarter of the width away from the
- * only thing worth looking at; there are no tabs, because there is one real
- * category; and there is no permanent chrome beyond a name, a way out, and the
- * controls that do something.
+ * only thing worth looking at.
  *
- * WHAT IS CONFIGURABLE IS WHAT IS REAL. The category list is `map`ped from
- * `PXL_AVAILABLE_CATEGORIES`, which today has exactly one member. There are no
- * disabled INTERIOR / PROPULSION / EQUIPMENT tabs and no "01 / 04" implying
- * three more are coming (§8, §48). The day upholstery becomes real, it appears
- * here without this file changing — which is the whole reason the derivation is
- * worth having when there is only one of them.
+ * ── WHAT PHASE FOUR CHANGED, AND WHAT IT REFUSED TO ────────────────────────
  *
- * WHAT IT REFUSES TO SAY. No price, no specification, no availability, and no
- * colour name that the yard has not approved — the last one enforced by
- * `finishLabel` rather than by everyone remembering (§46, §47, §53).
+ * Phase Three had one category and rendered it flat: a heading, six swatches, a
+ * row of view chips. Phase Four has four categories and six controls, and the
+ * naive extension of that layout is a form — twenty-two controls stacked in a
+ * band across the bottom of a product shot. §A25 rules it out in as many words:
+ * do not turn it into a giant form, keep the viewport dominant, and do not
+ * display every option from every category at once.
  *
- * THE SIGNATURE MOMENT IS NOT IN THIS FILE, and that is the point. §66's
- * travelling finish belongs to the material, so it lives in the shader and the
- * scene; from here, changing a colour is one call into the store. The interface
- * does not animate the product. It asks for a different product and gets out of
- * the way.
+ * So the rail became TWO LAYERS. A low horizontal category navigation that is
+ * always present and costs one line, and the active category's controls
+ * underneath it. One category is open at a time; the others are a word each.
+ * At 1440px the whole interface is 150px tall and the boat has the rest; at
+ * 390px it is a tray whose height is capped so the vessel keeps the majority of
+ * the viewport.
+ *
+ * ── WHAT IS CONFIGURABLE IS WHAT IS REAL ───────────────────────────────────
+ *
+ * The category list is `map`ped from `PXL_AVAILABLE_CATEGORIES`, which derives
+ * from the catalogue. There are no disabled EQUIPMENT tabs and no "01 / 05"
+ * implying a fifth is coming — the index a category shows is its position among
+ * the categories that exist. The day equipment becomes real it appears here
+ * without this file changing.
+ *
+ * ── WHAT IT REFUSES TO SAY ─────────────────────────────────────────────────
+ *
+ * No price, no specification, no availability, no power figure, and no name the
+ * yard has not approved — the last one enforced by `optionLabel` rather than by
+ * everyone remembering.
+ *
+ * ── THE CAMERA ─────────────────────────────────────────────────────────────
+ *
+ * §A19 and §A26 ask that opening a category suggest the composition the
+ * decision is made in, and that the suggestion be art direction rather than
+ * automation. The rule implemented here is: the first time a category is
+ * opened, the camera moves to its suggested view. After that, never — not on
+ * re-entry, not on a change within the category, and not at all once the
+ * viewer has taken the camera themselves.
  */
 
 import Link from "next/link";
@@ -38,13 +58,21 @@ import { SITE } from "@/content/site";
 import { track } from "@/lib/analytics";
 import { useFinePointer, useReducedMotion } from "@/lib/hooks";
 import {
+  PXL_CATALOGUE_IS_PROVISIONAL,
+  type PxlCatalogCategory,
+  type PxlCatalogControl,
+  type PxlCatalogOption,
+} from "@/webgl/scenes/pxl/pxlCatalog";
+import {
   PXL_AVAILABLE_CATEGORIES,
+  optionLabel,
+  selectedOption,
   summariseConfiguration,
 } from "@/webgl/scenes/pxl/pxlConfig";
-import { finishLabel, rangeIsPubliclyNameable } from "@/webgl/scenes/pxl/pxlPalette";
+import { finish } from "@/webgl/scenes/pxl/pxlPalette";
 import {
   PXL_CONFIGURATOR_VIEW_CONTROLS,
-  type PxlPresetId,
+  type PxlCustomerPresetId,
 } from "@/webgl/scenes/pxl/pxlPresets";
 import { requestPxlSnapshot, snapshotFilename } from "@/webgl/scenes/pxl/pxlSnapshot";
 import {
@@ -52,7 +80,7 @@ import {
   currentPxlQuery,
   loadPxlConfigurationFromUrl,
   resetPxlConfiguration,
-  setPxlConfiguration,
+  selectPxlOption,
   syncPxlUrl,
   usePxlConfiguration,
 } from "@/webgl/scenes/pxl/pxlStore";
@@ -65,7 +93,7 @@ import styles from "./PxlProductConfigurator.module.css";
 
 /** How long a confirmation stays up. Long enough to read, short enough to ignore. */
 const FEEDBACK_MS = 2400;
-/** The arrival caption's life. §42: brief, then the controls are the page. */
+/** The arrival caption's life. Brief, then the controls are the page. */
 const ARRIVAL_MS = 1600;
 
 type Feedback = { key: string; text: string } | null;
@@ -95,7 +123,10 @@ export function PxlProductConfigurator() {
   const reducedMotion = useReducedMotion();
   const finePointer = useFinePointer();
 
-  const [view, setView] = useState<PxlPresetId>("hero_3q");
+  const [view, setView] = useState<PxlCustomerPresetId>("hero_3q");
+  const [category, setCategory] = useState<PxlCatalogCategory>(
+    PXL_AVAILABLE_CATEGORIES[0],
+  );
   const [focus, setFocus] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -111,6 +142,17 @@ export function PxlProductConfigurator() {
   const feedbackTimer = useRef<number | null>(null);
   const shell = useRef<HTMLDivElement>(null);
   const rail = useRef<HTMLDivElement>(null);
+  /**
+   * Categories whose camera suggestion has already been offered. §A26.
+   *
+   * A ref rather than state: nothing renders off it, and putting it in state
+   * would re-render the whole configurator on a set that only ever grows to
+   * four members. Seeded with the category the configurator opens on, because
+   * the arrival composition IS that category's suggested view — offering it
+   * again half a second later would be a camera move to where the camera
+   * already is.
+   */
+  const suggested = useRef(new Set<string>([PXL_AVAILABLE_CATEGORIES[0].id]));
 
   /**
    * Publish the rail's real height as `--rail-height`.
@@ -118,9 +160,10 @@ export function PxlProductConfigurator() {
    * The overlays that sit above the rail — the interaction hint, the
    * confirmation line — have to clear it, and the rail's height is not a
    * constant: it changes with the language, with the type scale, with the
-   * safe-area inset, and completely between the three compositions. A guessed
-   * value is a value that is right on one phone. Measuring it costs one
-   * ResizeObserver and makes the relationship exact everywhere.
+   * safe-area inset, with which category is open, and completely between the
+   * three compositions. A guessed value is a value that is right on one phone.
+   * Measuring it costs one ResizeObserver and makes the relationship exact
+   * everywhere.
    */
   useEffect(() => {
     const el = rail.current;
@@ -133,25 +176,20 @@ export function PxlProductConfigurator() {
     return () => observer.disconnect();
   }, []);
 
-  const category = PXL_AVAILABLE_CATEGORIES[0];
-  const selected = useMemo(() => {
-    const id = category.read(config);
-    return category.options.find((o) => o.id === id) ?? category.options[0];
-  }, [category, config]);
-
-  /* Preview, not public: this route is noindex, disallowed and linked from
-     nothing, so it may print the provisional names — and says that it is doing
-     so. A public surface would call `finishLabel(f, "public")`, get null for
-     every finish in the range, and print no names at all. */
-  const selectedName = finishLabel(selected, "preview") ?? selected.slug;
-  const namesApproved = rangeIsPubliclyNameable(category.options);
+  /* The exterior finish, as a hex. The HULL DETAIL swatch needs it to draw
+     FULL BODY COLOUR in the colour it would actually be — see `PxlSwatches`. */
+  const bodyColour = useMemo(
+    () => finish(config.exterior.hullPrimary).base,
+    [config.exterior.hullPrimary],
+  );
 
   const summary = useMemo(() => summariseConfiguration(config, "preview"), [config]);
 
   /* ── URL → state, once ──────────────────────────────────────────────────
-     The only place the query string is read on this route. §26: anything
+     The only place the query string is read on this route. Anything
      unrecognised is dropped *and the address bar is corrected*, so an invalid
-     link cannot be forwarded on still looking valid.                        */
+     link cannot be forwarded on still looking valid. Each parameter sanitises
+     independently — see `parseConfiguration`.                                */
   useEffect(() => {
     const rejected = loadPxlConfigurationFromUrl(window.location.search);
     // One-shot, so it is read once and the value is reused rather than asked
@@ -179,10 +217,10 @@ export function PxlProductConfigurator() {
   }, [config]);
 
   /* ── Back and forward ───────────────────────────────────────────────────
-     §36. The configurator writes with `replaceState`, so its own changes are
-     not history entries — but arriving here from a link, going back to the
-     product page and coming forward again lands on a URL whose query the store
-     has not seen. Re-reading it on `popstate` is what makes the browser's own
+     The configurator writes with `replaceState`, so its own changes are not
+     history entries — but arriving here from a link, going back to the product
+     page and coming forward again lands on a URL whose query the store has not
+     seen. Re-reading it on `popstate` is what makes the browser's own
      navigation controls agree with the boat on screen.                      */
   useEffect(() => {
     const onPop = () => loadPxlConfigurationFromUrl(window.location.search);
@@ -220,24 +258,57 @@ export function PxlProductConfigurator() {
   /* ── Actions ────────────────────────────────────────────────────────────*/
 
   const choose = useCallback(
-    (id: string) => {
-      const from = selected.slug;
-      const to = category.options.find((o) => o.id === id)?.slug ?? id;
-      if (from === to) return;
-      setPxlConfiguration({ exterior: { hullPrimary: id } });
-      track({ name: "pxl_finish_change", category: category.id, from, to });
-      // §45: the boat changing colour IS the feedback. What goes to the live
-      // region is for the people who cannot see it happen.
-      const option = category.options.find((o) => o.id === id);
-      const name = option ? (finishLabel(option, "preview") ?? option.slug) : to;
-      setFeedback({ key: `${Date.now()}`, text: fill(t.colourSelected, { name }) });
-      if (feedbackTimer.current) window.clearTimeout(feedbackTimer.current);
-      feedbackTimer.current = window.setTimeout(() => setFeedback(null), FEEDBACK_MS);
+    (control: PxlCatalogControl, option: PxlCatalogOption) => {
+      const from = selectedOption(config, control);
+      if (from.id === option.id) return;
+      selectPxlOption(control, option);
+      track({
+        name: "pxl_finish_change",
+        category: `${option.category}/${control.id}`,
+        from: from.slug,
+        to: option.slug,
+      });
+      // The boat changing IS the feedback. What goes to the live region is for
+      // the people who cannot see it happen.
+      say(
+        fill(t.optionSelected, {
+          control: t.controls[control.labelKey] ?? control.id,
+          name: optionLabel(option, "preview") ?? option.slug,
+        }),
+      );
     },
-    [category, selected.slug, t.colourSelected],
+    [config, say, t.controls, t.optionSelected],
   );
 
-  const chooseView = useCallback((id: PxlPresetId) => {
+  /**
+   * §A26 — OPENING A CATEGORY SUGGESTS ITS COMPOSITION. ONCE.
+   *
+   * Three conditions, and each one removes a way this could become annoying:
+   *
+   *   • only on the FIRST opening of a category, so stepping back and forth
+   *     between EXTERIOR and INTERIOR does not swing the camera each time;
+   *   • never once `orbited` is true, because a viewer who has turned the boat
+   *     has stated a preference and §A26 says to respect it;
+   *   • never under reduced motion, where the camera holds still by policy.
+   *
+   * Changing an option *within* a category never moves the camera at all —
+   * §A19 is explicit that a camera jump on every engine change is the failure
+   * mode here.
+   */
+  const openCategory = useCallback(
+    (next: PxlCatalogCategory) => {
+      setCategory(next);
+      track({ name: "pxl_category_open", category: next.id });
+      if (suggested.current.has(next.id)) return;
+      suggested.current.add(next.id);
+      if (orbited || reducedMotion) return;
+      setView(next.suggestedView);
+      track({ name: "pxl_camera_change", preset: next.suggestedView, source: "category" });
+    },
+    [orbited, reducedMotion],
+  );
+
+  const chooseView = useCallback((id: PxlCustomerPresetId) => {
     setView(id);
     track({ name: "pxl_camera_change", preset: id, source: "control" });
   }, []);
@@ -257,9 +328,11 @@ export function PxlProductConfigurator() {
 
   const reset = useCallback(() => {
     const from = currentPxlQuery();
-    // §29: one category, so no confirmation. The camera deliberately stays
-    // where it is — someone who has turned the boat to look at the transom and
-    // then resets the colour has not asked to be moved.
+    /* §A22 — every category back to the one defined preview default, with no
+       page reload and no GLB reload. The camera deliberately stays where it is:
+       someone who has turned the boat to look at the transom and then resets
+       the configuration has not asked to be moved. The open category stays
+       open too, for the same reason. */
     resetPxlConfiguration();
     track({ name: "pxl_reset", from });
     say(t.reset);
@@ -271,8 +344,8 @@ export function PxlProductConfigurator() {
     setSnapshotBusy(false);
     track({ name: "pxl_snapshot", ok: Boolean(blob) });
     if (!blob) {
-      // §34: the feature is allowed to be unavailable. It is not allowed to
-      // pretend, and it is not allowed to keep offering itself after failing.
+      // The feature is allowed to be unavailable. It is not allowed to pretend,
+      // and it is not allowed to keep offering itself after failing.
       setSnapshotOk(false);
       say(t.saveImageFailed);
       return;
@@ -309,15 +382,20 @@ export function PxlProductConfigurator() {
     return () => window.removeEventListener("keydown", onKey);
   }, [focus]);
 
-  /* §43: the hint goes on the first interaction with the stage and stays gone. */
+  /* The hint goes on the first interaction with the stage and stays gone. */
   const dismissHint = useCallback(() => {
     if (!hint) return;
     setHint(false);
     markPxlHintSeen();
   }, [hint]);
 
-  const activeView: PxlPresetId = orbited && view !== "free" ? "free" : view;
+  const activeView: PxlCustomerPresetId = orbited && view !== "free" ? "free" : view;
   const interactive = !reducedMotion;
+
+  /* The still that stands in until the GLB resolves, and permanently on a
+     device that cannot run WebGL: the studio's own render of the boat in the
+     exterior finish the visitor has actually chosen. */
+  const exteriorSlug = selectedOption(config, PXL_AVAILABLE_CATEGORIES[0].controls[0]).slug;
 
   return (
     <div
@@ -328,9 +406,9 @@ export function PxlProductConfigurator() {
     >
       {/* ── The vessel ─────────────────────────────────────────────────────
           Absolutely positioned and full-bleed, with the chrome floating over
-          it. This is what §6 and §7 actually require: the boat does not live
-          in a cell of a grid that the controls can shrink, so a narrower
-          window compresses the rail and never the product.                  */}
+          it. The boat does not live in a cell of a grid that the controls can
+          shrink, so a narrower window compresses the rail and never the
+          product.                                                            */}
       <div
         className={styles.stage}
         onPointerDown={dismissHint}
@@ -343,20 +421,16 @@ export function PxlProductConfigurator() {
           adaptive
           priority
           label={t.sceneDescription}
-          // §57: the strongest PXL render, in the colour the visitor has
-          // actually chosen, standing in until the GLB resolves — and
-          // permanently if it never does.
-          fallback={PXL_STUDY_FOR_SLUG[selected.slug] ?? "pxl-hero-side"}
+          fallback={PXL_STUDY_FOR_SLUG[exteriorSlug] ?? "pxl-hero-side"}
           sizes="100vw"
         />
       </div>
 
-      {/* ── Identity and the way out ───────────────────────────────────────*/}
-      {/* The way out, the identity and the two secondary actions.
+      {/* ── Identity and the way out ───────────────────────────────────────
           Three siblings rather than two, so the phone layout can put the
           product name on its own line without the exit control coming with
           it — at 390px, CLOSE + DUNA + PXL + two chips do not fit on one row,
-          and the thing that must not shrink is the product's name. */}
+          and the thing that must not shrink is the product's name.          */}
       <header className={styles.top}>
         <Link className={styles.back} href={PXL.routes.preview} data-cursor-solid="">
           <span aria-hidden="true">←</span> {t.exit}
@@ -396,76 +470,115 @@ export function PxlProductConfigurator() {
       ) : null}
 
       {/* ── The control rail ───────────────────────────────────────────────
-          Low, horizontal, and content-sized. §6: no permanent sidebar, and
-          nothing here grows to fill space it has not earned.               */}
+          Low, horizontal, content-sized, and two layers: the category
+          navigation, then the open category's controls. §A25.              */}
       <div
         ref={rail}
         className={styles.rail}
         data-ready={arrived || undefined}
         data-lenis-prevent
       >
-        {PXL_AVAILABLE_CATEGORIES.map((c) => (
-          <section className={styles.group} key={c.id}>
-            <div className={styles.groupHead}>
-              <h2 className={styles.label}>{t.categories[c.id]}</h2>
-              <p className={styles.value}>{selectedName}</p>
-              {/* §53, marked where the name is rather than in a footnote
-                  somewhere else on the page. It costs one line, it is beside
-                  the thing it qualifies, and it removes itself the day
-                  `rangeIsPubliclyNameable` starts answering true. */}
-              {!namesApproved ? (
-                <span className={styles.provisional} title={t.provisionalNames}>
-                  {t.provisionalShort}
+        {/* §A2: the index is the category's position among the categories that
+            EXIST. Four of them, so they read 01–04 and never 01/05. */}
+        <nav className={styles.categories} aria-label={t.categoryNav}>
+          {PXL_AVAILABLE_CATEGORIES.map((c, i) => {
+            const on = c.id === category.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={styles.category}
+                data-on={on || undefined}
+                aria-current={on ? "true" : undefined}
+                data-cursor-solid=""
+                onClick={() => openCategory(c)}
+              >
+                <span className={styles.categoryIndex} aria-hidden="true">
+                  {String(i + 1).padStart(2, "0")}
                 </span>
-              ) : null}
-            </div>
-            <PxlSwatches
-              options={c.options}
-              value={c.read(config)}
-              onChange={choose}
-              groupLabel={t.categories[c.id]}
-              optionLabel={(name) => fill(t.colourOptionLabel, { name })}
-            />
-          </section>
-        ))}
+                <span className={styles.categoryName}>{t.categories[c.id]}</span>
+              </button>
+            );
+          })}
+        </nav>
 
-        <section className={styles.group}>
-          <div className={styles.groupHead}>
-            <h2 className={styles.label}>{t.viewHeading}</h2>
-            <p className={styles.value}>{t.views[activeView]}</p>
-          </div>
-          {/* §13: the five authored compositions. FREE is a state the camera
-              reaches, not an instruction anybody would give, so it is named in
-              the line above and never offered as a button — while the viewer
-              has the camera, none of these is selected, and choosing one is how
-              they hand it back. */}
-          <div className={styles.views} role="radiogroup" aria-label={t.viewHeading}>
-            {PXL_CONFIGURATOR_VIEW_CONTROLS.map((id) => {
-              const on = id === activeView;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  className={styles.view}
-                  data-on={on || undefined}
-                  data-cursor-solid=""
-                  onClick={() => chooseView(id)}
-                >
-                  {t.views[id]}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        {/* The second row: the open category's controls, then the actions.
+            A wrapper rather than two children of the rail, because the two have
+            to share one line and be able to give way to each other — the
+            controls scroll, the actions never shrink. */}
+        <div className={styles.railBody}>
+        {/* The open category. Keyed on its id so the controls animate in as a
+            group rather than morphing between two categories' rows. */}
+        <div className={styles.controls} key={category.id}>
+          {category.controls.map((control) => {
+            const current = selectedOption(config, control);
+            const name = optionLabel(current, "preview") ?? current.slug;
+            const label = t.controls[control.labelKey] ?? control.id;
+            return (
+              <section className={styles.group} key={control.id}>
+                <div className={styles.groupHead}>
+                  <h2 className={styles.label}>{label}</h2>
+                  <p className={styles.value}>{name}</p>
+                </div>
+                <PxlSwatches
+                  options={control.options}
+                  value={current.id}
+                  onChange={(option) => choose(control, option)}
+                  groupLabel={label}
+                  optionLabel={(n) => fill(t.optionLabel, { control: label, name: n })}
+                  bodyColour={bodyColour}
+                />
+              </section>
+            );
+          })}
+
+          <section className={`${styles.group} ${styles.viewGroup}`}>
+            <div className={styles.groupHead}>
+              <h2 className={styles.label}>{t.viewHeading}</h2>
+              <p className={styles.value}>{t.views[activeView]}</p>
+            </div>
+            {/* The five authored compositions. FREE is a state the camera
+                reaches, not an instruction anybody would give, so it is named
+                in the line above and never offered as a button — while the
+                viewer has the camera, none of these is selected, and choosing
+                one is how they hand it back. */}
+            <div className={styles.views} role="radiogroup" aria-label={t.viewHeading}>
+              {PXL_CONFIGURATOR_VIEW_CONTROLS.map((id) => {
+                const on = id === activeView;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={styles.view}
+                    data-on={on || undefined}
+                    data-cursor-solid=""
+                    onClick={() => chooseView(id)}
+                  >
+                    {t.views[id]}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </div>
 
         <div className={styles.actions}>
+          {/* Marked once, beside the controls rather than in a footnote
+              somewhere else on the page. It costs one line, it is beside the
+              thing it qualifies, and it removes itself the day the catalogue
+              stops answering `PXL_CATALOGUE_IS_PROVISIONAL`. */}
+          {PXL_CATALOGUE_IS_PROVISIONAL ? (
+            <p className={styles.provisional} title={t.provisionalNames}>
+              {t.provisionalShort}
+            </p>
+          ) : null}
           <button type="button" className={styles.ghost} onClick={reset} data-cursor-solid="">
             {t.reset}
           </button>
-          {/* Secondary, and only while it works. §35: not in the primary rail
-              and never a fabricated hosted URL — the file is produced on this
+          {/* Secondary, and only while it works. Not in the primary rail and
+              never a fabricated hosted URL — the file is produced on this
               machine and saved to this machine. */}
           {webgl && snapshotOk !== false ? (
             <button
@@ -487,23 +600,28 @@ export function PxlProductConfigurator() {
             {t.cta}
           </button>
         </div>
+        </div>
       </div>
 
       {/* ── What the canvas cannot say ─────────────────────────────────────
-          §24: the 3D object is not accessible content, so the state it
-          represents is stated in the DOM — the model, the selected finish and
-          the view the camera is holding, in a sentence, updated as they
-          change. Not decoration for a screen reader: it is the only place some
-          visitors can read what is currently on screen.                     */}
+          The 3D object is not accessible content, so the state it represents is
+          stated in the DOM — the model, every selected option and the view the
+          camera is holding, in a sentence, updated as they change. Not
+          decoration for a screen reader: it is the only place some visitors can
+          read what is currently on screen. Derived from the summary, so a new
+          category joins it without this markup changing.                     */}
       <p className={styles.srOnly}>
-        {PXL.fullName}. {t.categories.exterior}: {selectedName}. {t.viewHeading}:{" "}
-        {t.views[activeView]}.
+        {PXL.fullName}.{" "}
+        {summary
+          .map((line) => `${t.controls[line.labelKey] ?? line.control}: ${line.value ?? line.slug}`)
+          .join(". ")}
+        . {t.viewHeading}: {t.views[activeView]}.
       </p>
       <p className={styles.srOnly} role="status" aria-live="polite">
         {feedback?.text ?? ""}
       </p>
 
-      {/* Visible confirmation, brief and singular. §28: no toast stack. */}
+      {/* Visible confirmation, brief and singular. No toast stack. */}
       <p className={styles.toast} data-on={feedback ? true : undefined} aria-hidden="true">
         {feedback?.text}
       </p>
@@ -517,7 +635,7 @@ export function PxlProductConfigurator() {
         summary={summary}
         configurationUrl={permalink}
         sourcePage={PXL.routes.previewConfigure}
-        categoryLabel={(id) => t.categories[id as keyof typeof t.categories] ?? id}
+        categoryLabel={(key) => t.controls[key] ?? key}
       />
 
       {/* The curtain the previous route left up, lifted on the first paint.

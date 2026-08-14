@@ -240,9 +240,16 @@
   inset-block-end: 0;
   inset-inline: 0;
   z-index: calc(var(--z-product-ui) + 2);
+  /* TWO LAYERS FROM PHASE FOUR ON — §A25.
+     Phase Three's rail was one row, because there was one category. Four
+     categories in one row would be twenty-two controls across the bottom of a
+     product shot, which is the "giant form" §A25 rules out. So the rail is a
+     column of two short rows: the category navigation, then the open
+     category's controls beside the actions. It costs one line of height and it
+     is what keeps the interface at 150px on a 900px-tall viewport. */
   display: flex;
-  align-items: flex-end;
-  gap: var(--rail-gap);
+  flex-direction: column;
+  gap: 0.85rem;
   padding: var(--pad);
   padding-block-end: max(var(--pad), env(safe-area-inset-bottom, 0px));
   background: linear-gradient(
@@ -251,7 +258,7 @@
     rgba(10, 14, 15, 0.62) 44%,
     rgba(10, 14, 15, 0) 100%
   );
-  /* §42: the controls arrive after the vessel is dominant, not with it. */
+  /* The controls arrive after the vessel is dominant, not with it. */
   opacity: 0;
   transform: translateY(0.75rem);
   transition:
@@ -262,6 +269,109 @@
 .rail[data-ready] {
   opacity: 1;
   transform: none;
+}
+
+/* ── Category navigation ────────────────────────────────────────────────── */
+
+/* LOW-PROFILE AND HORIZONTAL — §A25's desktop preference, and the reason the
+   rest of the rail can stay one row deep. Four words and four indices; the
+   selected one is underlined by a hairline that is the Duna Line's own weight
+   rather than a filled tab, because a filled tab is chrome and this composition
+   has as little of it as it can get away with. */
+.categories {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(1rem, 2.2vw, 2.25rem);
+  border-block-end: 1px solid var(--signal-16);
+  padding-block-end: 0.7rem;
+}
+
+.category {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  margin-block: -0.5rem;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--signal-45);
+  transition: color var(--dur-1) var(--ease-hull);
+}
+
+/* The selected category is named in full contrast AND underscored AND carries
+   aria-current. Three signals, because on a dark scrim over a moving hull one
+   of them will be hard to read at any given moment. */
+.category::after {
+  content: "";
+  position: absolute;
+  inset-block-end: calc(-0.7rem - 1px);
+  inset-inline: 0;
+  block-size: 1px;
+  background: var(--signal);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform var(--dur-2) var(--ease-hull);
+}
+
+.category[data-on]::after {
+  transform: scaleX(1);
+}
+
+.category:hover {
+  color: var(--signal-70);
+}
+
+.category[data-on] {
+  color: var(--signal);
+}
+
+.categoryIndex {
+  font-family: var(--font-tech);
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  color: var(--signal-45);
+}
+
+.categoryName {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+}
+
+/* ── The open category's controls ───────────────────────────────────────── */
+
+/* One category's worth of controls, and the view chips, in a row. The actions
+   are a sibling rather than a child so that they stay pinned to the right at
+   every width without the controls having to reserve space for them. */
+.controls {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--rail-gap);
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  /* Keyed on the category id in the markup, so this runs on every change of
+     category and never on a change of option — the controls arrive as a group,
+     which is what makes switching categories read as one movement. */
+  animation: pxl-controls-in var(--dur-2) var(--ease-hull) both;
+}
+
+@keyframes pxl-controls-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+}
+
+/* The view selector belongs to the camera rather than to the configuration, so
+   it is pushed away from the controls that change the boat. Auto margin rather
+   than a separator: a rule between them would imply a grouping that is already
+   obvious from the gap. */
+.viewGroup {
+  margin-inline-start: auto;
 }
 
 .group {
@@ -348,6 +458,73 @@
   transition: transform var(--dur-1) var(--ease-hull);
 }
 
+/* ── The other two swatch kinds ─────────────────────────────────────────── */
+
+/* HULL DETAIL. The same lit disc, split at the chine — the choice is about
+   where the colour stops, so a single fill would be a control that cannot
+   describe its own options. `--finish-lower` is the exterior's live colour
+   under FULL BODY COLOUR, so the two options differ exactly as the boat does.
+   The split sits at 58% rather than at the middle because that is roughly
+   where the chine falls on the hull's own profile. */
+.sample[data-waterline] {
+  background:
+    radial-gradient(
+      circle at 32% 26%,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(255, 255, 255, 0.08) 34%,
+      rgba(255, 255, 255, 0) 58%
+    ),
+    radial-gradient(circle at 70% 82%, rgba(0, 0, 0, 0.34) 0%, rgba(0, 0, 0, 0) 62%),
+    linear-gradient(
+      to bottom,
+      var(--finish) 0 58%,
+      var(--finish-lower) 58% 100%
+    );
+}
+
+/* PROPULSION. A filled mark whose AREA is the drive's own cowling volume
+   relative to the largest — see the note in `PxlSwatches`. Area rather than
+   height, because the eye compares areas and a bar chart of engine sizes would
+   overstate the difference by the square root.
+
+   The mark is a rounded square rather than a circle: it is not a colour, and
+   borrowing the colour swatch's disc would say it was. */
+.sample[data-scale] {
+  display: grid;
+  place-items: center;
+  background: none;
+  box-shadow: none;
+}
+
+.sample[data-scale]::before {
+  content: "";
+  inline-size: calc(1.85rem * var(--scale));
+  block-size: calc(1.85rem * var(--scale));
+  border-radius: 22%;
+  background: var(--signal-70);
+  transition:
+    background-color var(--dur-1) var(--ease-hull),
+    border-color var(--dur-1) var(--ease-hull);
+}
+
+/* §A17's only concession in the interface. The electric drive's mark is an
+   outline rather than a fill — a difference in KIND beside three differences in
+   size — and it is the whole of the visual distinction, because everything else
+   §A17 rules out (blue, glow, lightning) would be exactly the cliché it names. */
+.sample[data-scale][data-electric]::before {
+  background: none;
+  border: 1.5px solid var(--signal-70);
+}
+
+.swatch[data-on] .sample[data-scale]::before {
+  background: var(--signal);
+}
+
+.swatch[data-on] .sample[data-scale][data-electric]::before {
+  background: none;
+  border-color: var(--signal);
+}
+
 .swatch:hover {
   border-color: var(--signal-16);
 }
@@ -426,12 +603,26 @@
 
 /* ── Actions ────────────────────────────────────────────────────────────── */
 
+/* The actions sit on the same line as the open category's controls, pinned to
+   the right. `grid-area` rather than a flex sibling because the rail is a grid
+   of two rows and the actions belong to the second one — placing them there
+   explicitly means the category navigation above cannot be pushed around by a
+   long CTA in another language. */
 .actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-inline-start: auto;
   flex-shrink: 0;
+}
+
+/* The second row. The controls take the space that is going; the actions never
+   give any up, because a CTA that has been squeezed off the right edge of a
+   viewport is a CTA that does not exist. */
+.railBody {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--rail-gap);
+  min-inline-size: 0;
 }
 
 .primary {
@@ -792,9 +983,7 @@
   }
 
   .rail {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.9rem;
+    gap: 0.8rem;
     /* Measured: at 390×844 this lands the rail at ~250px and the stage at
        ~594px — 70% of the screen, and comfortably the largest thing on it. */
     max-block-size: 34dvh;
@@ -834,11 +1023,46 @@
     display: none;
   }
 
+  /* On a phone the second row cannot hold the controls AND the actions, so the
+     actions take a third row of their own and the controls stop reserving space
+     for them. The CTA then spans whatever is left, which is what keeps it a
+     full-width target rather than a chip in a corner. */
+  .railBody {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.8rem;
+  }
+
   .actions {
-    margin-inline-start: 0;
     display: grid;
     grid-template-columns: auto auto 1fr;
     gap: 0.5rem;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.8rem;
+    overflow: visible;
+  }
+
+  /* The view chips go back under the controls rather than beside them — an
+     `auto` inline margin in a column is vertical space nobody asked for. */
+  .viewGroup {
+    margin-inline-start: 0;
+  }
+
+  /* Four categories at 375px is tight in some languages. Scroll rather than
+     wrap: a category navigation that breaks 3 + 1 reads as an accident. */
+  .categories {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    gap: 1.1rem;
+  }
+
+  .categories::-webkit-scrollbar {
+    display: none;
   }
 
   /* Two rows: the way out and the two secondary actions above, the product
@@ -922,9 +1146,7 @@
   }
 
   .rail {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.9rem;
+    gap: 0.4rem;
     max-block-size: none;
     padding-block: 0.5rem;
     /* Respect the notch on a phone held either way round. */
@@ -952,6 +1174,25 @@
 
   .groupHead {
     display: none;
+  }
+
+  /* One row for everything below the categories. 844 × 390 has the width for
+     it once the group headings are gone, and a stacked body would take a fifth
+     of the viewport for two buttons. */
+  .railBody {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  .controls {
+    flex-direction: row;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  .categories {
+    padding-block-end: 0.4rem;
   }
 
   .swatch {

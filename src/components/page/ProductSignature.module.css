@@ -1,0 +1,119 @@
+/* §B6 — the two signature moments. See ProductSignature.tsx. */
+
+.plate {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+/* ── Cabin — the reveal ─────────────────────────────────────────────────── */
+
+.reveal {
+  position: relative;
+  background: var(--bg);
+  color: var(--fg);
+  /* One viewport, because the section is pinned for one viewport. Anything
+     taller and the pin releases before the wipe has finished; anything shorter
+     and the moment is over before the eye has settled on it. */
+  block-size: 100svh;
+  overflow: clip;
+}
+
+.revealFrame {
+  position: absolute;
+  inset: 0;
+}
+
+.revealFrame img {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.revealInner {
+  position: absolute;
+  inset: 0;
+  /* The closed state is set here as well as by GSAP, so the first paint is
+     correct even if the script has not run — a reveal whose inner plate is
+     briefly fully visible gives the whole moment away before it starts. */
+  clip-path: polygon(0 0, 0 0, -14% 100%, -14% 100%);
+  will-change: clip-path;
+}
+
+.revealCaption {
+  position: absolute;
+  inset-block-end: var(--gutter);
+  inset-inline-start: var(--gutter);
+  z-index: var(--z-content);
+  margin: 0;
+  color: var(--signal-70);
+  /* Legible over both plates. The exterior is a bright studio and the interior
+     is warm teak, so a scrim rather than a colour choice. */
+  background: rgba(10, 14, 15, 0.62);
+  padding: 0.5rem 0.85rem;
+}
+
+/* ── Kadét — the racing line ────────────────────────────────────────────── */
+
+.line {
+  position: relative;
+  background: var(--bg);
+  color: var(--fg);
+  padding-block: var(--section-y-tight);
+  overflow: clip;
+}
+
+.lineFrame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 21 / 9;
+  overflow: clip;
+  /* The raked cut, both edges. The Kadét page's images are the only ones on
+     the site that carry it top and bottom — it is the fastest-reading of the
+     three cuts and this is the page that wants speed. */
+  clip-path: polygon(0 var(--rake-cut), 100% 0, 100% calc(100% - var(--rake-cut)), 0 100%);
+}
+
+.linePlate {
+  position: absolute;
+  inset: -6% 0;
+  will-change: transform;
+}
+
+.lineSvg {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  color: var(--signal);
+  /* Over the plate but under nothing else. The line is a drawing ON the
+     photograph, which is what makes it read as a design annotation rather than
+     as a graphic beside one. */
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.lineCaption {
+  width: var(--shell);
+  margin: var(--stack-2) auto 0;
+  color: var(--fg-faint);
+}
+
+@media (max-width: 60rem) {
+  .lineFrame {
+    aspect-ratio: 3 / 2;
+  }
+
+  .reveal {
+    block-size: 80svh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The pin is released by GSAP, but the frame must not be left at its closed
+     clip if the script never runs at all. */
+  .revealInner {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  }
+}

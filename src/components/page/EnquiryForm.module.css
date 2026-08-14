@@ -1,0 +1,138 @@
+/* ===========================================================================
+   ENQUIRY FORM — §B17, §B18
+   ---------------------------------------------------------------------------
+   Underlined fields rather than boxes. A boxed input on a page whose whole
+   visual language is hairlines and raked rules reads as pasted in from a
+   different site — which is exactly what a contact form usually is.
+   =========================================================================== */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-3);
+  max-inline-size: 34rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  color: var(--fg-faint);
+}
+
+.optional {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.input {
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding: 0.5rem 0;
+  background: none;
+  border: 0;
+  border-block-end: 1px solid var(--rule);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  border-radius: 0;
+  transition: border-color var(--dur-1) var(--ease-hull);
+}
+
+.input:hover {
+  border-color: var(--fg-faint);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--fg);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 4px;
+}
+
+.input[aria-invalid] {
+  border-color: var(--teak);
+}
+
+.textarea {
+  resize: vertical;
+  min-block-size: 7rem;
+  line-height: var(--lh-body);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--fs-small);
+  color: var(--teak);
+}
+
+.submit {
+  align-self: flex-start;
+  min-block-size: 2.75rem;
+  padding: 0 1.4rem;
+  border: 1px solid var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  transition: opacity var(--dur-1) var(--ease-hull);
+}
+
+.submit:hover {
+  opacity: 0.84;
+}
+
+.result:empty {
+  display: none;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-2);
+  padding-block-start: var(--stack-3);
+  border-block-start: 1px solid var(--rule);
+}
+
+.resultNote {
+  margin: 0;
+  font-size: var(--fs-small);
+  color: var(--fg-muted);
+  max-inline-size: var(--measure);
+}
+
+.resultNote a {
+  border-block-end: 1px solid var(--rule);
+}
+
+/* The message, exactly as it will be sent. Monospaced because it is a literal
+   — the visitor is reading the text, not a rendering of it. */
+.preview {
+  margin: 0;
+  padding: var(--stack-2);
+  background: var(--paper-sunk);
+  color: var(--ink);
+  font-family: var(--font-tech);
+  font-size: var(--fs-small);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-block-size: 18rem;
+  overflow-y: auto;
+}
+
+.is-dark .preview {
+  background: var(--depth-raised);
+  color: var(--signal);
+}

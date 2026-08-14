@@ -1,0 +1,77 @@
+/* ===========================================================================
+   AWARDS — §B11
+   ---------------------------------------------------------------------------
+   Editorial, not badges. Large type, strong whitespace, no imagery — see the
+   page's own note on why there is none.
+   =========================================================================== */
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+  column-gap: var(--gutter);
+  padding-block: var(--stack-4);
+  border-block-start: 1px solid var(--rule);
+}
+
+.item:last-child {
+  border-block-end: 1px solid var(--rule);
+}
+
+/* The year is the largest element on the page. A recognition is a date and a
+   jury; the date is what a reader scans for. */
+.year {
+  font-family: var(--font-ui);
+  font-size: var(--fs-num);
+  font-weight: 500;
+  font-stretch: 94%;
+  line-height: 0.82;
+  letter-spacing: var(--tr-mega);
+  color: var(--ink-16);
+}
+
+.body {
+  max-inline-size: 52ch;
+}
+
+.title {
+  font-size: var(--fs-d3);
+  margin-block-end: var(--stack-2);
+}
+
+.subject {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-block-end: var(--stack-2);
+  color: var(--fg-muted);
+}
+
+.result {
+  color: var(--fg);
+}
+
+.detail {
+  margin-block-end: var(--stack-2);
+}
+
+.note {
+  color: var(--fg-faint);
+}
+
+@media (max-width: 60rem) {
+  .item {
+    grid-template-columns: 1fr;
+    row-gap: var(--stack-2);
+  }
+
+  .year {
+    font-size: var(--fs-d2);
+    color: var(--ink-45);
+  }
+}

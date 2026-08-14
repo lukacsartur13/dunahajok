@@ -264,22 +264,45 @@ architecture has drifted and that is the bug to fix.
 
 ## 7 — Branding
 
-**No branding has been placed, and none may be placed by eye.**
+**Updated in Phase 4.1.** All three marks the references show are now placed. The
+rule that opened this section — *none may be placed by eye* — was kept: every
+position, scale and ink below was measured off a delivered plate by a script, and
+the plate pixel it came from is recorded in `pxlReference.ts`.
 
-The renders show `PXL` on the stern moulding, `PXL` on the console, and a `Duna`
-script on the topsides. None exists as geometry, no logo asset was supplied in a
-usable form, and no placement dimension has been given. Guessing a mark's
-position on a real product's hull and shipping it is exactly the kind of
-invention this phase rules out.
+| Slot | Zone / surface | Ground | Instances | Ink | Artwork |
+|---|---|---|---|---|---|
+| `pxl_wordmark` | `transom_black` | stern moulding | 2 (mirrored) | `#d6703c`, or `#191b1e` on a light ground | Authored outlines, re-proportioned from the plate's 100 × 19 px lockup |
+| `duna_script` | `hull_accent` | gunwale capping | 2 (mirrored) | `#d6703c` | **Provisional.** Mechanical threshold trace of a 147 × 28 px instance |
+| `pxl_plexi` | `pxl_screen_glass` | glazing | **1** (centreline) | `#c9d2d8`, fixed | Same authored lockup, own transform |
 
-What is prepared, and only prepared: the configuration schema reserves
-`branding.PXL` and `branding.DUNA` as future keys. Nothing implements them.
+Five mark meshes in total, not six: the plexi mark is a single centreline
+instance rather than a mirrored pair.
 
-When artwork and placement arrive, the expected route is a **decal or a UV
-overlay**, not geometry baked into the hull — a mark baked into `hull_primary`
-cannot be moved, cannot be turned off, and forces a re-export for a typo. The
-model currently carries **no UVs**; generating them is a prerequisite, and is the
-reason UVs were skipped in Phase 2.5 rather than an oversight.
+**How placement is derived.** By surface raycast against the real geometry, not
+from memory — `npm run vessel` fires the ray and asserts the result lands on the
+intended moulding, above the waterline, facing outboard, not mirrored, and not
+z-fighting. A mark whose ray misses is a build failure, not a review finding.
+
+**Ink follows the ground, not the configuration.** `inkForGround` picks between
+the two hull treatments on the ground's luminance (threshold 0.18, *linear*). The
+plexi ink is fixed because glazing is not a configurable finish. This is what
+keeps the marks stable during a finish sweep and across all six exterior colours,
+and it is why there is no outline, no drop shadow and no glow anywhere — none is
+part of the product design, and the ink rule removes the need for them.
+
+**Configuration independence holds.** One GLB, one set of mark geometry, no decal
+texture per hull colour, no duplicated vessel. Geometry, branding and finish stay
+three separate things.
+
+**Still true:** the model carries **no UVs** — the source is an STL. The marks are
+therefore *geometry* generated from contours rather than textures on an unwrapped
+hull, and the interior grain is triplanar for the same reason. A re-export with a
+UV set (F-02) remains the right long-term answer for both.
+
+**The artwork is provisional and says so in code.**
+`PXL_DUNA_ARTWORK.provisional_brand_artwork` is `true`, the disclaimer travels
+with the contours, and the configurator tests assert both. See PHASE_4_1_REPORT.md
+§C for why the trace is mechanical rather than hand-drawn.
 
 ---
 
@@ -300,6 +323,96 @@ decodes several times slower on exactly the devices that need it most.
 
 ---
 
+## 8b — WHAT PHASE FOUR ADDS TO THE MODEL AT RUNTIME
+
+Two things are now hung on the vessel that are **not in the GLB**, and both are
+validated against it rather than assumed.
+
+### Channel changes
+
+| Change | Was | Is |
+|---|---|---|
+| `transom_black` | channel `hullLower` | channel **`sternMoulding`** |
+| `deck_main` | channel `flooring`, finish family `moulding` | channel **`interiorPrimary`**, family **`soft`** |
+| `console_body`, `console_trim` | channel `console` | channel **`interiorSecondary`** |
+| `motor`, `motor_trim` | `visibleByDefault: true` | **`false`** — see below |
+
+The stern moulding was split off `hullLower` so that FULL BODY COLOUR can repaint
+the bottom without repainting the ground the PXL mark sits on. `upholsteryPrimary`
+and `upholsterySecondary` are gone from `PXL_UNSUPPORTED_CHANNELS` — **not**
+because upholstery arrived, but because a channel named after a cushion and bound
+to a moulding is a lie the material system would repeat in every summary and
+payload.
+
+### Proxy drives
+
+`pxlPropulsion.buildDrive(variant)` builds one of four outboards from extruded
+profiles — bracket, cowling, midsection, anti-ventilation plate, gearcase, and a
+three-blade propeller with real pitch — and mounts it at `PXL_MOUNTS.transom`.
+
+The delivered `motor` and `motor_trim` zones are **hidden, not deleted**. They
+keep their ids, their `PROPULSION` role and their `motor` channel;
+`visibleByDefault: false` is the whole of the change, and switching it back is
+one flag. See PHASE_4_REPORT §F for why the delivered mesh was not scaled.
+
+Measured by `npm run vessel`:
+
+```
+drive       tris     len     hgt     wid    fwd-most   deepest
+compact     1520   0.542   1.185   0.325  -2.627   -0.122
+standard    1520   0.651   1.398   0.382  -2.627   -0.228
+large       1520   0.782   1.599   0.435  -2.627   -0.305
+electric    1520   0.536   1.252   0.297  -2.627   -0.249
+```
+
+Every drive's forward-most point is the transom plane at −2.6266 m, so nothing
+enters the hull. Every propeller is submerged and clear of the rails and deck by
+construction.
+
+### The PXL mark
+
+`pxlDecals.placeWordmark(moulding, ink)` builds three authored letterforms as
+`ShapeGeometry` and places them by **raycasting inboard from outside the beam**
+at `PXL_MOUNTS.pxlMark`, taking the surface point and face normal from the real
+`transom_black` mesh. Placement is therefore found rather than remembered, and
+survives a re-export.
+
+```
+side        x       y       z    width   normal·z
+starboard  -2.110   0.331   1.010   0.182    0.985
+port       -2.110   0.331  -1.009   0.183   -0.981
+```
+
+### The interior grain, and the UV problem
+
+**No mesh in this GLB has a `uv` attribute.** The source is an STL, and an STL
+has no texture coordinates to export. Confirmed:
+
+```
+hull_primary  position,normal      deck_main     position,normal
+hull_lower    position,normal      console_body  position,normal
+…all thirteen: position and normal only
+```
+
+That makes a conventional normal map impossible, and §A9 asks for a
+micro-normal. The implementation is **triplanar** — `src/webgl/glsl/pxlGrain.ts`
+samples one procedurally generated 128×128 normal map three times, once down
+each object axis, blended by the surface normal with the whiteout form. No UVs,
+no seams, no stretching on any face orientation, and no dependency on the export.
+
+**Re-exporting the model with a UV set is the correct long-term fix** and is
+filed in ASSET_REQUIREMENTS.md as P0. It would also unblock a real branding
+decal and any future albedo or roughness map.
+
+### New anchors in `pxlModel.ts`
+
+`PXL_MOUNTS` carries the transom plane and the mark's ray target, both read off
+the delivered GLB by measuring zone bounding boxes rather than estimated from
+the renders. `npm run vessel` asserts that what is built from them still lands
+inside the zone it claims to sit on.
+
+---
+
 ## 9 — What is still missing from the yard
 
 Findings, not a wish list. Each was confirmed by inspecting the source.
@@ -307,10 +420,11 @@ Findings, not a wish list. Each was confirmed by inspecting the source.
 | Missing | Blocks |
 |---|---|
 | Production console geometry | §5, §6 — the `console` and `glazing` channels, the `detail` view |
-| Upholstery geometry **and** specification | the `upholstery` category |
-| Branding artwork + placement dimensions | §7 — and UV generation before that |
-| Engine option list | the `engine` category |
-| Equipment / accessory range | those two categories |
+| Upholstery geometry **and** specification | real upholstery — the INTERIOR category currently configures the moulded liner and the console, which is the honest maximum |
+| **A UV set on the model** | a conventional normal/albedo/roughness map, and a real branding decal. Worked around with triplanar projection — see §8b |
+| **The Duna script logotype, as a vector** | §A12 — the slot is declared and empty |
+| Engine option list | replacing the four neutral proxy drives with a real range |
+| Equipment / accessory range | those two deferred categories |
 | Approved colour names, and paint codes if any | `previewLabel` values are working names, `approvedDisplayName` is undefined and `published` is false on every finish, `manufacturingCode` is empty. `finishLabel(f, "public")` therefore returns null for the whole range — see PXL_CONFIGURATOR_SCHEMA.md |
 | Published specifications (LOA, beam, draft, weight, capacity, power, CE category) | `PXL.published` staying `false` |
 | Displacement or hydrostatic data | replacing the visual waterline with a real one |
@@ -322,9 +436,15 @@ Findings, not a wish list. Each was confirmed by inspecting the source.
 ```bash
 npm run pxl      # STL → source GLB → optimised GLB → web media
 npm run model    # validate the production GLB through three's own loader
+npm run vessel   # the runtime-built parts — drives and marks — against the GLB
 npm test         # the configurator contract: URL, roles, presets, slugs
-npm run qa       # all three, plus typecheck
+npm run qa       # all of the above, plus typecheck and GLSL validation
 ```
+
+`npm run vessel` is the one to run after touching `pxlPropulsion`,
+`pxlDecals` or `PXL_MOUNTS`. It builds the real objects with the real code and
+measures them — which is how a bevel that had pushed 12 mm of bracket inside the
+hull was found, invisibly, from every camera preset the configurator offers.
 
 The pipeline never writes to `assets/source/`. Inspection renders land in
 `assets/derived/pxl/` beside the archival master

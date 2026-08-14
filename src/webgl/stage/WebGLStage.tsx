@@ -37,7 +37,12 @@ import { usePxlView } from "@/webgl/scenes/pxl/pxlView";
 import { SceneDebug } from "./SceneDebug";
 import { StageRuntime } from "./StageRuntime";
 import { StageScene } from "./StageScene";
-import { detectQuality, supportsWebGL, type QualityProfile } from "./quality";
+import {
+  detectQuality,
+  kickCanvasMeasurement,
+  supportsWebGL,
+  type QualityProfile,
+} from "./quality";
 import { trackHeroProgress } from "./heroScroll";
 import { readViewport, stage } from "./stageState";
 import styles from "./WebGLStage.module.css";
@@ -85,6 +90,12 @@ export function WebGLStage() {
 
   /* ── Should this run at all? ─────────────────────────────────────────── */
   useEffect(() => {
+    /* §23. Development only, and a no-op in a tab that measures itself — see
+       `kickCanvasMeasurement`, which is where the whole "the scene never
+       appears in an automated browser" problem is finally diagnosed. It has to
+       be fired from HERE, outside the canvas, because everything inside it is
+       downstream of the measurement that has not happened. */
+    kickCanvasMeasurement();
     readViewport();
     if (!supportsWebGL()) {
       stage.status = "unsupported";

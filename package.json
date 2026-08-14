@@ -2,7 +2,7 @@
   "name": "duna-boats",
   "version": "1.0.0",
   "private": true,
-  "description": "Duna Hajók / Duna Boats — Phase One digital experience.",
+  "description": "Duna Haj\u00f3k / Duna Boats \u2014 Phase One digital experience.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,11 +10,14 @@
     "lint": "next lint",
     "typecheck": "node scripts/check-glsl.mjs && tsc --noEmit",
     "assets": "node scripts/build-assets.mjs",
-    "vessel": "node scripts/build-vessel-plate.mjs",
+    "vessel": "node --experimental-strip-types --import ./scripts/pxl/ts-resolve.mjs scripts/pxl/validate-vessel.mjs",
     "pxl": "python3 scripts/pxl/build_pxl.py --preview && node scripts/pxl/compress-pxl.mjs && node scripts/pxl/build-pxl-media.mjs",
     "model": "node scripts/pxl/validate-model.mjs",
+    "duna": "node scripts/pxl/build-duna-trace.mjs",
+    "trace": "node --experimental-strip-types --import ./scripts/pxl/ts-resolve.mjs scripts/pxl/trace-proof.mjs",
+    "reference": "node scripts/pxl/reference-qa.mjs",
     "test": "node scripts/pxl/test-configurator.mjs",
-    "qa": "npm run typecheck && npm run model && npm test"
+    "qa": "npm run typecheck && npm run model && npm run vessel && npm test"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

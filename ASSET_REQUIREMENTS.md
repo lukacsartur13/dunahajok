@@ -1,4 +1,77 @@
-# Asset requirements — Duna Hajók, Phase One → Phase Two
+# Asset requirements — Duna Hajók
+
+Updated for **Phase 4.1**: the site is fourteen public pages plus the PXL
+configurator. Phase 4.1 closed the branding gaps with *provisional* artwork and
+opened two new geometry requirements (F-07, F-08) that only the yard can close.
+§B28.
+
+**Priorities.** `P0` blocks launch quality — a page that cannot be finished, or
+a claim that cannot be made honestly, without it. `P1` is a major improvement to
+a section that is currently working harder than its photography. `P2` is
+optional enhancement. The Phase One/Two `P1–P3` sections below are retained
+unchanged where they are still accurate; the Phase Four table supersedes them
+where they conflict.
+
+---
+
+## PHASE FOUR — WHAT THE NEW PAGES NEED
+
+### P0 — required for launch quality
+
+| # | Asset | Page · section | Subject | Camera / orientation | Resolution | Type | Notes |
+|---|---|---|---|---|---|---|---|
+| F-01 | **Duna script logotype, vector** | PXL configurator — gunwale capping | The "Duna" script mark shown on the capping in both delivered PXL renders | — | SVG or AI outlines | vector | **Phase 4.1: the slot is no longer empty.** It carries a mechanical threshold trace of the largest delivered instance (147 × 28 px), marked `provisional_brand_artwork: true` and disclaimed in `pxlScript.ts`. Placement, scale, baseline and ink are measured and correct — **only the letterforms are a reconstruction**. Supplying the vector replaces one generated file (`pxlDunaTrace.generated.ts`) and flips the flag; no scene architecture changes. Still P0: a published surface must not show a traced logotype. |
+| F-02 | **PXL model re-exported with a UV set** | PXL configurator | The same GLB, unwrapped | — | — | 3D | No mesh has a `uv` attribute — the source is an STL. Unblocks a real branding decal and any albedo/roughness map. Worked around today with triplanar projection. |
+| F-03 | **PXL brand artwork** | PXL configurator — stern moulding **and windscreen** | The PXL wordmark as delivered by the studio | — | SVG | vector | The mark is authored geometry re-proportioned in Phase 4.1 from the plate's own 100 × 19 px lockup, with the ink measured off 889 plate pixels (`#d6703c`). It is **not** claimed to be Duna's logotype. Now used in **two** places — the stern moulding and the plexi (`pxl_plexi`), which take different inks and different transforms; one vector serves both. |
+| F-07 | **Production console geometry** | PXL configurator — console, screen, helm | The console as shown in the colour studies — the glazed tower, not the STL revision | — | STEP or GLB | 3D | **P0, and the largest remaining perceptual gap.** The delivered STL's console is a superseded revision, and the two delivered plates disagree about its station (July 0.47–0.55 LOA from the transom, August 0.25–0.35; the model follows August). §29 forbids substituting generic geometry, so the mismatch is documented instead. `PXL_CONSOLE_ZONES` names exactly the three zones a replacement swaps: `console_body`, `console_trim`, `helm_wheel`. |
+| F-08 | **Revised hull STL with the stern moulding** | PXL configurator — transom | The rubbing moulding aft of the transom | — | STL or STEP | 3D | The side plate carries **774 mm of moulding abaft where its sheer ends**; the delivered mesh's transom is vertical within 18 mm. The single largest silhouette difference between plate and model, and a geometry difference rather than a material one. See PXL_REFERENCE_QA.md row 5. |
+| F-04 | **Award photography — 4 items** | `/story/awards` | BIG SEE 2023 (Ljubljana, accepted by Péter and Szilvia Győrffy-Domokos), Budapest Boat Show 2023, two Hungarian Design Award selections | Any — trophy, certificate, ceremony or the boat on the stand | 3000px+ long edge | photo | The page ships with **no imagery at all**, because the library contains none and §B29 rules out generic stock. It is typographic by necessity as much as by design. |
+| F-05 | **Workshop photography — 8–12 frames** | `/craft/manufacturing` | Hull laminating, teak laying, joinery bench, fit-out, a boat mid-build, people at work | Mixed: two wide establishing, four process mid-shots, four detail | 4000px+ long edge, landscape and 4:5 | photo | The page is three movements because two usable workshop photographs is what exists. It should be six. |
+| F-06 | **Verified project case study — 1 minimum** | `/projects` | Any completed renovation or custom commission the yard is willing to publish, with client consent | Before / during / after, 6–10 frames | 3000px+ | photo + facts | `PROJECTS` is an empty typed array and the detail template is built. The page currently describes the capability and says plainly that individual commissions have not been published. |
+
+### P1 — major improvement
+
+| # | Asset | Page · section | Subject | Camera / orientation | Resolution | Type | Notes |
+|---|---|---|---|---|---|---|---|
+| F-07 | **Materials macros — glass, composite, paint** | `/craft/materials` | Windscreen edge and fitting; a laminate section or gelcoat surface; a sprayed topcoat | Macro, 100mm+, raking light | 4000px+ | photo | The page covers **four** surfaces because glass and composite have no photography and no statement from the yard. §B9 lists five. |
+| F-08 | **Cabin interior — three additional frames** | `/boats/duna-61-cabin` — reveal + gallery | The saloon from the helm position, the berth made up, the table folded | Same eye height as `cabin-studio-profile` for the reveal pair | 4000px+ | photo | The pinned reveal transitions between an exterior and an interior shot; it is strongest when the two share a camera position. |
+| F-09 | **Kadét profile, studio** | `/boats/duna-61-kadet` — racing line | Dead abeam, whole boat, neutral ground | Profile, 0° azimuth, sheer at frame centre | 5000px+ landscape | photo | The scroll-drawn sheer line is authored to the 6.1's profile. It lands best over a true profile frame; `kadet-underway` is a three-quarter. |
+| F-10 | **Suzuki showroom, Győr** | `/suzuki-marine` | The joint boat and engine showroom interior | Wide, eye level | 4000px+ | photo | The section currently reuses `suzuki-engine` and `kadet-underway`. **No Suzuki brand assets may be added** without written permission — see `SUZUKI_BLOCKERS`. |
+| F-11 | **Portrait — Péter Győrffy** | `/contact`, `/contact/private-viewing` | The managing director, at the workshop | Environmental portrait, 3:4 | 3000px+ | photo | The private-viewing page names him as the person who answers. A face makes that a promise rather than a line. |
+| F-12 | **Journal launch content — 3 articles** | `/journal` | Anything real: a build note, a boat show, a design decision | Per article: 1 hero + 3–6 supporting | 3000px+ | photo + copy | The index and the article template are built and exercised by the empty case. Publishing is adding objects to `JOURNAL`. |
+
+### P2 — optional enhancement
+
+| # | Asset | Page · section | Subject | Camera / orientation | Duration | Type | Notes |
+|---|---|---|---|---|---|---|---|
+| F-13 | **Hero video loop** | `/` | The 6.1 underway on the Danube | Tracking, from a chase boat | 8–12 s, seamless | video, H.264 + AV1 | Would replace the still hero. Must loop without a visible cut. |
+| F-14 | **Workshop process video** | `/craft/manufacturing` | Teak being laid, hands only | Locked-off, overhead | 6–10 s, silent, looping | video | One loop, one movement. Not a corporate film. |
+| F-15 | **Heritage archive scans** | `/story/heritage` | Anything from 1991–2015: the joinery shop, early vessel work, the first Duna drawings | Flatbed scans acceptable | 300 dpi | scan | The chronicle's first two dates currently borrow `heritage-salon` and `design-render`. Genuine archive material would make the page. |
+| F-16 | **PXL interior render, cognac** | PXL configurator fallback | The cockpit in each interior option | Cockpit preset | 2400px+ | render | The no-WebGL fallback shows the six exterior colour studies. There is no reference render of any interior option. |
+
+### What was deliberately NOT solved with stock — §B29
+
+Three sections are visibly restrained rather than filled:
+
+- **Awards** carries no imagery.
+- **Manufacturing** is three movements rather than six.
+- **Materials** covers four surfaces rather than six.
+
+Each of those is a decision, recorded here, in preference to a generic yacht or
+workshop photograph that would make the page look finished and the company look
+like somebody else's.
+
+---
+
+## PHASE ONE / TWO — retained
+
+The sections below were written for the homepage and the WebGL groundwork. They
+remain accurate; where a priority letter here conflicts with the Phase Four
+table above, the table above is current.
+
+---
+
+# (Phase One → Phase Two)
 
 Everything the Phase One homepage ships today is derived from the existing
 dunahajok.hu media library (see `scripts/build-assets.mjs` for the exact source

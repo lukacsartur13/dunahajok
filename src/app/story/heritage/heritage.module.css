@@ -1,0 +1,125 @@
+/* ===========================================================================
+   HERITAGE — the chronicle
+   ---------------------------------------------------------------------------
+   §B10, §B23. One continuous spine down the page with five dates hung from it,
+   the rule changing material as the story moves forward.
+   =========================================================================== */
+
+.chronicle {
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  padding-block: var(--section-y);
+}
+
+/* One element for the whole page. See the component note. */
+.spine {
+  position: absolute;
+  inset-block: var(--section-y);
+  inset-inline-start: max(var(--gutter), calc(50% - 50% + var(--gutter)));
+  inline-size: 1px;
+  background: linear-gradient(
+    to bottom,
+    var(--teak-soft) 0%,
+    var(--ink-16) 34%,
+    var(--ink-16) 68%,
+    transparent 100%
+  );
+}
+
+.list {
+  position: relative;
+  width: var(--shell);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-y-tight);
+}
+
+.entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter);
+  row-gap: var(--stack-3);
+  align-items: start;
+  padding-inline-start: 2.5rem;
+}
+
+/* The marker's material is the story's own progression: timber for the
+   joinery years, graphite for the drawing, hull for the boat, and the signal
+   colour for the wake the company is now leaving. */
+.marker {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0.9rem;
+  inline-size: 1.5rem;
+  block-size: 1px;
+  background: var(--ink-45);
+}
+
+.entry[data-material="wood"] .marker {
+  background: var(--teak);
+  block-size: 2px;
+}
+
+.entry[data-material="pencil"] .marker {
+  background: var(--ink-70);
+}
+
+.entry[data-material="hull"] .marker {
+  background: var(--ink);
+  block-size: 2px;
+}
+
+.entry[data-material="wake"] .marker {
+  background: var(--ink);
+  block-size: 3px;
+  inline-size: 2.25rem;
+}
+
+.entryBody {
+  grid-column: 1 / span 6;
+}
+
+.entryMedia {
+  grid-column: 8 / span 5;
+}
+
+/* Display-scale years. On the homepage they are a label; here they are the
+   thing the page is made of. */
+.year {
+  font-family: var(--font-ui);
+  font-size: var(--fs-d3);
+  font-weight: 500;
+  font-stretch: 94%;
+  letter-spacing: var(--tr-display);
+  line-height: 1;
+  color: var(--ink-45);
+  margin-block-end: var(--stack-2);
+}
+
+.title {
+  font-size: var(--fs-d3);
+  margin-block-end: var(--stack-2);
+}
+
+.copy {
+  max-inline-size: 46ch;
+}
+
+@media (max-width: 60rem) {
+  .entry {
+    display: flex;
+    flex-direction: column;
+    padding-inline-start: 1.75rem;
+  }
+
+  .marker {
+    inline-size: 1rem;
+  }
+
+  .spine {
+    inset-inline-start: var(--gutter);
+  }
+}

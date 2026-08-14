@@ -110,10 +110,27 @@ export interface PxlRequestPayload {
    */
   query: string;
   configurationUrl: string;
+  /**
+   * §A23 — EVERY CATEGORY, NOT JUST THE EXTERIOR.
+   *
+   * Phase Three's payload carried one selection because there was one category.
+   * Phase Four carries six lines: the exterior finish, the lower-hull
+   * treatment, the two interior surfaces, the surface character and the drive
+   * — and it carries them by DERIVATION rather than by a list somebody has to
+   * remember to extend. `summariseConfiguration` walks the catalogue, so a
+   * category that arrives after this file was last edited is in the payload the
+   * moment it exists.
+   *
+   * `control` is separate from `category` because INTERIOR contributes three
+   * lines and a reader with only the category name could not tell which surface
+   * a cognac belongs to.
+   */
   selections: ReadonlyArray<{
     category: string;
-    /** Internal finish key. Exact, and never shown to a customer. */
-    finishId: string;
+    /** The control within the category. `"interior"`, `"console"`, `"surface"`. */
+    control: string;
+    /** Internal option key. Exact, and never shown to a customer. */
+    optionId: string;
     /** URL token. The stable identifier for the choice. */
     slug: string;
     /** The provisional working name, marked as such. Null when none may be used. */
@@ -122,6 +139,23 @@ export interface PxlRequestPayload {
     labelApproved: boolean;
   }>;
   contact: PxlRequestContact;
+  /**
+   * §A23's optional snapshot, as a data URL. ABSENT UNLESS ONE WAS PRODUCED.
+   *
+   * Optional in the type rather than nullable, because a payload with
+   * `snapshot: null` invites a reader to treat the field as always present and
+   * a 900 KB data URL is not a thing to carry by default. The configurator's
+   * snapshot is produced on demand from the live canvas — it may be unavailable
+   * on a device with no WebGL and it may fail on a tainted context — so the
+   * honest shape is "sometimes there is an image".
+   *
+   * It is a RENDER OF THE CONFIGURATION, not a specification. It shows the
+   * exterior finish, the lower-hull treatment, the interior, the mark and the
+   * fitted drive exactly as the person saw them, which is what makes it useful
+   * to whoever answers the enquiry, and it makes no claim the payload does not
+   * already make in words.
+   */
+  snapshot?: string;
   /** ISO 8601. Supplied by the caller so this function stays pure. */
   createdAt: string;
   /** Where the request was made from — the route, not a referrer chain. */
@@ -144,6 +178,8 @@ export interface PxlRequestInput {
   configurationUrl: string;
   sourcePage: string;
   createdAt: string;
+  /** A data-URL render of the configuration, when the configurator produced one. */
+  snapshot?: string;
 }
 
 export function buildPxlRequestPayload(input: PxlRequestInput): PxlRequestPayload {
@@ -156,7 +192,8 @@ export function buildPxlRequestPayload(input: PxlRequestInput): PxlRequestPayloa
     configurationUrl: input.configurationUrl,
     selections: summary.map((line) => ({
       category: line.category,
-      finishId: line.finishId,
+      control: line.control,
+      optionId: line.optionId,
       slug: line.slug,
       previewLabel: line.value,
       labelApproved: line.approved,
@@ -167,6 +204,7 @@ export function buildPxlRequestPayload(input: PxlRequestInput): PxlRequestPayloa
       ...(input.contact.phone?.trim() ? { phone: input.contact.phone.trim() } : {}),
       ...(input.contact.message?.trim() ? { message: input.contact.message.trim() } : {}),
     },
+    ...(input.snapshot ? { snapshot: input.snapshot } : {}),
     createdAt: input.createdAt,
     sourcePage: input.sourcePage,
     productPublished: input.product.published,
@@ -264,7 +302,7 @@ export function requestPayloadAsMessage(payload: PxlRequestPayload): {
     "",
     ...payload.selections.map(
       (s) =>
-        `${s.category}: ${s.previewLabel ?? s.slug}` +
+        `${s.category} / ${s.control}: ${s.previewLabel ?? s.slug}` +
         (s.labelApproved ? "" : ` (working name; reference: ${s.slug})`),
     ),
     "",

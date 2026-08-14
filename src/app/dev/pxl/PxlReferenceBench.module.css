@@ -1,0 +1,208 @@
+/**
+ * The reference bench's own surface. §21.
+ *
+ * Deliberately NOT in the site's voice. Everything else on this route borrows
+ * the product typography, and this panel is an instrument that sits on top of
+ * the product — a monospace, high-contrast, unmistakably-development skin is
+ * what stops a screenshot of it being mistaken for the configurator (§34's
+ * concern, and the reason the rest of the bench carries development notices).
+ */
+
+.bench {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: 8px;
+  padding: 10px;
+  background: #0b0c0e;
+  color: #9aa3ab;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: auto;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.title {
+  color: #e8eaec;
+  letter-spacing: 0.08em;
+}
+
+.checks {
+  color: #6b7075;
+}
+
+/* ── The stage ────────────────────────────────────────────────────────────*/
+
+/**
+ * OVERLAY: both halves in the same grid cell, so they share an origin.
+ *
+ * `place-items: center` rather than `stretch`, because the plate and the frame
+ * have different aspect ratios and stretching either one would be distorting a
+ * reference to make it agree — which is the one thing §22 forbids.
+ */
+.stageOverlay {
+  display: grid;
+  place-items: center;
+  min-height: 60vh;
+  background: #17191c;
+  overflow: hidden;
+  position: relative;
+  /* The blend group for `difference` mode. Without an explicit isolation the
+     live layer would blend against whatever the bench is sitting on rather than
+     against the plate directly beneath it. */
+  isolation: isolate;
+}
+
+.stageOverlay > .pane {
+  grid-area: 1 / 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  display: grid;
+  place-items: center;
+}
+
+/**
+ * Two columns, and nothing clever inside them.
+ *
+ * An earlier version made each pane a flex column so the caption could sit
+ * under the image. In a grid track it collapsed: the plate came out ten pixels
+ * tall and the live frame overflowed across both columns. A block pane with
+ * block images is the layout this actually needs — `align-items: start` keeps
+ * the two tops level, which is the whole point of showing them side by side.
+ */
+.stageSplit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 8px;
+  min-height: 60vh;
+}
+
+.stageSplit > .pane {
+  margin: 0;
+  display: block;
+  background: #17191c;
+  min-width: 0;
+}
+
+.stageSplit .plate,
+.stageSplit .live {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+.pane figcaption {
+  color: #6b7075;
+  letter-spacing: 0.06em;
+}
+
+/**
+ * In overlay mode the plate is positioned from its own centre so that the
+ * calibration transform reads as "scale about the middle, then nudge" — which
+ * is the mental model the two offset sliders imply.
+ */
+.stageOverlay .plate {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  width: 100%;
+  height: auto;
+}
+
+/**
+ * Above the plate, so the fade reads as the model emerging through it.
+ *
+ * Stacked by DOM order rather than by `z-index`. A positioned element with a
+ * z-index makes its own stacking context, and an element that is its own
+ * stacking context has nothing beneath it left to blend with — which is how the
+ * difference mode came up showing the live frame unchanged over a plate that
+ * was demonstrably there, at full opacity, in the right place.
+ */
+.stageOverlay .live {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  min-height: 40vh;
+  color: #6b7075;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────────*/
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  /* `flex-end`, not `end` — this is a flex container, and `end` has mixed
+     support here. Autoprefixer says so at build time, and a warning introduced
+     by a development panel is still a warning in the production build log. */
+  align-items: flex-end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.field > span {
+  color: #6b7075;
+  letter-spacing: 0.05em;
+}
+
+.field select,
+.field input {
+  background: #17191c;
+  color: #e8eaec;
+  border: 1px solid #2a2e33;
+  border-radius: 2px;
+  padding: 3px 4px;
+  font: inherit;
+  min-width: 130px;
+}
+
+.button {
+  background: #2a2e33;
+  color: #e8eaec;
+  border: 0;
+  border-radius: 2px;
+  padding: 5px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.foot {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: #6b7075;
+  border-top: 1px solid #2a2e33;
+  padding-top: 6px;
+}
+
+.foot code {
+  color: #b8c0c6;
+}
+
+.source {
+  color: #4f5459;
+}
+
+.note {
+  color: #c98a52;
+}

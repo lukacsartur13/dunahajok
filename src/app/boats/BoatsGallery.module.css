@@ -1,0 +1,187 @@
+/* ===========================================================================
+   BOATS — the family gallery
+   ---------------------------------------------------------------------------
+   §B3. Two full bands rather than a card grid, alternating ground, with the
+   raked cut between them doing the work a carousel would otherwise do badly.
+   =========================================================================== */
+
+.gallery {
+  background: var(--paper);
+}
+
+.boat {
+  position: relative;
+  background: var(--bg);
+  color: var(--fg);
+  padding-block: var(--section-y);
+  overflow: clip;
+
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter);
+  row-gap: var(--stack-4);
+  align-items: center;
+}
+
+.boat > * {
+  /* The shell is applied per child rather than to a wrapper, so the media can
+     break out to the bleed on the dark band without a second container. */
+  position: relative;
+  z-index: var(--z-content);
+}
+
+/* CABIN — composed. Inset plate on the left, type on the right, and the image
+   respects the gutter because the boat itself is a contained object. */
+.media {
+  grid-column: 2 / span 6;
+  margin-inline-start: calc(50% - 50vw + var(--gutter));
+}
+
+.body {
+  grid-column: 8 / span 4;
+}
+
+/* KADÉT — faster. The plate runs the full width behind the type, the eye is
+   thrown across the measure, and the boat is seen underway rather than on a
+   plinth. It is the same two elements, re-composed. */
+.boat[data-dark] {
+  padding-block: calc(var(--section-y) * 1.15);
+}
+
+.boat[data-dark] .media {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin-inline: calc(50% - 50vw);
+  /* Behind the type rather than beside it — the one place on the site where
+     an image sits under a headline, and the reason the scrim exists. */
+  z-index: 0;
+}
+
+.boat[data-dark] .body {
+  grid-column: 2 / span 5;
+  grid-row: 1;
+}
+
+.wake {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 6%;
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.character {
+  color: var(--fg-faint);
+  margin-block-end: var(--stack-2);
+}
+
+.name {
+  margin-block-end: var(--stack-2);
+}
+
+.strapline {
+  color: var(--fg);
+  margin-block-end: var(--stack-2);
+}
+
+.copy {
+  margin-block-end: var(--stack-3);
+  max-inline-size: 42ch;
+}
+
+/* Four figures, set as oversized numerals rather than as a table. A table on a
+   range page invites comparison of the seven values that are the same; four
+   numerals invite reading the two that are not. */
+.specs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--stack-2) var(--gutter);
+  margin-block-end: var(--stack-3);
+  padding-block-start: var(--stack-2);
+  border-block-start: 1px solid var(--rule);
+}
+
+.spec {
+  min-inline-size: 0;
+}
+
+.specLabel {
+  display: block;
+  color: var(--fg-faint);
+  margin-block-end: 0.25rem;
+}
+
+.specValue {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(1.5rem, 2.4vw, 2.25rem);
+  font-weight: 500;
+  letter-spacing: var(--tr-heading);
+  line-height: 1;
+}
+
+.unit {
+  font-size: 0.5em;
+  color: var(--fg-muted);
+  letter-spacing: 0.04em;
+}
+
+.traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-block-end: var(--stack-3);
+  color: var(--fg-faint);
+}
+
+/* ── The tail ───────────────────────────────────────────────────────────── */
+
+.tail {
+  background: var(--bg);
+  color: var(--fg);
+  padding-block: var(--section-y);
+}
+
+.tailInner {
+  width: var(--shell);
+  margin-inline: auto;
+  max-inline-size: 48rem;
+}
+
+.tailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--stack-3);
+  margin-block-start: var(--stack-3);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 60rem) {
+  .boat,
+  .boat[data-dark] {
+    display: flex;
+    flex-direction: column;
+    padding-inline: 0;
+  }
+
+  .media,
+  .boat[data-dark] .media {
+    grid-column: auto;
+    margin-inline: 0;
+    order: -1;
+  }
+
+  .body,
+  .boat[data-dark] .body {
+    grid-column: auto;
+    width: var(--shell);
+    margin-inline: auto;
+  }
+
+  .specs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

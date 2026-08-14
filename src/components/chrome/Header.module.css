@@ -96,3 +96,58 @@
     text-indent: 0.3em;
   }
 }
+
+/* ── Top-level sections — §B19 ──────────────────────────────────────────────
+   Seven words, centred, in the technical face. They sit in the middle of the
+   bar rather than beside the wordmark so that the composition stays
+   wordmark-left / menu-right at every width — the two fixed points the eye
+   uses to find the header on a page whose ground is constantly changing.
+
+   BELOW 76rem THEY ARE GONE. Not collapsed into a second row and not scrolled:
+   the overlay already carries every one of them, with their children and their
+   plates, and a floating bar that has grown a horizontal scroller is a bar that
+   has stopped being furniture. §B19: do not overcrowd the standard desktop
+   header.                                                                    */
+
+.links {
+  display: none;
+  align-items: baseline;
+  gap: clamp(0.9rem, 1.6vw, 1.9rem);
+  margin-inline: auto;
+}
+
+@media (min-width: 76rem) {
+  .links {
+    display: flex;
+  }
+}
+
+.link {
+  position: relative;
+  padding: 0.75rem 0;
+  margin-block: -0.5rem;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  opacity: 0.62;
+  transition: opacity var(--dur-1) var(--ease-hull);
+  white-space: nowrap;
+}
+
+.link:hover,
+.link[data-on] {
+  opacity: 1;
+}
+
+/* The current section is underlined by a hairline at the Duna Line's own
+   weight. Never a filled pill — the bar is difference-blended and a filled
+   shape in that blend mode is a hole. */
+.link[data-on]::after {
+  content: "";
+  position: absolute;
+  inset-block-end: 0.45rem;
+  inset-inline: 0;
+  block-size: 1px;
+  background: currentColor;
+}

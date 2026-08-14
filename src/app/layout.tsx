@@ -6,6 +6,7 @@ import { Footer } from "@/components/chrome/Footer";
 import { Preloader } from "@/components/chrome/Preloader";
 import { CustomCursor } from "@/components/chrome/CustomCursor";
 import { SmoothScroll } from "@/components/chrome/SmoothScroll";
+import { RouteTransition } from "@/components/chrome/RouteTransition";
 import { WebGLStageMount } from "@/webgl/stage/WebGLStageMount";
 import "./globals.css";
 
@@ -93,6 +94,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             code-split so the DOM-first page never waits on a renderer. */}
         <WebGLStageMount />
         <CustomCursor />
+        {/* §B21. Above the page and the canvas, below the menu and the header,
+            so both stay operable while a route change crosses the frame. */}
+        <RouteTransition />
         <Header />
 
         <main id="main">{children}</main>

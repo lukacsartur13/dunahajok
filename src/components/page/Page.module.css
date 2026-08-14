@@ -1,0 +1,381 @@
+/* ===========================================================================
+   INTERIOR PAGES — the shared editorial shell
+   ---------------------------------------------------------------------------
+   §B22: every page belongs to Duna, and no two look identical. The way that is
+   achieved here is that this file contains the SYSTEM and the routes contain
+   the EMPHASIS — a `data-tone` on the page's opening, and nothing else. There
+   is no per-page stylesheet anywhere in this section, on purpose: a site whose
+   thirteen routes each carry their own CSS is a site where the thirteenth
+   quietly stops being the same site.
+
+   Everything resolves through the tokens. Nothing here introduces a colour, a
+   type step or an angle that tokens.css does not already own.
+   =========================================================================== */
+
+/* ── The opening ────────────────────────────────────────────────────────── */
+
+.intro {
+  position: relative;
+  background: var(--bg);
+  color: var(--fg);
+  padding-block: calc(var(--section-y) + 4rem) var(--section-y-tight);
+  overflow: clip;
+}
+
+/* THE FIVE TONES. Each changes a ground, a rule and a weight — never the
+   typeface, the scale, the rake or the motion. */
+
+.intro[data-tone="paper"] {
+  --bg: var(--paper);
+}
+
+.intro[data-tone="warm"] {
+  /* Pulled toward the timber. The Cabin and the Materials page: both are about
+     wood, and a page about wood set on cold paper argues with its own subject. */
+  --bg: var(--paper-warm);
+}
+
+.intro[data-tone="technical"] {
+  --bg: var(--paper-sunk);
+}
+
+.intro[data-tone="archival"] {
+  --bg: var(--paper-sunk);
+}
+
+.intro[data-tone="depth"] {
+  --bg: var(--depth);
+}
+
+.introWake {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 38%;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.introWake > svg {
+  inline-size: 100%;
+}
+
+/* §B23 — THE WAKE, INTERPRETED RATHER THAN REPEATED.
+   The same component, positioned and weighted differently per page, so the
+   motif is recognisable without being the same drawing six times. */
+
+.introWake[data-line="profile"] {
+  /* A product page. The line sits low and long — it is the hull's own sheer,
+     not a wake, and it should read as a section through the boat. */
+  inset-block-start: auto;
+  inset-block-end: 12%;
+  opacity: 0.34;
+  transform: scaleY(0.42);
+}
+
+.introWake[data-line="construction"] {
+  /* Craft. Tighter and higher: a setting-out line rather than water. */
+  inset-block-start: 24%;
+  opacity: 0.26;
+  transform: scaleY(0.3);
+}
+
+.introWake[data-line="timeline"] {
+  /* Heritage. Nearly flat, and the spine the years will hang from. */
+  inset-block-start: auto;
+  inset-block-end: 8%;
+  opacity: 0.4;
+  transform: scaleY(0.16);
+}
+
+.introInner {
+  position: relative;
+  z-index: var(--z-content);
+  width: var(--shell);
+  margin-inline: auto;
+}
+
+.introHead {
+  max-inline-size: 60rem;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--fg-faint);
+  margin-block-end: var(--stack-3);
+}
+
+.eyebrowSection {
+  color: var(--fg-muted);
+}
+
+.headline {
+  margin-block-end: var(--stack-3);
+}
+
+.lede {
+  color: var(--fg-muted);
+  max-inline-size: 40ch;
+}
+
+/* The opening image. `full` is the product pages, where the boat is the first
+   statement; `wide` is everything else; `inset` is for a page that opens
+   typographically and only then shows something. */
+.introMedia {
+  position: relative;
+  z-index: var(--z-content);
+  margin-block-start: var(--stack-5);
+}
+
+.intro[data-scale="wide"] .introMedia,
+.intro[data-scale="full"] .introMedia {
+  /* Full-bleed, breaking the shell. The gutters are the page's margin, and an
+     opening plate that respects them reads as an illustration rather than as
+     an establishing shot. */
+  margin-inline: calc(50% - 50vw);
+}
+
+.intro[data-scale="inset"] .introMedia {
+  width: var(--shell);
+  margin-inline: auto;
+}
+
+/* ── Movements ──────────────────────────────────────────────────────────── */
+
+.movements {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.movement {
+  width: var(--shell);
+  margin-inline: auto;
+  padding-block: var(--section-y);
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter);
+  row-gap: var(--stack-4);
+  align-items: center;
+}
+
+/* Text alone: a measure in the middle of the grid rather than across it. A
+   paragraph 96rem wide is a paragraph nobody finishes. */
+.movement > .movementBody {
+  grid-column: 2 / span 7;
+}
+
+.movement[data-side="left"] > .movementMedia {
+  grid-column: 1 / span 6;
+  grid-row: 1;
+}
+
+.movement[data-side="left"] > .movementBody {
+  grid-column: 8 / span 5;
+  grid-row: 1;
+}
+
+.movement[data-side="right"] > .movementMedia {
+  grid-column: 7 / span 6;
+  grid-row: 1;
+}
+
+.movement[data-side="right"] > .movementBody {
+  grid-column: 1 / span 5;
+  grid-row: 1;
+}
+
+/* A bleed breaks the shell and the rhythm together. Used twice a page at most
+   — the third one stops being a break and starts being the layout. */
+.movement[data-bleed] {
+  display: block;
+  width: 100%;
+  padding-inline: 0;
+}
+
+.movement[data-bleed] > .movementMedia {
+  margin-block-end: var(--stack-4);
+}
+
+.movement[data-bleed] > .movementBody {
+  width: var(--shell);
+  margin-inline: auto;
+  max-inline-size: 58rem;
+}
+
+.movementTitle {
+  font-size: var(--fs-d3);
+  margin-block: var(--stack-2) var(--stack-2);
+}
+
+.movementLede {
+  margin-block-end: var(--stack-2);
+}
+
+.movementProse {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-2);
+}
+
+/* The thin technical marks. Hairline-separated rather than bulleted: a bullet
+   is a list of instructions and these are a list of facts. */
+.annotations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin-block-start: var(--stack-3);
+  padding-block-start: var(--stack-2);
+  border-block-start: 1px solid var(--rule);
+  color: var(--fg-faint);
+}
+
+/* ── Shared page furniture ──────────────────────────────────────────────── */
+
+.section {
+  background: var(--bg);
+  color: var(--fg);
+  padding-block: var(--section-y);
+}
+
+.shell {
+  width: var(--shell);
+  margin-inline: auto;
+}
+
+.sectionHead {
+  max-inline-size: 46rem;
+  margin-block-end: var(--stack-4);
+}
+
+.sectionTitle {
+  font-size: var(--fs-d2);
+  margin-block: var(--stack-2);
+}
+
+.prose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-2);
+  max-inline-size: var(--measure);
+}
+
+/* A quiet statement of fact — the Projects notice, the Journal notice. Not a
+   banner and not an apology: a rule, a heading and a paragraph. */
+.notice {
+  border-block-start: 1px solid var(--rule);
+  padding-block-start: var(--stack-3);
+  max-inline-size: 46rem;
+}
+
+.noticeHeading {
+  font-size: var(--fs-d3);
+  margin-block-end: var(--stack-2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--stack-3);
+  margin-block-start: var(--stack-4);
+}
+
+/* ── Card grids ─────────────────────────────────────────────────────────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--stack-4) var(--gutter);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-2);
+  padding-block-start: var(--stack-2);
+  border-block-start: 1px solid var(--rule);
+}
+
+.cardTitle {
+  font-size: var(--fs-d3);
+}
+
+.cardBody {
+  color: var(--fg-muted);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 60rem) {
+  .intro {
+    padding-block-start: calc(var(--section-y) + 2.5rem);
+  }
+
+  .movement {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--stack-3);
+  }
+
+  /* On a phone the media always leads. Alternating sides is a wide-screen
+     rhythm; in one column it becomes an unpredictable order in which some
+     movements start with a picture and some with a heading. */
+  .movement > .movementMedia {
+    order: -1;
+  }
+
+  .movement[data-bleed] > .movementBody {
+    max-inline-size: none;
+  }
+}
+
+/* ── Gallery ────────────────────────────────────────────────────────────── */
+
+/* Three plates in a row, breaking the shell. A product gallery inside the
+   gutters reads as a contact sheet; full-bleed it reads as the boat. */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  margin-block-start: var(--stack-4);
+}
+
+@media (max-width: 60rem) {
+  .gallery {
+    grid-template-columns: 1fr;
+    gap: var(--stack-2);
+  }
+}
+
+/* ── Contact details ────────────────────────────────────────────────────── */
+
+/* A definition list set as a column of labelled facts. Not a table: these are
+   four unrelated pairs, and a table would imply rows worth comparing. */
+.contactList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--stack-3) var(--gutter);
+  margin-block-start: var(--stack-3);
+  padding-block-start: var(--stack-2);
+  border-block-start: 1px solid var(--rule);
+}
+
+.contactList dt {
+  color: var(--fg-faint);
+  margin-block-end: 0.35rem;
+}
+
+.contactList dd {
+  margin: 0;
+  font-size: var(--fs-body);
+}
+
+.contactList a {
+  border-block-end: 1px solid var(--rule);
+  transition: border-color var(--dur-1) var(--ease-hull);
+}
+
+.contactList a:hover {
+  border-color: var(--fg);
+}

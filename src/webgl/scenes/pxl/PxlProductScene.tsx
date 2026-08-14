@@ -48,7 +48,12 @@ import { finishForRole } from "./pxlConfig";
 import { PXL_MODEL } from "./pxlModel";
 import { finish } from "./pxlPalette";
 import { PxlBackdrop } from "./PxlBackdrop";
-import { PxlVessel, applyConfiguration, tickFinishes, type PxlZoneMap } from "./PxlVessel";
+import {
+  PxlVessel,
+  applyConfiguration,
+  tickVessel,
+  type PxlVesselHandle,
+} from "./PxlVessel";
 import { pxlStore } from "./pxlStore";
 import {
   PXL_DEFAULT_PRESET,
@@ -63,6 +68,7 @@ import {
 import { createPxlOrbit, type PxlOrbit } from "./pxlOrbit";
 import { createStudioEnvironment } from "./pxlLighting";
 import { measureFraming, pxlTelemetry } from "./pxlTelemetry";
+import { registerPxlQa } from "./pxlQa";
 
 /** Frames drawn before the scene takes the slot from its static fallback. */
 const WARMUP_FRAMES = 3;
@@ -102,7 +108,7 @@ interface PxlProductSceneProps {
   /** Told when the model resolves, or definitively does not. */
   onStatusChange?: (status: PxlSceneStatus) => void;
   /** Exposed so a viewer can read what is actually on screen. */
-  onZonesReady?: (zones: PxlZoneMap, root: Object3D) => void;
+  onZonesReady?: (vessel: PxlVesselHandle) => void;
 }
 
 function emptyState(): PxlCameraState {
@@ -162,7 +168,7 @@ export function PxlProductScene({
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
 
-  const zones = useRef<PxlZoneMap | null>(null);
+  const vessel = useRef<PxlVesselHandle | null>(null);
   /** The loaded root, kept for the framing measurement. */
   const model = useRef<Object3D | null>(null);
   const appliedVersion = useRef(-1);
@@ -242,9 +248,9 @@ export function PxlProductScene({
   }, []);
 
   const onReady = useCallback(
-    (map: PxlZoneMap, root: Object3D) => {
-      zones.current = map;
-      model.current = root;
+    (handle: PxlVesselHandle) => {
+      vessel.current = handle;
+      model.current = handle.root;
       appliedVersion.current = -1;              // force the first paint
       // `?sceneDebug=1` reports how the vessel on screen is represented. On
       // this route it is a real mesh, and saying so keeps the panel honest
@@ -252,7 +258,7 @@ export function PxlProductScene({
       stage.vesselSource = "model";
       arrivalPending.current = true;
       setStatus("ready");
-      onZonesReady?.(map, root);
+      onZonesReady?.(handle);
     },
     [onZonesReady],
   );
@@ -280,6 +286,32 @@ export function PxlProductScene({
       studio.dispose();
     };
   }, [gl, scene, id]);
+
+  /* ── §23 — the deterministic QA bridge ──────────────────────────────────
+     Registration only. Nothing below runs from the frame callback and nothing
+     in the callback knows this exists; `pxlQa` compiles to an empty body in a
+     production build, so this effect's body does too. What it hands over is the
+     four things a frame needs and this component already owns — the renderer,
+     the scene, the camera and the slot — plus a reader for the vessel, which
+     resolves later than the effect does.                                     */
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    registerPxlQa({
+      gl,
+      scene,
+      camera: camera as PerspectiveCamera,
+      bounds,
+      vessel: () => vessel.current,
+      setTime: (seconds) => {
+        riverUniforms.uTime.value = seconds;
+        riverUniforms.uDrift.value = reducedMotion ? 0 : seconds * 0.16;
+      },
+    });
+    /* Registration only — `pxlQa` installs its own `window` API on import, so
+       that a caller can ask why the scene has not mounted rather than finding
+       nothing there to ask. */
+    return () => registerPxlQa(null);
+  }, [gl, scene, camera, bounds, riverUniforms, reducedMotion]);
 
   /* ── Input ──────────────────────────────────────────────────────────────
      Bound to the slot element rather than the canvas — see `pxlOrbit`.      */
@@ -391,11 +423,11 @@ export function PxlProductScene({
           cheap to rewrite and free to skip, and a counter cannot disagree
           with itself the way a deep comparison can.                         */
     let dirty = false;
-    if (zones.current && appliedVersion.current !== pxlStore.version) {
+    if (vessel.current && appliedVersion.current !== pxlStore.version) {
       // The very first application has nothing to transition from, so it lands
       // instantly; every later one is animated unless motion is reduced.
       const first = appliedVersion.current < 0;
-      applyConfiguration(zones.current, pxlStore.configuration, first || reducedMotion);
+      applyConfiguration(vessel.current, pxlStore.configuration, first || reducedMotion);
       appliedVersion.current = pxlStore.version;
       dirty = true;
     }
@@ -404,7 +436,7 @@ export function PxlProductScene({
            new geometry, no new material object, no environment change, no
            camera move. Thirteen scalar writes and a colour lerp per frame,
            for about a third of a second.                                     */
-    const finishing = zones.current ? tickFinishes(zones.current, delta) : false;
+    const finishing = vessel.current ? tickVessel(vessel.current, delta) : false;
     pxlTelemetry.finishing = finishing;
     if (finishing) dirty = true;
 

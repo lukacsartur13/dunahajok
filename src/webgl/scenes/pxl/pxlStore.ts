@@ -28,10 +28,13 @@ import { useCallback, useSyncExternalStore } from "react";
 import {
   PXL_DEFAULT_CONFIGURATION,
   applyConfigurationToHref,
+  applyOption,
+  cloneConfig,
   parseConfiguration,
   serialiseConfiguration,
   type PxlConfiguration,
 } from "./pxlConfig";
+import type { PxlCatalogControl, PxlCatalogOption } from "./pxlCatalog";
 import type { PxlZone } from "./pxlModel";
 
 interface PxlStore {
@@ -80,9 +83,33 @@ export function subscribePxl(listener: () => void): () => void {
 }
 
 /**
- * Apply a partial change. Merged one level deep, which is exactly as deep as
- * the configuration goes — a caller sets `{ exterior: { hullPrimary } }` and
- * the other two exterior fields survive.
+ * CHOOSE AN OPTION. The only write the interface makes.
+ *
+ * Phase Three's store took a structural patch — `{ exterior: { hullPrimary } }`
+ * — which was fine while one component wrote one field. With four categories
+ * and six controls it is the wrong shape twice over: a component would have to
+ * know which branch of the configuration its control lives in (which is exactly
+ * the coupling §A1 asks to avoid), and a patch can express states the catalogue
+ * cannot reach, such as a hull painted in an interior finish.
+ *
+ * Taking a control and an option instead makes the illegal states unreachable.
+ * `applyOption` routes through the field accessor the catalogue declared, so a
+ * swatch's whole job is to hand back the option it represents.
+ */
+export function selectPxlOption(
+  control: PxlCatalogControl,
+  option: PxlCatalogOption,
+): void {
+  commit(applyOption(pxlStore.configuration, control, option));
+}
+
+/**
+ * Apply a structural change directly. Merged one level deep.
+ *
+ * Kept for the two writers that are not choices in the catalogue: the
+ * development bench, which drives channels the interface does not offer, and
+ * equipment visibility. A customer-facing surface should reach for
+ * `selectPxlOption` instead.
  */
 export function setPxlConfiguration(patch: {
   exterior?: Partial<PxlConfiguration["exterior"]>;
@@ -90,13 +117,12 @@ export function setPxlConfiguration(patch: {
   propulsion?: Partial<PxlConfiguration["propulsion"]>;
   equipment?: Partial<Record<PxlZone, boolean>>;
 }): void {
-  const current = pxlStore.configuration;
-  commit({
-    exterior: { ...current.exterior, ...patch.exterior },
-    interior: { ...current.interior, ...patch.interior },
-    propulsion: { ...current.propulsion, ...patch.propulsion },
-    equipment: { ...current.equipment, ...patch.equipment },
-  });
+  const next = cloneConfig(pxlStore.configuration);
+  Object.assign(next.exterior, patch.exterior);
+  Object.assign(next.interior, patch.interior);
+  Object.assign(next.propulsion, patch.propulsion);
+  Object.assign(next.equipment, patch.equipment);
+  commit(next);
 }
 
 /** Back to the delivered boat. */

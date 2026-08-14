@@ -3,101 +3,249 @@
  *
  * One plain object describing one boat. It is deliberately dull: no classes,
  * no methods, no derived state, nothing that cannot survive `JSON.stringify`.
- * Everything Phase Three needs to do with a configuration — put it in a URL,
- * attach it to a quote request, store it against a lead, rebuild the scene
+ * Everything the configurator needs to do with a configuration — put it in a
+ * URL, attach it to a quote request, store it against a lead, rebuild the scene
  * from it a month later — is easy if the configuration is data and awkward if
  * it is an object graph.
  *
- * WHAT IS AND IS NOT MODELLED. Only what the asset and the confirmed product
- * information actually support. The hull colours are real studies; the
- * propulsion variant is the one outboard that exists in the source model and
- * nothing else. There is no seating option, because there is no seating
- * geometry. There are no prices, no availability and no lead times, because
- * none of those have been supplied. An empty category is better than a
- * plausible invention: the first can be filled in, the second has to be found
- * and removed.
+ * ── WHAT CHANGED IN PHASE FOUR ─────────────────────────────────────────────
+ *
+ * Phase Three's version of this file was both the schema AND the option list:
+ * `PXL_CATEGORIES` declared what could be chosen, what it was called, and why
+ * five of the six entries could not be offered. That was right when there was
+ * one real category. It stops being right the moment there are four, because
+ * the option list is now the thing most likely to be replaced wholesale — §A1
+ * asks for a provisional catalogue that approved Duna data can be dropped into
+ * without rebuilding anything — and a table that is half schema and half data
+ * cannot be replaced without touching the schema.
+ *
+ * So the two are now separate files with a clean seam:
+ *
+ *   pxlCatalog  — WHAT MAY BE CHOSEN. Provisional, replaceable, and the only
+ *                 module that knows a colour is called Cognac.
+ *   pxlConfig   — WHAT A CONFIGURATION IS. The shape, the field accessors, the
+ *                 URL format, the summary, the material resolution. Stable.
+ *
+ * The seam is `PxlConfigField`: the catalogue declares which field each control
+ * writes, this file declares how each field is read and written, and TypeScript
+ * checks that the two sets match. A control pointing at a field with no
+ * accessor does not compile.
+ *
+ * ── WHAT IS AND IS NOT MODELLED ────────────────────────────────────────────
+ *
+ * Only what the asset can actually show. There is still no seating option,
+ * because there is still no seating geometry; there are still no prices, no
+ * availability and no lead times, because none of those have been supplied. The
+ * four categories that do exist exist because each one visibly changes the boat
+ * — a paint, a treatment, two interior surfaces and four physically different
+ * drives — and not because four is a better number than one.
  */
 
 import {
   PXL_ACCENT_FINISHES,
-  PXL_CONSOLE_FINISHES,
-  PXL_FLOOR_FINISHES,
   PXL_HULL_FINISHES,
+  PXL_INTERIOR_FINISHES,
+  PXL_INTERIOR_SECONDARY_FINISHES,
   PXL_METAL_FINISHES,
   PXL_MOTOR_FINISHES,
   PXL_STRUCTURE_FINISHES,
-  finishBySlug,
   finishLabel,
   type PxlFinish,
   type PxlFinishId,
   type PxlLabelSurface,
 } from "./pxlPalette";
-import { PXL_ZONES, type PxlMaterialRole, type PxlZone } from "./pxlModel";
+import {
+  PXL_CATEGORIES,
+  PXL_CONTROLS,
+  PXL_DEFERRED_CATEGORIES,
+  PXL_DRIVE_SPECS,
+  defaultOption,
+  optionBySlug,
+  type PxlCatalogCategory,
+  type PxlCatalogControl,
+  type PxlCatalogOption,
+  type PxlCategoryId,
+  type PxlConfigField,
+  type PxlDriveVariant,
+  type PxlInteriorSurface,
+  type PxlLowerTreatment,
+} from "./pxlCatalog";
+import { PXL_ZONES, type PxlChannel, type PxlMaterialRole, type PxlZone } from "./pxlModel";
+
+export type { PxlCategoryId } from "./pxlCatalog";
 
 /* ── The configuration ─────────────────────────────────────────────────────*/
 
 export interface PxlConfiguration {
   exterior: {
     hullPrimary: PxlFinishId;
-    hullLower: PxlFinishId;
+    /**
+     * §A4. A TREATMENT, NOT A COLOUR, and the distinction is the whole design.
+     *
+     * The obvious implementation is a second finish field — `hullLower:
+     * PxlFinishId` — and Phase Three had exactly that. It is wrong for this
+     * option, because FULL BODY COLOUR does not mean "the bottom is sage", it
+     * means "the bottom is *whatever the topsides are*". Stored as a finish,
+     * the two would be independent: change the exterior to navy and the bottom
+     * would still be sage, and every consumer would need to remember to write
+     * both. Stored as a treatment, the relationship is a fact of the schema and
+     * cannot be forgotten — `finishForChannel` resolves it in one place.
+     */
+    lowerTreatment: PxlLowerTreatment;
     hullAccent: PxlFinishId;
   };
   interior: {
     /**
-     * Not upholstery. The PXL's cockpit in the source model is a bare moulded
-     * liner, so this is the moulding's own finish. When upholstery geometry
-     * arrives, `upholsteryPrimary` and `upholsterySecondary` join this object
-     * and the channels already declared in `pxlModel` bind to it.
+     * The cockpit liner and sole. NOT UPHOLSTERY — see `pxlCatalog`'s interior
+     * note and `pxlModel`'s. The field is named for the surface it paints.
      */
-    flooring: PxlFinishId;
-    console: PxlFinishId;
+    primary: PxlFinishId;
+    /** The console body and its control box. The one honest second surface. */
+    secondary: PxlFinishId;
+    /** §A8's material character, applied to both interior surfaces. */
+    surface: PxlInteriorSurface;
+    /** Grab rails. Not offered as a control; the reference shows one inlay. */
     metal: PxlFinishId;
   };
   propulsion: {
     /**
-     * One variant, because one is what the source model contains: a
-     * transom-mounted outboard. The union exists so that adding the electric
-     * drive Duna already builds is a data change rather than a refactor. Do
-     * not add a variant here before there is geometry and a confirmed product
-     * to go with it.
+     * Which proxy drive is fitted. §A13.
+     *
+     * A variant rather than a finish, because propulsion is the one category
+     * where the choice is geometry: the cowling's own colour follows from the
+     * variant (`PXL_DRIVE_SPECS[…].cowlFinishId`) rather than being chosen, so
+     * that an electric drive cannot be configured in a combustion cowling.
      */
-    variant: PxlPropulsionVariant;
-    finish: PxlFinishId;
+    variant: PxlDriveVariant;
   };
-  /**
-   * RESERVED DIMENSIONS. §4 lists `upholstery`, `console`, `engine`,
-   * `equipment` and `accessories` alongside `exteriorColor`, and none of the
-   * first five has product data behind it. They are declared in
-   * `PXL_CATEGORIES` below — with their URL parameter, their reason for being
-   * unavailable, and a `write` that refuses — rather than as empty fields on
-   * this interface, because a field of type `PxlFinishId` that no finish can
-   * legally be assigned to is a shape that compiles and lies. The categories
-   * table is the future-safe schema; this interface holds only what the
-   * geometry can actually carry.
-   */
-
   /**
    * Optional equipment, by zone. Absent means "the zone's own default".
    *
-   * This is the component-visibility architecture §27 asks for, and it is
-   * intentionally keyed on zones rather than on invented option names: a
-   * genuine option can only ever be a set of meshes to show or hide, so the
-   * registry that will one day list "swim platform" or "bow sunbed" is
-   * already the right shape. Today it has exactly one honest member.
+   * The component-visibility architecture, keyed on zones rather than on
+   * invented option names: a genuine option can only ever be a set of meshes to
+   * show or hide, so the registry that will one day list "swim platform" or
+   * "bow sunbed" is already the right shape. No category writes to it today —
+   * §A2 says not to show EQUIPMENT until options exist — and it stays because
+   * the propulsion system reads it to keep the source outboard switched off.
    */
   equipment: Partial<Record<PxlZone, boolean>>;
 }
 
-export type PxlPropulsionVariant = "outboard";
+/* ── Field accessors ───────────────────────────────────────────────────────*/
 
-export const PXL_PROPULSION: ReadonlyArray<{
-  id: PxlPropulsionVariant;
-  label: string;
-  /** True when the yard has confirmed the specification. None have yet. */
-  confirmed: boolean;
-}> = [
-  { id: "outboard", label: "Transom outboard", confirmed: false },
-];
+/**
+ * THE SEAM. One read and one write per field the catalogue can address.
+ *
+ * `Record<PxlConfigField, …>` rather than a switch, so adding a field to the
+ * union without adding an accessor is a compile error at this table rather than
+ * a control that silently does nothing at runtime.
+ *
+ * The write mutates, and it is the only mutating function in this file. It is
+ * called on a *fresh clone* by everything public — `applyOption` clones first,
+ * `buildDefaultConfiguration` builds into an object nobody has seen yet — which
+ * keeps the frozen-default guarantee while avoiding the alternative, which is
+ * six near-identical clone-and-set closures.
+ */
+type FieldAccessor = {
+  read: (config: PxlConfiguration) => string;
+  write: (config: PxlConfiguration, option: PxlCatalogOption) => void;
+};
+
+const FIELDS: Record<PxlConfigField, FieldAccessor> = {
+  exteriorFinish: {
+    read: (c) => c.exterior.hullPrimary,
+    write: (c, o) => {
+      if (o.finishId) c.exterior.hullPrimary = o.finishId;
+    },
+  },
+  lowerTreatment: {
+    read: (c) => c.exterior.lowerTreatment,
+    write: (c, o) => {
+      if (o.lowerTreatment) c.exterior.lowerTreatment = o.lowerTreatment;
+    },
+  },
+  interiorFinish: {
+    read: (c) => c.interior.primary,
+    write: (c, o) => {
+      if (o.finishId) c.interior.primary = o.finishId;
+    },
+  },
+  interiorSecondaryFinish: {
+    read: (c) => c.interior.secondary,
+    write: (c, o) => {
+      if (o.finishId) c.interior.secondary = o.finishId;
+    },
+  },
+  interiorSurface: {
+    read: (c) => c.interior.surface,
+    write: (c, o) => {
+      if (o.interiorSurface) c.interior.surface = o.interiorSurface;
+    },
+  },
+  propulsion: {
+    read: (c) => c.propulsion.variant,
+    write: (c, o) => {
+      if (o.geometryVariant) c.propulsion.variant = o.geometryVariant;
+    },
+  },
+};
+
+function writeField(
+  config: PxlConfiguration,
+  field: PxlConfigField,
+  option: PxlCatalogOption,
+): void {
+  FIELDS[field].write(config, option);
+}
+
+/**
+ * WHICH OPTION A CONTROL IS CURRENTLY SHOWING.
+ *
+ * Matched on the field's value rather than on a stored option id, so the
+ * configuration never carries a second copy of a fact it already holds. The
+ * fallback to the control's default is not defensive noise: a configuration
+ * restored from an old link may hold a finish that has since been withdrawn
+ * from a range, and answering "the default" is what makes that a graceful
+ * degradation rather than an undefined swatch.
+ */
+export function selectedOption(
+  config: PxlConfiguration,
+  control: PxlCatalogControl,
+): PxlCatalogOption {
+  const value = FIELDS[control.field].read(config);
+  return (
+    control.options.find((o) => optionValue(o) === value) ?? defaultOption(control)
+  );
+}
+
+/** The value an option writes into its field. The other half of the match above. */
+function optionValue(option: PxlCatalogOption): string | undefined {
+  return (
+    option.finishId ??
+    option.lowerTreatment ??
+    option.interiorSurface ??
+    option.geometryVariant
+  );
+}
+
+/** A new configuration with one option applied. Never mutates its argument. */
+export function applyOption(
+  config: PxlConfiguration,
+  control: PxlCatalogControl,
+  option: PxlCatalogOption,
+): PxlConfiguration {
+  const next = cloneConfig(config);
+  writeField(next, control.field, option);
+  return next;
+}
+
+/* THE DEFAULT LIVES BELOW THE ACCESSORS, AND NOT BY PREFERENCE.
+   `buildDefaultConfiguration` calls `writeField`, which reads `FIELDS` — a
+   `const` initialised at module scope. Declaring the default above it puts the
+   call inside `FIELDS`' temporal dead zone, and the failure is a module that
+   throws on import with a message about a name that is plainly right there.
+   Ordering is the whole fix; a getter or a lazy singleton would be paying for
+   the same guarantee twice. */
 
 /**
  * The delivered boat.
@@ -108,26 +256,40 @@ export const PXL_PROPULSION: ReadonlyArray<{
  * there. Freezing is what makes sharing it safe: every write allocates a new
  * configuration, and an accidental in-place mutation now throws in development
  * instead of quietly changing what "default" means for the rest of the process.
+ *
+ * DERIVED FROM THE CATALOGUE, NOT RESTATED. Every value a control owns is read
+ * out of that control's `defaultOptionId`, so the default boat and the option
+ * marked as delivered can never disagree — which is the failure §A22 is really
+ * about, because RESET restores this object and a stale literal here would make
+ * RESET restore something no control shows as selected.
  */
-export const PXL_DEFAULT_CONFIGURATION: PxlConfiguration = deepFreeze({
-  exterior: {
-    // The sage study is the one the PXL was presented in — it is the colour of
-    // both delivered design renders, not just one of the six studies.
-    hullPrimary: "pxl_sage",
-    hullLower: "pxl_structure_black",
-    hullAccent: "pxl_accent_black",
-  },
-  interior: {
-    flooring: "pxl_floor_graphite",
-    console: "pxl_console_graphite",
-    metal: "pxl_rail_cognac",
-  },
-  propulsion: {
-    variant: "outboard",
-    finish: "pxl_motor_black",
-  },
-  equipment: {},
-});
+export const PXL_DEFAULT_CONFIGURATION: PxlConfiguration = deepFreeze(
+  buildDefaultConfiguration(),
+);
+
+function buildDefaultConfiguration(): PxlConfiguration {
+  const config: PxlConfiguration = {
+    exterior: {
+      hullPrimary: PXL_HULL_FINISHES[0].id,
+      lowerTreatment: "dark",
+      // Not a control. Every reference render shows one capping, so offering a
+      // choice would be offering a choice nobody has made.
+      hullAccent: PXL_ACCENT_FINISHES[0].id,
+    },
+    interior: {
+      primary: PXL_INTERIOR_FINISHES[0].id,
+      secondary: PXL_INTERIOR_SECONDARY_FINISHES[0].id,
+      surface: "grained",
+      metal: PXL_METAL_FINISHES[0].id,
+    },
+    propulsion: { variant: "standard" },
+    equipment: {},
+  };
+  for (const control of PXL_CONTROLS) {
+    writeField(config, control.field, defaultOption(control));
+  }
+  return config;
+}
 
 function deepFreeze(config: PxlConfiguration): PxlConfiguration {
   Object.freeze(config.exterior);
@@ -137,48 +299,71 @@ function deepFreeze(config: PxlConfiguration): PxlConfiguration {
   return Object.freeze(config);
 }
 
-/* ── Channel → finish options ──────────────────────────────────────────────*/
+export function cloneConfig(config: PxlConfiguration): PxlConfiguration {
+  return {
+    exterior: { ...config.exterior },
+    interior: { ...config.interior },
+    propulsion: { ...config.propulsion },
+    equipment: { ...config.equipment },
+  };
+}
+
+
+/* ── Channel → finish ──────────────────────────────────────────────────────*/
 
 /**
- * What a given channel may be set to. The development viewer reads this to
- * build its controls; Phase Three's swatches will read the same thing, so the
- * two can never drift apart.
+ * THE FINISH A CONFIGURATION ASSIGNS TO A CHANNEL.
+ *
+ * Two of these are RESOLVED rather than stored, and both are Phase Four:
+ *
+ *   • `hullLower` follows the topsides under FULL BODY COLOUR and is structural
+ *     black otherwise (§A4). Resolved here, once, so no consumer can get the
+ *     relationship wrong and no consumer has to know it exists.
+ *   • `motor` follows the fitted drive's own cowling finish. An electric drive
+ *     in a combustion cowling is not a configuration anybody should be able to
+ *     reach, so the colour is a consequence of the variant rather than a choice
+ *     beside it.
+ *
+ * `sternMoulding` is deliberately constant. It is the moulding that carries the
+ * PXL mark, and repainting it would take the mark's ground away — see the note
+ * on the channel in `pxlModel`.
  */
-export const PXL_CHANNEL_OPTIONS: Record<string, readonly PxlFinish[]> = {
-  hullPrimary: PXL_HULL_FINISHES,
-  hullLower: PXL_STRUCTURE_FINISHES,
-  hullAccent: PXL_ACCENT_FINISHES,
-  flooring: PXL_FLOOR_FINISHES,
-  console: PXL_CONSOLE_FINISHES,
-  metal: PXL_METAL_FINISHES,
-  motor: PXL_MOTOR_FINISHES,
-};
-
-/** The finish a configuration assigns to a channel. */
 export function finishForChannel(
   config: PxlConfiguration,
-  channel: string,
+  channel: PxlChannel | string,
 ): PxlFinishId | null {
   switch (channel) {
-    case "hullPrimary": return config.exterior.hullPrimary;
-    case "hullLower": return config.exterior.hullLower;
-    case "hullAccent": return config.exterior.hullAccent;
-    case "flooring": return config.interior.flooring;
-    case "console": return config.interior.console;
-    case "metal": return config.interior.metal;
-    case "motor": return config.propulsion.finish;
-    default: return null;                 // a channel the asset cannot serve
+    case "hullPrimary":
+      return config.exterior.hullPrimary;
+    case "hullLower":
+      return config.exterior.lowerTreatment === "body"
+        ? config.exterior.hullPrimary
+        : PXL_STRUCTURE_FINISHES[0].id;
+    case "hullAccent":
+      return config.exterior.hullAccent;
+    case "sternMoulding":
+      return PXL_STRUCTURE_FINISHES[0].id;
+    case "interiorPrimary":
+      return config.interior.primary;
+    case "interiorSecondary":
+      return config.interior.secondary;
+    case "metal":
+      return config.interior.metal;
+    case "motor":
+      return PXL_DRIVE_SPECS[config.propulsion.variant].cowlFinishId;
+    default:
+      return null; // a channel the asset cannot serve
   }
 }
 
 /**
  * The finish a configuration assigns to a MATERIAL ROLE.
  *
- * §3's API, and the one configurator code should reach for. A role is a fact
- * about the boat ("the exterior hull"); a channel is a fact about this
- * configuration schema; a material index is a fact about one export of one
- * file. Resolving role → channel → finish in one place means the two lower
- * layers can be renumbered without anything upstream noticing.
+ * The API configurator code should reach for. A role is a fact about the boat
+ * ("the exterior hull"); a channel is a fact about this configuration schema; a
+ * material index is a fact about one export of one file. Resolving role →
+ * channel → finish in one place means the two lower layers can be renumbered
+ * without anything upstream noticing.
  */
 export function finishForRole(
   config: PxlConfiguration,
@@ -196,155 +381,66 @@ export function zoneVisible(config: PxlConfiguration, zone: PxlZone): boolean {
   return PXL_ZONES.find((z) => z.id === zone)?.visibleByDefault ?? true;
 }
 
-/* ── Categories ────────────────────────────────────────────────────────────*/
+/**
+ * What a given channel may be set to. Read by the development bench.
+ *
+ * The resolved channels answer with the range they can *draw from*, which for
+ * `hullLower` is the hull range plus the structural black — that is genuinely
+ * the set of finishes the bottom can end up wearing, even though no control
+ * offers it directly.
+ */
+export const PXL_CHANNEL_OPTIONS: Record<string, readonly PxlFinish[]> = {
+  hullPrimary: PXL_HULL_FINISHES,
+  hullLower: [...PXL_STRUCTURE_FINISHES, ...PXL_HULL_FINISHES],
+  hullAccent: PXL_ACCENT_FINISHES,
+  sternMoulding: PXL_STRUCTURE_FINISHES,
+  interiorPrimary: PXL_INTERIOR_FINISHES,
+  interiorSecondary: PXL_INTERIOR_SECONDARY_FINISHES,
+  metal: PXL_METAL_FINISHES,
+  motor: PXL_MOTOR_FINISHES,
+};
+
+/* ── Categories, as the UI sees them ───────────────────────────────────────*/
 
 /**
- * THE CONFIGURATION SCHEMA THE UI IS BUILT FROM.
+ * WHAT THE CONFIGURATOR ACTUALLY RENDERS.
  *
- * §30 asks that category navigation derive from the schema rather than from
- * five hard-coded panels, and §29 asks that a configurator with one real
- * category say so instead of inventing "01 / 04". Both fall out of one table:
- * the UI maps over `PXL_AVAILABLE_CATEGORIES` and renders what it finds. Today
- * it finds exactly one, so it renders exactly one — no disabled tabs, no greyed
- * future theatre, no count that implies three more are coming next week.
- *
- * The unavailable entries are declared anyway, and that is not the same thing
- * as exposing them. They exist so that:
- *
- *   • the reason a category is missing lives beside the category rather than in
- *     a comment somewhere, and is printable on the development bench;
- *   • the URL parameter name is reserved now, before anyone can accidentally
- *     ship a different one;
- *   • turning one on is adding `options` and clearing `unavailable`, which is a
- *     data change, not an architecture change.
- *
- * `unavailable` is a *development* string. It is never rendered to a customer:
- * a customer-facing surface shows the categories that exist and is silent about
- * the ones that do not.
+ * §A2 asks that the category count stay data-driven, and this is the whole of
+ * the mechanism: a category with no control that has options in it does not
+ * appear, so the interface cannot number to five while showing four. Sorted
+ * rather than trusted to declaration order, because the catalogue is the file
+ * most likely to be edited by somebody adding an entry at the bottom.
  */
-export type PxlCategoryId =
-  | "exterior"
-  | "upholstery"
-  | "console"
-  | "engine"
-  | "equipment"
-  | "accessories";
+export const PXL_AVAILABLE_CATEGORIES: readonly PxlCatalogCategory[] = [...PXL_CATEGORIES]
+  .filter((category) => category.controls.some((control) => control.options.length > 0))
+  .sort((a, b) => a.sortOrder - b.sortOrder);
 
-export interface PxlCategory {
-  id: PxlCategoryId;
-  /** Query-string key. Reserved even when the category is unavailable. */
-  param: string;
-  /** Selectable finishes. Empty whenever `unavailable` is set. */
-  options: readonly PxlFinish[];
-  /** Why this category cannot be offered. Null when it can. Never shown to customers. */
-  unavailable: string | null;
-  /** The finish this configuration currently assigns. */
-  read: (config: PxlConfiguration) => PxlFinishId;
-  /** A new configuration with this category set. Never mutates its argument. */
-  write: (config: PxlConfiguration, id: PxlFinishId) => PxlConfiguration;
-}
-
-function cloneConfig(config: PxlConfiguration): PxlConfiguration {
-  return {
-    exterior: { ...config.exterior },
-    interior: { ...config.interior },
-    propulsion: { ...config.propulsion },
-    equipment: { ...config.equipment },
-  };
-}
-
-export const PXL_CATEGORIES: readonly PxlCategory[] = [
-  {
-    id: "exterior",
-    param: "exterior",
-    options: PXL_HULL_FINISHES,
-    unavailable: null,
-    read: (c) => c.exterior.hullPrimary,
-    write: (c, id) => {
-      const next = cloneConfig(c);
-      next.exterior.hullPrimary = id;
-      return next;
-    },
-  },
-  {
-    id: "upholstery",
-    param: "upholstery",
-    options: [],
-    unavailable:
-      "no seating or cushion geometry in the source STL, and no upholstery specification from the yard",
-    read: (c) => c.interior.flooring,
-    write: (c) => c,
-  },
-  {
-    id: "console",
-    param: "console",
-    options: [],
-    // Not "no geometry" — there is a console. The problem is that it is the
-    // superseded revision, so offering a finish choice on it would be offering
-    // a choice about a part that is going to be replaced.
-    unavailable:
-      "the console in the asset is the STL revision, not the glazed tower shown in the colour studies",
-    read: (c) => c.interior.console,
-    write: (c) => c,
-  },
-  {
-    id: "engine",
-    param: "engine",
-    options: [],
-    unavailable: "one unidentified outboard in the source model; no engine option list supplied",
-    read: (c) => c.propulsion.finish,
-    write: (c) => c,
-  },
-  {
-    id: "equipment",
-    param: "equipment",
-    options: [],
-    unavailable: "no equipment list supplied; the only optional mesh is an undocumented cockpit cover",
-    read: (c) => c.exterior.hullPrimary,
-    write: (c) => c,
-  },
-  {
-    id: "accessories",
-    param: "accessories",
-    options: [],
-    unavailable: "no accessory range supplied",
-    read: (c) => c.exterior.hullPrimary,
-    write: (c) => c,
-  },
-] as const;
-
-/** What the configurator actually renders. One member today. */
-export const PXL_AVAILABLE_CATEGORIES = PXL_CATEGORIES.filter(
-  (c) => c.unavailable === null && c.options.length > 0,
-);
-
-export const PXL_CATEGORY_BY_ID = new Map(PXL_CATEGORIES.map((c) => [c.id, c]));
+export const PXL_AVAILABLE_CONTROLS: readonly PxlCatalogControl[] =
+  PXL_AVAILABLE_CATEGORIES.flatMap((category) =>
+    category.controls.filter((control) => control.options.length > 0),
+  );
 
 /* ── Serialisation ─────────────────────────────────────────────────────────*/
 
 /**
  * A configuration as query parameters, and back.
  *
- * `?exterior=sage`, and later `?exterior=sage&upholstery=…&engine=…`. One
- * parameter per category, named after the category, valued with the finish's
- * `slug`. §5 asks for exactly this shape and §6 asks that it survive being
- * edited by hand, and the two together rule out the alternatives: a single
- * packed token (`?pxl=sage.black.black~graphite`, which this replaces) is
- * compact but opaque, cannot be extended without a positional migration, and
- * turns one typo into a wholly different boat.
+ * `?exterior=navy&lower=body&interior=cognac&propulsion=electric` — §A21's
+ * shape exactly, plus the two extra keys the INTERIOR category's second and
+ * third controls own. One parameter per control, named after the control,
+ * valued with the option's slug.
  *
- * ONLY MEANINGFUL PARAMETERS ARE WRITTEN. An unavailable category contributes
- * nothing, and a category sitting on its default contributes nothing either —
- * so the default boat's URL is a clean `/dev/pxl`, and a shared link contains
- * only the choices someone actually made. A URL is a summary of a decision, not
- * a dump of a state object.
+ * ONLY MEANINGFUL PARAMETERS ARE WRITTEN. A control sitting on its default
+ * contributes nothing, so the default boat's URL is clean and a shared link
+ * contains only the choices somebody actually made. A URL is a summary of a
+ * decision, not a dump of a state object.
  */
 export interface PxlParseResult {
   configuration: PxlConfiguration;
   /**
    * Parameters that were present and could not be honoured — an unknown slug,
-   * or a category that does not exist. §6: the fallback is silent to the user
-   * but not to the code, because the URL then has to be *rewritten*. Leaving
+   * or a control that does not exist. The fallback is silent to the user but
+   * not to the code, because the URL then has to be *rewritten*. Leaving
    * `?exterior=invalid-value` in the address bar while showing the default boat
    * is the failure mode that turns one bad link into a hundred bad links.
    */
@@ -353,11 +449,10 @@ export interface PxlParseResult {
 
 export function configurationToParams(config: PxlConfiguration): URLSearchParams {
   const params = new URLSearchParams();
-  for (const category of PXL_AVAILABLE_CATEGORIES) {
-    const current = category.read(config);
-    if (current === category.read(PXL_DEFAULT_CONFIGURATION)) continue;
-    const option = category.options.find((o) => o.id === current);
-    if (option) params.set(category.param, option.slug);
+  for (const control of PXL_AVAILABLE_CONTROLS) {
+    const current = selectedOption(config, control);
+    if (current.id === control.defaultOptionId) continue;
+    params.set(control.param, current.slug);
   }
   return params;
 }
@@ -367,35 +462,49 @@ export function serialiseConfiguration(config: PxlConfiguration): string {
   return configurationToParams(config).toString();
 }
 
+/**
+ * §A21 — INVALID VALUES SANITISE INDEPENDENTLY.
+ *
+ * The loop below never breaks and never bails. Each control is resolved against
+ * its own parameter, and a control whose parameter is missing, unknown or
+ * malformed falls back to its own default while every other control keeps the
+ * value it was given. `?exterior=navy&interior=chartreuse&propulsion=electric`
+ * therefore produces a navy boat with an electric drive and the default
+ * interior — not a default boat, and not an error.
+ *
+ * That is a deliberately unglamorous property and it is the one that matters
+ * most in practice, because the URLs that arrive broken are the ones somebody
+ * has forwarded, truncated in a chat client, or hand-edited. Throwing away four
+ * correct choices because a fifth was mistyped is how a share link becomes
+ * worthless.
+ */
 export function parseConfiguration(
   input: URLSearchParams | string | null | undefined,
 ): PxlParseResult {
   const params =
-    input instanceof URLSearchParams
-      ? input
-      : new URLSearchParams(input ?? "");
+    input instanceof URLSearchParams ? input : new URLSearchParams(input ?? "");
 
-  let configuration = cloneConfig(PXL_DEFAULT_CONFIGURATION);
+  const configuration = cloneConfig(PXL_DEFAULT_CONFIGURATION);
   const rejected: string[] = [];
 
-  for (const category of PXL_CATEGORIES) {
-    const raw = params.get(category.param);
+  for (const control of PXL_AVAILABLE_CONTROLS) {
+    const raw = params.get(control.param);
     if (raw === null) continue;
 
-    // A parameter for a category that is not offered is rejected rather than
-    // remembered. Honouring `?engine=…` today would mean carrying a value the
-    // configurator cannot show, cannot change and cannot explain.
-    if (category.unavailable !== null || category.options.length === 0) {
-      rejected.push(category.param);
-      continue;
-    }
-
-    const match = finishBySlug(raw.trim().toLowerCase(), category.options);
+    const match = optionBySlug(control, raw.trim().toLowerCase());
     if (!match) {
-      rejected.push(category.param);
+      rejected.push(control.param);
       continue;
     }
-    configuration = category.write(configuration, match.id);
+    writeField(configuration, control.field, match);
+  }
+
+  // Parameters this configurator RESERVES but does not offer — the deferred
+  // categories. Rejected rather than silently ignored, so `?equipment=…` is
+  // cleared from the address bar rather than sitting there implying a control
+  // the interface does not have.
+  for (const deferred of PXL_DEFERRED_CATEGORIES) {
+    if (params.has(deferred.param)) rejected.push(deferred.param);
   }
 
   return { configuration, rejected };
@@ -404,17 +513,22 @@ export function parseConfiguration(
 /* ── Human-readable summary ────────────────────────────────────────────────*/
 
 export interface PxlSummaryLine {
+  /** The category this line belongs to. Groups the summary. */
   category: PxlCategoryId;
-  /** The internal finish key. Never printed; carried so a payload can be exact. */
-  finishId: PxlFinishId;
+  /** The control, so the caller can name the row without knowing the order. */
+  control: string;
+  /** Localisation key for the row's label. Never a printed string. */
+  labelKey: string;
+  /** The internal option key. Never printed; carried so a payload can be exact. */
+  optionId: string;
   /** The URL token. This is the stable public identifier for the choice. */
   slug: string;
   /**
    * What may be printed on this surface, or null when nothing may be.
    *
-   * Resolved through `finishLabel`, so a summary rendered on a public surface
-   * automatically prints no colour name at all while the range is unapproved —
-   * §53, and the reason this function takes a surface rather than assuming one.
+   * A public surface gets null for every option in the provisional catalogue,
+   * automatically, which is what makes the publication rule structural rather
+   * than a thing somebody has to remember.
    */
   value: string | null;
   /** True when `value` is a name the yard has approved. False today. */
@@ -422,51 +536,82 @@ export interface PxlSummaryLine {
 }
 
 /**
- * The configuration in words, derived rather than written.
+ * §A20 — THE CONFIGURATION IN WORDS, DERIVED RATHER THAN WRITTEN.
  *
- * §30: one summary, generated from state, expanding by itself as categories
- * arrive. The category *labels* are deliberately not here — they are UI strings
- * and belong in the locale table — so this returns ids and values and lets the
- * caller name them.
+ * One summary, generated from state, expanding by itself as categories arrive.
+ * §A20 is explicit that no component may assemble the strings by hand, and the
+ * shape here is what enforces it: the function returns ids, slugs and keys, and
+ * the *labels* are deliberately absent because they are UI vocabulary and
+ * belong in the locale table. A component that wanted to hard-code "Hull
+ * detail: dark lower" would have to invent both halves.
  */
 export function summariseConfiguration(
   config: PxlConfiguration,
   surface: PxlLabelSurface = "preview",
 ): PxlSummaryLine[] {
-  return PXL_AVAILABLE_CATEGORIES.map((category) => {
-    const id = category.read(config);
-    const option = category.options.find((o) => o.id === id);
+  return PXL_AVAILABLE_CONTROLS.map((control) => {
+    const option = selectedOption(config, control);
     return {
-      category: category.id,
-      finishId: id,
-      slug: option?.slug ?? "",
-      value: option ? finishLabel(option, surface) : null,
-      approved: option ? finishLabel(option, "public") !== null : false,
+      category: option.category,
+      control: control.id,
+      labelKey: control.labelKey,
+      optionId: option.id,
+      slug: option.slug,
+      value: optionLabel(option, surface),
+      approved: optionLabel(option, "public") !== null,
     };
   });
 }
+
+/**
+ * The name a surface is allowed to print for an option, or null.
+ *
+ * The catalogue's own version of `finishLabel`, and it defers to it whenever
+ * the option is backed by a finish so that there is exactly one publication
+ * rule rather than two that can disagree. Options with no finish behind them —
+ * a hull treatment, a drive variant — are governed by the option's own
+ * `published` and `approvedLabel`, which are held to the same standard.
+ */
+export function optionLabel(
+  option: PxlCatalogOption,
+  surface: PxlLabelSurface,
+): string | null {
+  if (surface === "public") {
+    return option.published && option.approvedLabel ? option.approvedLabel : null;
+  }
+  return option.approvedLabel ?? option.previewLabel;
+}
+
+/** True when every option in a control could be named on a public surface. */
+export function controlIsPubliclyNameable(control: PxlCatalogControl): boolean {
+  return control.options.every((o) => optionLabel(o, "public") !== null);
+}
+
+/** Kept for the palette-level check the exterior swatches still make. */
+export { finishLabel };
 
 /* ── URLs, without a browser ───────────────────────────────────────────────*/
 
 /**
  * Write a configuration into an existing URL, preserving everything else.
  *
- * PURE, AND THAT IS THE POINT. §27 asks that a shared link reopen the same
- * configuration and §26 that unrelated query parameters survive; both are
+ * PURE, AND THAT IS THE POINT. A shared link must reopen the same
+ * configuration and unrelated query parameters must survive; both are
  * assertions a test should be able to make, and neither can be made against a
  * function that reaches for `window.location`. So the browser-facing helper in
  * `pxlStore` is a two-line wrapper around this, and the behaviour that matters
  * is tested here.
  *
- * Every category parameter is cleared before the new ones are written, so a URL
- * that arrived carrying `?exterior=navy` and a configuration that is back on
- * the default comes out clean rather than stale.
+ * Every parameter this configurator owns is cleared before the new ones are
+ * written — including the deferred categories' reserved names — so a URL that
+ * arrived carrying `?exterior=navy` and a configuration back on the default
+ * comes out clean rather than stale.
  */
 export function applyConfigurationToHref(href: string, config: PxlConfiguration): string {
   // A base is required for relative hrefs and is discarded when the input is
   // absolute, so this works for both "/preview/pxl/configure?x=1" and a full URL.
   const url = new URL(href, "https://placeholder.invalid");
-  for (const category of PXL_CATEGORIES) url.searchParams.delete(category.param);
+  for (const control of PXL_CONTROLS) url.searchParams.delete(control.param);
   configurationToParams(config).forEach((value, key) => url.searchParams.set(key, value));
   return url.origin === "https://placeholder.invalid"
     ? `${url.pathname}${url.search}${url.hash}`
@@ -476,10 +621,11 @@ export function applyConfigurationToHref(href: string, config: PxlConfiguration)
 /**
  * Drop every parameter this configurator owns, leaving the rest untouched.
  *
- * What RESET writes (§29: "preserve unrelated URL parameters"). Reset is not
- * "serialise the default configuration" — that happens to produce the same
- * string today, but only because the default boat serialises to nothing, and a
- * future category with a non-default default would break the coincidence.
+ * What RESET writes (§A22: one defined preview default, and unrelated URL
+ * parameters preserved). Reset is not "serialise the default configuration" —
+ * that happens to produce the same string today, but only because the default
+ * boat serialises to nothing, and a future control with a non-default default
+ * would break the coincidence.
  */
 export function clearConfigurationFromHref(href: string): string {
   return applyConfigurationToHref(href, PXL_DEFAULT_CONFIGURATION);

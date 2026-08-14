@@ -34,7 +34,28 @@ export type PxlPresetId =
   | "bow_3q"
   | "stern_3q"
   | "interior"
-  | "detail";
+  | "detail"
+  /**
+   * PHASE 4.1 §20 — THE REFERENCE COMPOSITIONS.
+   *
+   * Four presets that exist to be compared against a delivered plate rather
+   * than to be offered to a customer. They are internal ids and they stay
+   * internal: `PXL_CONFIGURATOR_VIEWS` does not list them, so the product's
+   * view rail is unchanged and its labels stay simple — which is what §20 asks
+   * for in as many words.
+   *
+   * They are not duplicates of the customer-facing shots. `side` is composed to
+   * make a hull LOOK RIGHT in a configurator: eye at sheer height, a long lens,
+   * the boat filling 80% of the frame. `reference_side` is composed to MATCH A
+   * DRAWING: the drawing is very nearly orthographic, so the preset uses the
+   * longest lens and the greatest stand-off the orbit allows and puts the eye on
+   * the plate's own horizon. The difference between them is the difference
+   * between a photograph and a measurement.
+   */
+  | "reference_side"
+  | "reference_top_3q"
+  | "reference_stern_3q"
+  | "reference_water_side";
 
 export interface PxlCameraState {
   /** Degrees around the vessel. 0 is dead abeam to starboard; +ve swings to the bow. */
@@ -182,6 +203,57 @@ export const PXL_PRESETS: readonly PxlPreset[] = [
     desktop: { azimuth: 26, elevation: 14, distance: 4.4, hfov: 30, minVfov: 0, target: [-0.55, 0.72, 0] },
     mobile: { azimuth: 24, elevation: 12, distance: 3.9, hfov: 27, minVfov: 0, target: [-0.55, 0.70, 0] },
   },
+  /* ── The reference compositions. §20. ─────────────────────────────────────
+     Every one of these is authored against a specific delivered plate, named in
+     `PXL_REFERENCE_PLATES`, and the numbers are chosen to reproduce THAT
+     IMAGE'S geometry rather than to look good. Where a preset's distance is
+     unusually large it is not a mistake: a design render drawn nearly
+     orthographically can only be matched by a long lens far away, and matching
+     it is the entire purpose. */
+  {
+    id: "reference_side",
+    label: "Reference — profile",
+    // `pxl-side-20240719.jpg`. Dead abeam and as close to orthographic as the
+    // orbit's 26 m limit allows: at 24 m on a 14° lens the near and far ends of
+    // a 5.25 m hull differ in scale by under 6%, which is inside the drawing's
+    // own line weight. The eye sits a little above the waterline because the
+    // drawing does — its keel line is visible for the full length.
+    desktop: { azimuth: 0, elevation: 2.5, distance: 24, hfov: 14, minVfov: 0, target: [0, 0.36, 0] },
+    mobile: { azimuth: 0, elevation: 2.5, distance: 24, hfov: 13, minVfov: 0, target: [0, 0.34, 0] },
+  },
+  {
+    id: "reference_top_3q",
+    label: "Reference — cockpit three-quarter",
+    // The lower-left view of `pxl-views-20240815c.jpg`: high, well forward of
+    // abeam, looking down into the open cockpit with the transom in frame. The
+    // elevation is what the sheet shows rather than what flatters the boat —
+    // 34° puts the sole and the liner in view together without foreshortening
+    // the hull into a plan.
+    desktop: { azimuth: 48, elevation: 34, distance: 13.4, hfov: 30, minVfov: 26, target: [-0.35, 0.30, 0] },
+    mobile: { azimuth: 44, elevation: 38, distance: 15.0, hfov: 27, minVfov: 26, target: [-0.35, 0.28, 0] },
+  },
+  {
+    id: "reference_stern_3q",
+    label: "Reference — stern three-quarter",
+    // The right-hand view of the same sheet: aft and low, with the drive, the
+    // transom and the hull mark all in frame. Lower than the customer-facing
+    // `stern_3q`, because the sheet is drawn from close to the water and the
+    // motor's proportions read differently from above it.
+    desktop: { azimuth: -58, elevation: 8, distance: 12.6, hfov: 28, minVfov: 0, target: [-1.15, 0.40, 0] },
+    mobile: { azimuth: -54, elevation: 8, distance: 14.1, hfov: 25, minVfov: 0, target: [-1.05, 0.38, 0] },
+  },
+  {
+    id: "reference_water_side",
+    label: "Reference — on the water",
+    // The six colour studies. All of them are the same base render: a shallow
+    // bow-forward three-quarter from very slightly above the sheer, far enough
+    // out that the hull side is almost a true profile while the foredeck is
+    // still visible. This is the composition the FINISHES were graded in, so it
+    // is the one a material judgement should be made in — and it is the only
+    // reference preset the water backdrop is worth turning on for.
+    desktop: { azimuth: 22, elevation: 6, distance: 18.6, hfov: 21, minVfov: 0, target: [0.1, 0.34, 0] },
+    mobile: { azimuth: 20, elevation: 6, distance: 20.4, hfov: 19, minVfov: 0, target: [0.05, 0.32, 0] },
+  },
   {
     id: "free",
     label: "Free",
@@ -213,7 +285,19 @@ export const PXL_DEFAULT_PRESET: PxlPresetId = "hero_3q";
  * detail view without a subject, and a subject we know to be wrong is worse
  * than none.
  */
-export const PXL_CONFIGURATOR_VIEWS: readonly PxlPresetId[] = [
+/**
+ * Every preset a CUSTOMER-FACING surface may hold or name. §31.
+ *
+ * The reference compositions exist to be compared against a delivered drawing,
+ * and §31 keeps every part of this phase's QA work off customer surfaces. This
+ * type is that rule made structural rather than merely tested: `views` in the
+ * locale table is keyed on it, the configurator's rail is typed with it, and a
+ * reference camera added to either is a compile error rather than a thing a
+ * reviewer has to spot.
+ */
+export type PxlCustomerPresetId = Exclude<PxlPresetId, `reference_${string}`>;
+
+export const PXL_CONFIGURATOR_VIEWS: readonly PxlCustomerPresetId[] = [
   "hero_3q",
   "side",
   "bow_3q",
@@ -238,8 +322,24 @@ export const PXL_CONFIGURATOR_VIEWS: readonly PxlPresetId[] = [
  * Derived rather than written out, so a preset that is added as a mode rather
  * than a shot cannot accidentally become a chip.
  */
-export const PXL_CONFIGURATOR_VIEW_CONTROLS: readonly PxlPresetId[] =
+export const PXL_CONFIGURATOR_VIEW_CONTROLS: readonly PxlCustomerPresetId[] =
   PXL_CONFIGURATOR_VIEWS.filter((id) => !PXL_PRESET_BY_ID.get(id)?.derived);
+
+/**
+ * THE REFERENCE COMPOSITIONS, AS A LIST THE QA SURFACES CAN ITERATE. §20, §21.
+ *
+ * Derived from the preset table by name rather than written out, so a fifth
+ * reference camera appears in the comparison mode by being declared above. It is
+ * deliberately DISJOINT from `PXL_CONFIGURATOR_VIEWS`: nothing a customer can
+ * reach may end up here and nothing here may end up in the product's view rail,
+ * and the configurator tests assert exactly that. §31 is the reason — these
+ * presets exist to show a developer how far the model is from a drawing, and a
+ * customer-facing control that framed the boat for measurement rather than for
+ * looking at would be a strange thing to ship.
+ */
+export const PXL_REFERENCE_VIEWS: readonly PxlPresetId[] = PXL_PRESETS
+  .map((p) => p.id)
+  .filter((id) => id.startsWith("reference_"));
 
 /* ── Responsive resolution ─────────────────────────────────────────────────*/
 

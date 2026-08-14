@@ -100,6 +100,32 @@ export interface PxlFinish {
   metalness: number;
   clearcoat: number;
   clearcoatRoughness: number;
+  /**
+   * Retro-reflective sheen, 0–1. Phase Four, and only for soft surfaces.
+   *
+   * §A9 asks that an interior "must not behave like painted metal", and the
+   * failure that produces is specific: a `MeshPhysicalMaterial` at high
+   * roughness with no sheen goes *flat*, so a dark upholstery loses its form
+   * entirely and a light one turns into a paper cut-out. Sheen is three's own
+   * cloth term — a wide, weak, grazing-angle lobe — and it is what puts the
+   * edge back on a fold without putting a highlight on it.
+   *
+   * Undefined on every painted surface, which is the point: paint has a
+   * clearcoat, cloth has a sheen, and no finish in this file has both.
+   */
+  sheen?: number;
+  /** Tint of the sheen lobe. Defaults to the base colour, lifted. */
+  sheenColour?: string;
+  /**
+   * Micro-normal strength, 0–1. Phase Four.
+   *
+   * The delivered GLB has no maps of any kind, so the only way a moulded liner
+   * can read as anything other than a smooth shell is a procedural normal —
+   * see `pxlSurfaces`. This is the amplitude the finish asks for; the texture
+   * itself is shared by every interior zone and installed once, at load, so
+   * changing this number at runtime is a scalar write and never a recompile.
+   */
+  microNormal?: number;
   /** The reference render this was read from, for traceability. */
   reference?: string;
 }
@@ -248,32 +274,144 @@ export const PXL_ACCENT_FINISHES: readonly PxlFinish[] = [
   },
 ] as const;
 
+/* ── Interior ──────────────────────────────────────────────────────────────*/
+
 /**
- * Cockpit liner and sole. A moulded, textured surface — matt, and materially
- * softer than anything painted, which on a model with no normal maps has to
- * come entirely from roughness.
+ * THE INTERIOR RANGE. Phase Four, §A7 — and provisional in a specific way.
+ *
+ * WHAT THESE ARE APPLIED TO. The source STL has no cushions. `deck_main` is one
+ * mesh carrying the cockpit liner, the sole and the inner faces of the shell,
+ * and that mesh is what takes these colours. §A6 is explicit that the model
+ * map's limitations are to be respected rather than papered over, so this range
+ * is named for what it is — the interior's colour — and never for a cushion
+ * that does not exist. When upholstery geometry is delivered these same five
+ * entries are what it will be offered in; nothing here has to be re-authored.
+ *
+ * WHERE THE VALUES COME FROM. Cognac is read off the delivered renders, where
+ * the cockpit trim, the rails and the seat block are all one warm tan; §A7 asks
+ * specifically that it be represented accurately, and it is the anchor the
+ * other four are set against. The remaining four are plain premium-marine
+ * neutrals — a bone, a sand, a graphite and a black. §A7's exclusions are
+ * satisfied structurally rather than by taste: nothing here exceeds 0.55
+ * chroma, so no neon, no racing colour and no saturated synthetic can be in
+ * this table without somebody deliberately putting it there.
+ *
+ * HOW THEY ARE PARAMETERISED. §A9, in four numbers. `roughness` runs 0.76–0.88,
+ * which is textile territory and nothing like the 0.24 of a sprayed topcoat;
+ * `clearcoat` is zero on all five, because a clear coat over cloth is what makes
+ * an interior look like painted metal; `sheen` supplies the grazing-angle lift
+ * that stops the dark entries going flat; and `microNormal` gives the surface a
+ * grain to catch it on.
+ *
+ * The two ends are the ones that fail first, and both are set deliberately
+ * inside their limits: the black sits at #1d1f21 rather than at zero so that
+ * shadowed folds still separate, and the light sits at #d5cfc3 rather than at
+ * #f0ece4 so that a studio key does not clip it to white. Cognac is held at a
+ * chroma below the rails' own cognac and a roughness well above them, which is
+ * the difference between leather and the orange plastic §A9 warns about.
  */
-export const PXL_FLOOR_FINISHES: readonly PxlFinish[] = [
+export const PXL_INTERIOR_FINISHES: readonly PxlFinish[] = [
   {
-    id: "pxl_floor_graphite",
-    slug: "floor-graphite",
-    previewLabel: "Graphite Moulding",
+    id: "pxl_interior_light",
+    slug: "light",
+    previewLabel: "Light",
     published: false,
-    label: "Graphite moulding",
-    // Darker than the first pass. The studio's overhead wash falls straight
-    // onto a cockpit sole, so a mid-grey albedo renders lighter than the hull
-    // beside it — which is the wrong way round: every reference render shows a
-    // near-black sole with the cognac trim reading against it.
-    base: "#26292b",
+    label: "Light bone",
+    base: "#d5cfc3",
     roughness: 0.80,
     metalness: 0,
     clearcoat: 0,
     clearcoatRoughness: 0,
+    sheen: 0.30,
+    sheenColour: "#fbf7ee",
+    microNormal: 0.55,
+  },
+  {
+    id: "pxl_interior_sand",
+    slug: "sand",
+    previewLabel: "Sand",
+    published: false,
+    label: "Sand",
+    base: "#b9a684",
+    roughness: 0.82,
+    metalness: 0,
+    clearcoat: 0,
+    clearcoatRoughness: 0,
+    sheen: 0.32,
+    sheenColour: "#efe3cd",
+    microNormal: 0.6,
+  },
+  {
+    id: "pxl_interior_cognac",
+    slug: "cognac",
+    previewLabel: "Cognac",
+    published: false,
+    label: "Cognac",
+    // The interior of both delivered renders. Deeper and browner than the
+    // cognac on the rails — the rails are a lacquered inlay catching the sky,
+    // this is a matt surface a metre away from it, and reading the same hex off
+    // both is what turns the trim into orange plastic.
+    base: "#8a4d24",
+    roughness: 0.78,
+    metalness: 0,
+    clearcoat: 0,
+    clearcoatRoughness: 0,
+    sheen: 0.34,
+    sheenColour: "#c98a52",
+    microNormal: 0.65,
+    reference: "pxl-hero-side",
+  },
+  {
+    id: "pxl_interior_graphite",
+    slug: "graphite",
+    previewLabel: "Graphite",
+    published: false,
+    label: "Graphite",
+    base: "#3a3e41",
+    roughness: 0.84,
+    metalness: 0,
+    clearcoat: 0,
+    clearcoatRoughness: 0,
+    sheen: 0.36,
+    sheenColour: "#8d949a",
+    microNormal: 0.7,
+  },
+  {
+    id: "pxl_interior_black",
+    slug: "black",
+    previewLabel: "Black",
+    published: false,
+    label: "Black",
+    // Never zero. §A9: dark upholstery must retain detail, and an albedo at or
+    // near black is where that is lost for good — no light and no sheen can
+    // recover a gradient from a surface that reflects nothing.
+    base: "#1d1f21",
+    roughness: 0.86,
+    metalness: 0,
+    clearcoat: 0,
+    clearcoatRoughness: 0,
+    sheen: 0.42,
+    sheenColour: "#6e7377",
+    microNormal: 0.78,
   },
 ] as const;
 
-/** Helm console. Follows the hull by default but can be broken out. */
-export const PXL_CONSOLE_FINISHES: readonly PxlFinish[] = [
+/**
+ * The console, and the one honest secondary interior surface.
+ *
+ * §A6 asks for a secondary interior control "where technically possible", and
+ * this is the whole of what is technically possible: `console_body` and
+ * `console_trim` are genuinely separate meshes with their own materials, so
+ * they can genuinely take their own finish. Nothing else in the cockpit can —
+ * the liner, the sole and the inner shell are one mesh, and offering three
+ * controls over them would be three names pointing at one material.
+ *
+ * Deliberately a SHORT list. The console is a hard surface beside a soft one,
+ * so it takes a low sheen and a light clearcoat where the liner takes neither,
+ * and three restrained darks is what the reference supports — every delivered
+ * render shows the console as the darkest object in the boat.
+ */
+export const PXL_INTERIOR_SECONDARY_FINISHES: readonly PxlFinish[] = [
   {
     id: "pxl_console_graphite",
     slug: "console-graphite",
@@ -286,7 +424,44 @@ export const PXL_CONSOLE_FINISHES: readonly PxlFinish[] = [
     clearcoat: 0.48,
     clearcoatRoughness: 0.13,
   },
+  {
+    id: "pxl_console_black",
+    slug: "console-black",
+    previewLabel: "Black",
+    published: false,
+    label: "Black",
+    base: "#15171a",
+    roughness: 0.28,
+    metalness: 0,
+    clearcoat: 0.52,
+    clearcoatRoughness: 0.11,
+  },
+  {
+    id: "pxl_console_stone",
+    slug: "console-stone",
+    previewLabel: "Stone",
+    published: false,
+    label: "Stone grey",
+    base: "#767068",
+    roughness: 0.34,
+    metalness: 0,
+    clearcoat: 0.44,
+    clearcoatRoughness: 0.15,
+  },
 ] as const;
+
+/**
+ * BACKWARD-COMPATIBLE ALIASES.
+ *
+ * Phase Three's channel names were `flooring` and `console`; Phase Four's are
+ * `interiorPrimary` and `interiorSecondary`, because the surfaces are what the
+ * INTERIOR category configures and "flooring" describes a sole rather than an
+ * interior. The old export names are kept pointing at the new ranges so that
+ * nothing outside this module had to be renamed in the same commit as the
+ * ranges themselves grew.
+ */
+export const PXL_FLOOR_FINISHES = PXL_INTERIOR_FINISHES;
+export const PXL_CONSOLE_FINISHES = PXL_INTERIOR_SECONDARY_FINISHES;
 
 /**
  * Rails. The reference renders show a cognac inlay along the capping and at
@@ -328,6 +503,48 @@ export const PXL_MOTOR_FINISHES: readonly PxlFinish[] = [
     clearcoat: 0.34,
     clearcoatRoughness: 0.16,
   },
+  {
+    id: "pxl_motor_graphite",
+    slug: "motor-graphite",
+    previewLabel: "Drive Graphite",
+    published: false,
+    label: "Drive graphite",
+    // The electric proxy's cowling. §A17 asks for "clean, compact, technical"
+    // and rules out every way a designer would normally signal *electric* —
+    // no blue, no glow, no lightning. What is left is surface: a lighter,
+    // slightly warmer grey than the combustion black, held at a lower
+    // clearcoat so it reads as a matte technical shell rather than a
+    // moulded engine cover.
+    base: "#3c4044",
+    roughness: 0.42,
+    metalness: 0.08,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.24,
+  },
+] as const;
+
+/**
+ * The proxy outboards' machined parts — bracket, shaft, gearcase, propeller.
+ *
+ * One entry, and it is a metal rather than a paint: an outboard's leg is
+ * anodised or painted alloy, and giving it the cowling's clearcoat makes the
+ * whole engine read as one moulded lump. The metalness stays low for the same
+ * reason the rails' does — §10's controlled environmental response — so the
+ * leg picks up the studio as a soft band and never as a mirror.
+ */
+export const PXL_DRIVE_FINISHES: readonly PxlFinish[] = [
+  {
+    id: "pxl_drive_alloy",
+    slug: "drive-alloy",
+    previewLabel: "Drive Alloy",
+    published: false,
+    label: "Drive alloy",
+    base: "#4a4e52",
+    roughness: 0.48,
+    metalness: 0.28,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.34,
+  },
 ] as const;
 
 /**
@@ -346,16 +563,46 @@ const ALL = [
   ...PXL_HULL_FINISHES,
   ...PXL_STRUCTURE_FINISHES,
   ...PXL_ACCENT_FINISHES,
-  ...PXL_FLOOR_FINISHES,
-  ...PXL_CONSOLE_FINISHES,
+  ...PXL_INTERIOR_FINISHES,
+  ...PXL_INTERIOR_SECONDARY_FINISHES,
   ...PXL_METAL_FINISHES,
   ...PXL_MOTOR_FINISHES,
+  ...PXL_DRIVE_FINISHES,
 ];
 
 export const PXL_FINISHES = new Map(ALL.map((f) => [f.id, f]));
 
-/** By URL token. See `PxlFinish.slug` for why this namespace is flat. */
-export const PXL_FINISHES_BY_SLUG = new Map(ALL.map((f) => [f.slug, f]));
+/**
+ * THE SLUG NAMESPACE IS PER-RANGE FROM PHASE FOUR ON, AND THE FLAT MAP IS GONE.
+ *
+ * Phase Three had one range with slugs in it, so a global `slug → finish` map
+ * was free and `slug` documented itself as globally unique. Phase Four adds an
+ * interior range, and the honest names for its five entries are Light, Sand,
+ * Cognac, Graphite and Black — two of which the hull range has already used.
+ *
+ * There were two ways out and only one of them is right. Prefixing
+ * (`?interior=interior-black`) keeps a global namespace nobody reads and makes
+ * every share link worse. Scoping accepts that a URL parameter already *names
+ * its category* — `?exterior=black` and `?interior=black` are two unambiguous
+ * statements — and puts the uniqueness requirement where it actually bites,
+ * which is inside one option list.
+ *
+ * `finishBySlug` has always taken the range to search, precisely so that
+ * `?exterior=motor-black` could not paint a hull. That was the scoped design;
+ * this is the rest of it. `PXL_RANGES` below is what the tests assert
+ * per-range uniqueness against, and a global map is not reintroduced because a
+ * global lookup is exactly the mistake this prevents.
+ */
+export const PXL_RANGES: Readonly<Record<string, readonly PxlFinish[]>> = {
+  hull: PXL_HULL_FINISHES,
+  structure: PXL_STRUCTURE_FINISHES,
+  accent: PXL_ACCENT_FINISHES,
+  interior: PXL_INTERIOR_FINISHES,
+  interiorSecondary: PXL_INTERIOR_SECONDARY_FINISHES,
+  metal: PXL_METAL_FINISHES,
+  motor: PXL_MOTOR_FINISHES,
+  drive: PXL_DRIVE_FINISHES,
+};
 
 export type PxlFinishId = string;
 

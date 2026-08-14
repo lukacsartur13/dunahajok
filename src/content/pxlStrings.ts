@@ -19,7 +19,7 @@
  */
 
 import type { PxlCategoryId } from "@/webgl/scenes/pxl/pxlConfig";
-import type { PxlPresetId } from "@/webgl/scenes/pxl/pxlPresets";
+import type { PxlCustomerPresetId } from "@/webgl/scenes/pxl/pxlPresets";
 
 export type PxlLocale = "en" | "hu";
 
@@ -28,9 +28,47 @@ export interface PxlStrings {
   eyebrow: string;
   /** The single sentence that says what can be configured. See §29. */
   scopeNote: string;
+  /**
+   * Category names, keyed on the catalogue's own ids.
+   *
+   * `Record<PxlCategoryId, …>` rather than a loose map, so a category added to
+   * `pxlCatalog` without a name here is a compile error rather than a tab
+   * rendering its own id at a customer.
+   */
   categories: Record<PxlCategoryId, string>;
+  /**
+   * Control names, keyed on `PxlCatalogControl.labelKey`.
+   *
+   * A separate table from `categories` because a category with one control
+   * names them differently from a category with three: EXTERIOR's single
+   * control is not labelled a second time under the tab that already says
+   * EXTERIOR, while INTERIOR's three each need a name of their own.
+   */
+  controls: Record<string, string>;
+  /** Accessible name pattern for an option. `{name}` is the option. */
+  optionLabel: string;
+  /** Announced when a selection changes. `{control}` and `{name}`. */
+  optionSelected: string;
+  /** The rail's own name, for assistive technology. */
+  categoryNav: string;
   viewHeading: string;
-  views: Record<PxlPresetId, string>;
+  /**
+   * The name of each view a CUSTOMER can reach.
+   *
+   * Deliberately not `Record<PxlPresetId, string>` from Phase 4.1 on. §20 adds
+   * four reference compositions whose whole purpose is to be compared against a
+   * delivered drawing, and §31 keeps them off every customer surface — so they
+   * are not in the view rail, they are not in this table, and requiring a
+   * localised name for them would have meant inventing customer vocabulary for
+   * something no customer will see. Their labels live on the preset itself,
+   * where the development bench reads them.
+   *
+   * `detail` is here despite also being unexposed: it is a *product* view that
+   * happens to be withheld pending the console revision, and it gets a name so
+   * that the day it is exposed is a one-line change. A reference camera is never
+   * going to be exposed.
+   */
+  views: Record<PxlCustomerPresetId, string>;
   /** Accessible name pattern for a swatch. `{name}` is the colour. */
   colourOptionLabel: string;
   /** Announced when the selection changes. */
@@ -106,15 +144,24 @@ export interface PxlStrings {
 
 const EN: PxlStrings = {
   eyebrow: "Configure",
-  scopeNote: "Exterior colour is the only configurable option at this stage.",
+  scopeNote: "Preview configuration. Options are provisional and not yet approved for order.",
   categories: {
     exterior: "Exterior",
-    upholstery: "Upholstery",
-    console: "Console",
-    engine: "Engine",
-    equipment: "Equipment",
-    accessories: "Accessories",
+    hull_detail: "Hull",
+    interior: "Interior",
+    propulsion: "Propulsion",
   },
+  controls: {
+    exteriorFinish: "Finish",
+    lowerTreatment: "Lower hull",
+    interiorPrimary: "Cockpit",
+    interiorSecondary: "Console",
+    interiorSurface: "Surface",
+    propulsion: "Drive",
+  },
+  optionLabel: "{control}: {name}",
+  optionSelected: "{control} set to {name}",
+  categoryNav: "Configuration categories",
   viewHeading: "View",
   views: {
     hero_3q: "Three-quarter",
@@ -186,15 +233,24 @@ const EN: PxlStrings = {
  */
 const HU: PxlStrings = {
   eyebrow: "Összeállítás",
-  scopeNote: "Jelenleg kizárólag a külső szín választható.",
+  scopeNote: "Előnézeti összeállítás. Az opciók ideiglenesek, megrendelésre még nem jóváhagyottak.",
   categories: {
-    exterior: "Külső szín",
-    upholstery: "Kárpit",
-    console: "Konzol",
-    engine: "Motor",
-    equipment: "Felszereltség",
-    accessories: "Kiegészítők",
+    exterior: "Külső",
+    hull_detail: "Hajótest",
+    interior: "Belső tér",
+    propulsion: "Hajtás",
   },
+  controls: {
+    exteriorFinish: "Szín",
+    lowerTreatment: "Alsó hajótest",
+    interiorPrimary: "Utastér",
+    interiorSecondary: "Konzol",
+    interiorSurface: "Felület",
+    propulsion: "Hajtómű",
+  },
+  optionLabel: "{control}: {name}",
+  optionSelected: "{control} beállítva: {name}",
+  categoryNav: "Összeállítási kategóriák",
   viewHeading: "Nézet",
   views: {
     hero_3q: "Háromnegyed",

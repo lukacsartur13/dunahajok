@@ -116,6 +116,59 @@ export function rendersWhenHidden(): boolean {
   return new URLSearchParams(window.location.search).get("render") === "always";
 }
 
+/**
+ * UNBLOCK react-three-fiber IN A TAB THAT REPORTS ITSELF HIDDEN. §23.
+ *
+ * ── WHAT IS ACTUALLY BROKEN, AS OPPOSED TO WHAT WAS ASSUMED ───────────────
+ *
+ * Three phases of this project have recorded that the WebGL scene cannot be
+ * reviewed in an automated browser, and all three attributed it to
+ * `document.hidden` and to requestAnimationFrame throttling. `rendersWhenHidden`
+ * above was written for that diagnosis and it does not work, because the
+ * diagnosis is incomplete.
+ *
+ * R3F's `<Canvas>` does not render its children until it has measured itself,
+ * and it measures with a ResizeObserver. In a browser reporting a permanently
+ * hidden document THE OBSERVER NEVER DELIVERS. The canvas keeps the HTML default
+ * 300 × 150 backing store, R3F stays blocked, and `StageRuntime`,
+ * `PxlProductScene` and the whole scene graph are NEVER MOUNTED. No flag inside
+ * them can help; they do not exist. `?render=always` turns off a guard in a
+ * callback that is never called, and `PxlProductScene`'s chunk is never even
+ * fetched, because a lazy element that is not rendered is not loaded.
+ *
+ * Measured, in that state: the canvas element is 1280 × 720 in CSS and 300 × 150
+ * in its backing store, and one synthetic `resize` takes it to 2048 × 1152 and
+ * mounts everything.
+ *
+ * ── THE FIX, AND WHY IT IS SAFE ───────────────────────────────────────────
+ *
+ * react-use-measure — which R3F uses — re-measures on `resize` as well as on the
+ * observer, so one synthetic event is enough. It retries on a backing-off timer
+ * because the canvas may not be in the document on the first attempt, and it
+ * stops as soon as the backing store is real.
+ *
+ * `setTimeout` rather than `requestAnimationFrame`, deliberately: rAF is the
+ * other half of what is broken here.
+ *
+ * It is development-only and it is a no-op in a healthy tab, where the first
+ * check already finds a measured canvas. §23 asks that production behaviour not
+ * change, and in a production build this function's body is removed.
+ */
+const MEASUREMENT_KICKS = [0, 60, 200, 600, 1600] as const;
+
+export function kickCanvasMeasurement(): void {
+  if (process.env.NODE_ENV === "production") return;
+  if (typeof window === "undefined") return;
+  for (const delay of MEASUREMENT_KICKS) {
+    window.setTimeout(() => {
+      const canvas = document.querySelector("canvas");
+      // A backing store still at the HTML default means R3F has not measured.
+      if (canvas && canvas.width > 300) return;
+      window.dispatchEvent(new Event("resize"));
+    }, delay);
+  }
+}
+
 /** WebGL2 with a working context, or the site keeps its Phase One hero. */
 export function supportsWebGL(): boolean {
   if (typeof window === "undefined") return false;

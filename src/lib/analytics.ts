@@ -25,10 +25,25 @@
 export type PxlAnalyticsEvent =
   /** The configurator became interactive. Once per entry. */
   | { name: "pxl_configurator_open"; surface: "preview"; entry: "direct" | "product" }
-  /** An exterior finish was selected. Slugs, because they are the stable ids. */
+  /**
+   * An option was selected. Slugs, because they are the stable ids.
+   *
+   * `category` is `"<category>/<control>"` from Phase Four on — the INTERIOR
+   * category owns three controls, and an event that named only the category
+   * could not distinguish a cockpit colour from a console one.
+   */
   | { name: "pxl_finish_change"; category: string; from: string; to: string }
-  /** A camera preset was chosen, or the viewer took the camera themselves. */
-  | { name: "pxl_camera_change"; preset: string; source: "control" | "drag" }
+  /** A configuration category was opened in the rail. */
+  | { name: "pxl_category_open"; category: string }
+  /**
+   * A camera preset was chosen, or the viewer took the camera themselves.
+   *
+   * `"category"` is the composition offered the first time a category is
+   * opened (§A26). Distinguished from `"control"` because the two answer
+   * different questions: one is a viewer choosing a shot, the other is the
+   * art direction choosing one for them.
+   */
+  | { name: "pxl_camera_change"; preset: string; source: "control" | "drag" | "category" }
   /** The configuration link was copied. `query` is the serialised choice. */
   | { name: "pxl_share"; query: string; method: "clipboard" | "share-sheet" }
   /** RESET returned the configuration to the delivered boat. */

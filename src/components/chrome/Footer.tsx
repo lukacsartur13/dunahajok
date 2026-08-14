@@ -8,6 +8,7 @@
  * six-figure hand-built boat the phone number *is* the conversion.
  */
 
+import Link from "next/link";
 import { CONTACT, LANGUAGES, LEGAL, NAV, SITE, SOCIALS } from "@/content/site";
 import { WakeLine } from "@/components/primitives/WakeLine";
 import styles from "./Footer.module.css";
@@ -41,7 +42,7 @@ export function Footer() {
             <ul>
               {NAV.map((item) => (
                 <li key={item.label}>
-                  <a href={item.href}>{item.label}</a>
+                  <Link href={item.href}>{item.label}</Link>
                 </li>
               ))}
             </ul>
