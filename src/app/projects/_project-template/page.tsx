@@ -23,8 +23,28 @@ import styles from "@/components/page/Page.module.css";
  * rather than a heading over nothing, and the way that is guaranteed is that
  * each block is gated on its own data rather than on a flag somebody sets.
  *
- * `generateStaticParams` returns an empty array today, so the export builds
- * zero pages and the route contributes nothing to the bundle or the sitemap.
+ * ── WHY THIS FOLDER IS `_project-template` AND NOT `[slug]` ───────────────
+ *
+ * An earlier version of this note claimed that "generateStaticParams returns an
+ * empty array today, so the export builds zero pages and the route contributes
+ * nothing". The first half is true and the conclusion was wrong. Next 15
+ * refuses to build a dynamic route that yields no params under
+ * `output: export`:
+ *
+ *   Page "/projects/[slug]" is missing "generateStaticParams()" so it cannot
+ *   be used with "output: export" config.
+ *
+ * It failed only on the GitHub Pages deploy, because `output: export` is gated
+ * behind `GITHUB_PAGES` and a plain `next build` never turns it on — so the
+ * route passed every local build and broke the one that publishes.
+ *
+ * `PROJECTS` is empty because §33 forbids inventing case studies, so supplying
+ * a placeholder slug was never an option. The leading underscore makes this a
+ * Next PRIVATE FOLDER — opted out of routing, still on disk, still typechecked.
+ * **To publish projects, fill `PROJECTS` and rename this folder back to
+ * `[slug]`.**
+ *
+ * See the matching note in `src/app/journal/_article-template/page.tsx`.
  */
 export function generateStaticParams() {
   return PROJECTS.map((project) => ({ slug: project.slug }));

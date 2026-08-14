@@ -11,7 +11,35 @@ import { CinematicMedia } from "@/components/primitives/CinematicMedia";
 import styles from "@/components/page/Page.module.css";
 
 /**
- * §B16's article template. Complete, and currently unreachable.
+ * §B16's article template. Complete, and currently NOT A ROUTE.
+ *
+ * ── WHY THIS FOLDER IS `_article-template` AND NOT `[slug]` ────────────────
+ *
+ * `JOURNAL` is an empty array, deliberately: §33 says the journal has no
+ * verified content and forbids inventing any to stand in for it. So
+ * `generateStaticParams()` below returns `[]` — and Next 15 rejects a dynamic
+ * route that produces no params under `output: export`:
+ *
+ *   Page "/journal/[slug]" is missing "generateStaticParams()" so it cannot
+ *   be used with "output: export" config.
+ *
+ * The message is misleading — the function is right there — but the rule is
+ * real: a statically exported site cannot carry a route with nothing to export.
+ * This broke the GitHub Pages deploy, and only there, because `output: export`
+ * is switched on by `GITHUB_PAGES` and an ordinary `next build` never
+ * exercises it.
+ *
+ * The three ways out were: delete the template, invent a placeholder article,
+ * or stop routing it. Inventing one is out — that is exactly what §33 forbids,
+ * and a fabricated slug would have been a real URL on the live site. Deleting
+ * it throws away finished work for a reason that expires the moment the yard
+ * supplies one article.
+ *
+ * A leading underscore makes this a Next PRIVATE FOLDER: it and everything
+ * under it are opted out of routing, while the file stays here beside the
+ * section it belongs to and stays under `tsc`. **To publish the journal, add
+ * articles to `JOURNAL` and rename this folder back to `[slug]`.** Nothing else
+ * changes.
  *
  * `Article` structured data is emitted here rather than in a shared component
  * because it is the one schema on the site whose required fields — headline,

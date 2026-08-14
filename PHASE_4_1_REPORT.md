@@ -462,7 +462,39 @@ fixed, both are regression-guarded, and the scene is now inspectable.
 | `npm run model` | **Pass** — the production GLB through three's own loader |
 | `npm run vessel` | **Pass — 125 checks.** Proxy drives and marks built with the real code and measured |
 | `npm test` | **Pass — 1,807 checks** across 20 groups |
-| `npm run build` | **Pass — 22 routes**, static export, **no warnings** |
+| `npm run build` | **Pass — 20 routes**, **no warnings** |
+| `GITHUB_PAGES=true npm run build` | **Pass** — static export, `Exporting (2/2)`, full `out/` |
+
+### A deploy-only failure, found by deploying
+
+The first push of this work **failed the GitHub Pages build**, and it is worth
+recording because it passed every local gate first.
+
+`output: "export"` is switched on only by `GITHUB_PAGES`, so an ordinary
+`next build` never exercises it — and Next 15 refuses to build a dynamic route
+whose `generateStaticParams()` yields no params under export:
+
+```
+Page "/journal/[slug]" is missing "generateStaticParams()" so it cannot be
+used with "output: export" config.
+```
+
+The message is misleading (the function is present), but the rule is real.
+`JOURNAL` and `PROJECTS` are empty arrays **on purpose** — §33 forbids inventing
+content — so the routes had nothing to emit. Supplying a placeholder slug would
+have put a fabricated article URL on the live site, which is precisely what §33
+rules out, and deleting the finished templates would have thrown away work that
+becomes correct the moment the yard supplies one article.
+
+Both templates were moved into Next **private folders** —
+`journal/_article-template`, `projects/_project-template` — which opts them out
+of routing while leaving them on disk, beside their sections, and under `tsc`.
+Re-enabling either is filling the array and renaming the folder back to
+`[slug]`. Route count therefore drops from 22 to 20; nothing else changed.
+
+The general lesson: **the deploy configuration is a build mode this project's
+local gate does not cover.** `GITHUB_PAGES=true npm run build` is the command
+that reproduces CI, and it is now in the table above.
 | `node scripts/pxl/reference-qa.mjs` | Profile comparison; numbers in PXL_REFERENCE_QA.md |
 
 **Live scene verification** (deterministic mode, hidden tab):
