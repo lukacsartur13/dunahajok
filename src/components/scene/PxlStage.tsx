@@ -24,6 +24,7 @@ import { SceneSlot } from "@/components/scene/SceneSlot";
 import { PXL_MEDIA, type PxlMediaId } from "@/lib/pxl.media.generated";
 import { setPxlView, type PxlViewState } from "@/webgl/scenes/pxl/pxlView";
 import styles from "./PxlStage.module.css";
+import { asset } from "@/lib/basePath";
 
 interface PxlStageProps extends Partial<PxlViewState> {
   /** Sizes hint for the fallback image. */
@@ -77,7 +78,7 @@ export function PxlStage({
     >
       <div className={styles.plate}>
         <Image
-          src={media.src}
+          src={asset(media.src)}
           alt={label ? "" : media.alt}
           width={media.width}
           height={media.height}

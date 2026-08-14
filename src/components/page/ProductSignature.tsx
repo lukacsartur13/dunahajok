@@ -27,6 +27,7 @@ import Image from "next/image";
 import { MEDIA, type MediaId } from "@/lib/media.generated";
 import { gsap, ScrollTrigger, prefersReducedMotion } from "@/lib/motion";
 import styles from "./ProductSignature.module.css";
+import { asset } from "@/lib/basePath";
 
 /* ── Cabin — the reveal ────────────────────────────────────────────────────*/
 
@@ -102,7 +103,7 @@ export function CabinReveal({ exterior, interior, caption }: CabinRevealProps) {
     <section className={styles.reveal} ref={root} aria-label={caption}>
       <div className={styles.revealFrame}>
         <Image
-          src={outside.src}
+          src={asset(outside.src)}
           alt={outside.alt}
           width={outside.width}
           height={outside.height}
@@ -117,7 +118,7 @@ export function CabinReveal({ exterior, interior, caption }: CabinRevealProps) {
             what describes the moment. */}
         <div className={styles.revealInner} data-reveal-inner>
           <Image
-            src={inside.src}
+            src={asset(inside.src)}
             alt=""
             width={inside.width}
             height={inside.height}
@@ -199,7 +200,7 @@ export function RacingLine({ media, caption }: RacingLineProps) {
       <div className={styles.lineFrame}>
         <div className={styles.linePlate} data-plate>
           <Image
-            src={plate.src}
+            src={asset(plate.src)}
             alt={plate.alt}
             width={plate.width}
             height={plate.height}

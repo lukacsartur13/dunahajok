@@ -55,6 +55,7 @@ import { supportsWebGL } from "@/webgl/stage/quality";
 import { PxlDebugPanel } from "./PxlDebugPanel";
 import { PxlReferenceBench } from "./PxlReferenceBench";
 import styles from "./PxlConfigurator.module.css";
+import { asset } from "@/lib/basePath";
 
 /** Reference render for each exterior finish, for the no-WebGL path. */
 const STUDY_FOR_SLUG: Record<string, PxlMediaId> = {
@@ -454,7 +455,7 @@ function PxlColourStudies({
 
         <figure className={styles.studyPlate}>
           <Image
-            src={media.src}
+            src={asset(media.src)}
             alt={media.alt}
             width={media.width}
             height={media.height}

@@ -5,13 +5,34 @@
  * GitHub Pages it sits at `/dunahajok/`, and that difference is not cosmetic:
  * every absolute path in the app has to gain the prefix or 404.
  *
- * NEXT DOES MOST OF IT. `next/image`, `next/link` and the framework's own
- * script and CSS URLs are all rewritten from `basePath` automatically. What it
- * cannot rewrite is a string you hand to something that is not Next:
+ * NEXT DOES MOST OF IT. `next/link` and the framework's own script and CSS URLs
+ * are rewritten from `basePath` automatically. What it does not rewrite is a
+ * string handed to something that is not Next:
  *
  *   • `useGLTF("/models/PXL.glb")` — three's loader calls `fetch` directly;
  *   • `new Image().src = "/media/hero-danube.webp"` — the preloader's own
- *     warm-up, which is a raw DOM image rather than a component.
+ *     warm-up, which is a raw DOM image rather than a component;
+ *   • **`next/image` under `images.unoptimized`** — see below.
+ *
+ * ── NEXT/IMAGE IS NOT ON THE SAFE LIST, AND THAT COST A DEPLOY ─────────────
+ *
+ * This block used to name `next/image` among the things Next prefixes for you.
+ * That is true only while the image optimiser is in play: normally the emitted
+ * src is `/_next/image?url=…`, and it is the `/_next/…` part that carries the
+ * prefix — not the `url` payload. A static export has no optimiser, so
+ * `next.config.ts` sets `images.unoptimized` for the Pages build, and an
+ * unoptimised `<Image>` emits the src **verbatim**.
+ *
+ * The result was that every photograph on the deployed site requested
+ * `/media/…` instead of `/dunahajok/media/…` and 404'd — the whole site, all
+ * twenty-nine images, while the HTML, the CSS, the fonts and the 300 kB GLB all
+ * loaded correctly, because every one of those goes through a path Next does
+ * prefix or through `asset()` here. It looked like a broken asset pipeline and
+ * was a one-line-per-callsite URL bug.
+ *
+ * So: **every `<Image src>` in this app goes through `asset()`.** It is
+ * idempotent-safe for the domain-root build, where `BASE_PATH` is empty and
+ * this function is the identity.
  *
  * Both are silent failures under a sub-path: the model never resolves and the
  * scene sits on its fallback render forever, which looks exactly like a slow

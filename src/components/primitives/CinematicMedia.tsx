@@ -19,6 +19,9 @@
 import Image from "next/image";
 import { useEffect, useRef, type CSSProperties } from "react";
 import { MEDIA, type MediaId } from "@/lib/media.generated";
+/* Aliased: this component's own prop is called `asset`, and importing the
+   helper under its real name would shadow it. */
+import { asset as withBasePath } from "@/lib/basePath";
 import { gsap, prefersReducedMotion } from "@/lib/motion";
 import styles from "./CinematicMedia.module.css";
 
@@ -118,8 +121,13 @@ export function CinematicMedia({
       data-cursor={cursor}
     >
       <div className={`${styles.plate} ${reveal ? styles.closed : ""}`}>
+        {/* `withBasePath`, not the raw src. See the note in src/lib/basePath.ts:
+            under `images.unoptimized` — which the static export turns on —
+            next/image emits the src verbatim instead of routing it through
+            `/_next/image`, and the basePath prefix goes with the optimiser.
+            Every image on the site 404'd on GitHub Pages because of it. */}
         <Image
-          src={asset.src}
+          src={withBasePath(asset.src)}
           alt={alt ?? asset.alt}
           width={asset.width}
           height={asset.height}

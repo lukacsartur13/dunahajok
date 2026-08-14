@@ -36,6 +36,7 @@ import { useReducedMotion } from "@/lib/hooks";
 import { markPxlEntry } from "@/components/pxl/pxlEntry";
 import { currentPxlQuery, loadPxlConfigurationFromUrl } from "@/webgl/scenes/pxl/pxlStore";
 import styles from "./PxlPreviewProduct.module.css";
+import { asset } from "@/lib/basePath";
 
 /** Seconds the departure takes. Long enough to read as a move, short enough
  *  that nobody waits for it. Matched to the arrival at the other end. */
@@ -155,7 +156,7 @@ export function PxlPreviewProduct() {
 
       <figure className={styles.plate}>
         <Image
-          src={hero.src}
+          src={asset(hero.src)}
           alt={hero.alt}
           width={hero.width}
           height={hero.height}

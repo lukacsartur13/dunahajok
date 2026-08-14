@@ -492,9 +492,38 @@ of routing while leaving them on disk, beside their sections, and under `tsc`.
 Re-enabling either is filling the array and renaming the folder back to
 `[slug]`. Route count therefore drops from 22 to 20; nothing else changed.
 
-The general lesson: **the deploy configuration is a build mode this project's
-local gate does not cover.** `GITHUB_PAGES=true npm run build` is the command
-that reproduces CI, and it is now in the table above.
+### And a second one: every photograph on the site 404'd
+
+With the build green, the deployed site came up **with no images at all** — while
+the HTML, the CSS, the fonts and the 300 kB GLB all loaded correctly.
+
+`next/image` applies `basePath` only through the optimiser: the emitted src is
+`/_next/image?url=…`, and it is the `/_next/…` that carries the prefix, not the
+`url` payload. A static export has no optimiser, so `next.config.ts` sets
+`images.unoptimized` for the Pages build — and an unoptimised `<Image>` emits its
+src **verbatim**. Every photograph requested `/media/…` instead of
+`/dunahajok/media/…`.
+
+`src/lib/basePath.ts` had listed `next/image` among the things "Next rewrites
+for you", which is why nobody had wrapped them. That note is now corrected, and
+all nine `<Image src>` sites go through `asset()` — which is the identity on a
+domain-root build, so nothing changes off Pages.
+
+**Guarded by test**, in the new `base path` group: it scans every `.tsx` in
+`src/` and fails if an `src={…}` is not wrapped. A behavioural test cannot catch
+this — the component renders identically in both modes and the difference only
+exists in an exported bundle served from a sub-path — so the contract is the
+source text. Verified in both directions: green as shipped, and it names the
+exact file when a wrap is removed.
+
+### The general lesson
+
+**The deploy configuration is a build mode this project's local gate does not
+cover.** Two separate defects shipped through a green `npm run qa` and a green
+`npm run build`, and both were specific to `output: "export"` plus `basePath`.
+`GITHUB_PAGES=true npm run build` is the command that reproduces CI, and it is
+now in the table above — it belongs in the pre-push routine, not in the incident
+notes.
 | `node scripts/pxl/reference-qa.mjs` | Profile comparison; numbers in PXL_REFERENCE_QA.md |
 
 **Live scene verification** (deterministic mode, hidden tab):

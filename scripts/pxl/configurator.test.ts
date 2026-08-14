@@ -20,6 +20,10 @@
  * a test runner.
  */
 
+/* The only node builtins this suite uses, for the one source-text contract at
+   the bottom of the file — see the "base path" group. */
+import { readdirSync, readFileSync } from "node:fs";
+import { join as joinPath } from "node:path";
 import {
   PXL_ALL_FINISHES,
   PXL_EXTERIOR_FINISHES,
@@ -1494,6 +1498,60 @@ group("request validation", () => {
     [],
     "phone and message are genuinely optional",
   );
+});
+
+/* ── Deploy-mode contracts ─────────────────────────────────────────────────*/
+
+/**
+ * EVERY `<Image src>` GOES THROUGH `asset()`. §31, and a broken deploy.
+ *
+ * This is a source-text check rather than a behavioural one, which is unusual
+ * for this suite, and it earns the exception: the bug it guards against is
+ * invisible in every build this project runs locally and breaks the entire
+ * published site.
+ *
+ * `next/image` prefixes `basePath` only via the optimiser — the emitted src is
+ * `/_next/image?url=…` and the `/_next/…` carries the prefix. A static export
+ * has no optimiser, so `images.unoptimized` is on for the Pages build and the
+ * src is emitted verbatim. Twenty-nine photographs requested `/media/…` instead
+ * of `/dunahajok/media/…` and every one of them 404'd, while the HTML, the CSS
+ * and the 300 kB GLB all loaded — because those go through paths Next does
+ * prefix, or through `asset()`.
+ *
+ * A behavioural test cannot see this: the component renders the same tree in
+ * both modes, and the difference only appears in an exported bundle served from
+ * a sub-path. So the contract is the source: an `<Image>` whose `src` is not
+ * wrapped is a deploy that ships blank pages.
+ */
+group("base path", () => {
+  const root = process.cwd();
+  const files: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = joinPath(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".tsx")) files.push(full);
+    }
+  };
+  walk(joinPath(root, "src"));
+
+  ok(files.length > 0, "found component files to scan");
+
+  /* `src={…}` on an element, minus the two forms that are already correct:
+     a wrapped call, and a plain local variable holding a data: URL. */
+  const unwrapped: string[] = [];
+  for (const file of files) {
+    const source = readFileSync(file, "utf8");
+    for (const match of source.matchAll(/\bsrc=\{([^}]*)\}/g)) {
+      const expression = match[1].trim();
+      if (/^(asset|withBasePath)\s*\(/.test(expression)) continue;
+      /* A data URL read back from the renderer — see pxlQa's capture(). It is
+         already absolute and `asset()` would return it untouched anyway. */
+      if (expression === "frame") continue;
+      unwrapped.push(`${file.slice(root.length + 1)} — src={${expression}}`);
+    }
+  }
+  eq(unwrapped, [], "every image src is wrapped in asset()");
 });
 
 group("request destination", () => {

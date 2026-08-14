@@ -22,6 +22,7 @@ import { useScrollLock } from "@/lib/hooks";
 import { gsap, prefersReducedMotion } from "@/lib/motion";
 import { WakeLine } from "@/components/primitives/WakeLine";
 import styles from "./MenuOverlay.module.css";
+import { asset } from "@/lib/basePath";
 
 /**
  * §B20 — THE PLATE COMES FROM THE NAVIGATION ENTRY, NOT FROM A LOOKUP.
@@ -216,7 +217,7 @@ export function MenuOverlay({ open, onClose }: MenuOverlayProps) {
                 optimizer request mid-interaction. All plates are preloaded
                 once the overlay opens. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={plate.src} alt="" width={plate.width} height={plate.height} loading="lazy" />
+            <img src={asset(plate.src)} alt="" width={plate.width} height={plate.height} loading="lazy" />
           </div>
 
           <div className={styles.contact} data-menu-fade>
