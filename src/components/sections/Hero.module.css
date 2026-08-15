@@ -1,126 +1,278 @@
+/* ===========================================================================
+   CHAPTER 00–01 — ARRIVAL / THE RIVER
+   ---------------------------------------------------------------------------
+   One full-bleed frame with a line drawn across it. Everything is positioned
+   against `--waterline`, a single percentage that the wordmark, the wake, the
+   disturbance and the type register all resolve against — move it and the
+   whole composition re-hangs together.
+   =========================================================================== */
+
 .hero {
   position: relative;
   min-height: 100svh;
-  display: flex;
-  flex-direction: column;
   background: var(--depth);
   color: var(--signal);
   overflow: hidden;
+  isolation: isolate;
+
+  /* Where the river meets the air. Set to the real waterline of the plate —
+     the height at which the hull actually meets the Danube — so the drawn line
+     continues the photographed one instead of cutting across the vessel. */
+  --waterline: 70%;
+
+  /* The type band. Deliberately NOT the same value: the register is a
+     composition band for the label and the claim, and tying its foot to the
+     waterline pushed the claim down onto the bow. */
+  --register-h: 56%;
 }
 
-/* ── Upper register: air ────────────────────────────────────────────────── */
+/* ── The river ────────────────────────────────────────────────────────────
+   Full bleed and behind everything. `scale` is the only transform the plate
+   takes, so the scrubbed push-in cannot fight the parallax that Phase One ran
+   here (which is why `parallax` is off on the media itself). */
 
-.upper {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: clamp(1.5rem, 4vh, 3.5rem);
-  padding-block-start: clamp(4.75rem, 11vh, 8rem);
+.field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  transform-origin: 52% var(--waterline);
   will-change: transform;
 }
 
-.head {
+.slot,
+.plate {
+  height: 100%;
+}
+
+.plate :global(img) {
+  height: 100%;
+  object-fit: cover;
+  /* NO `filter` here, deliberately. A `saturate()`/`brightness()` filter on a
+     full-viewport composited image is both a per-frame GPU cost on the layer
+     the scroll sequence is already scaling, and — observed in Chromium while
+     building this — enough to stop the layer painting at all in some
+     compositing states. The grade is done with blend layers instead, which
+     cost nothing to animate over. */
+}
+
+/* Two scrims, deliberately separate.
+
+   The first version of this chapter had one element doing both jobs, and the
+   arrival tween that faded it out took the type's legibility ground with it —
+   the label and the header ended up sitting on 200-luminance sky. A scrim that
+   is animated and a scrim that is structural cannot be the same element. */
+
+/* Structural. Never animated. Weighted against the measured luminance of the
+   plate: heavy over the sky and the far bank (rows 8% and 25%, which measure
+   126–210), light across the vessel itself (rows 42–58%, already 57–128), and
+   lifted again at the very bottom where the scroll cue sits. The boat is the
+   one thing never scrimmed. */
+.grade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(10, 14, 15, 0.94) 0%,
+      rgba(10, 14, 15, 0.82) 14%,
+      rgba(10, 14, 15, 0.5) 30%,
+      rgba(10, 14, 15, 0.16) 46%,
+      rgba(10, 14, 15, 0.12) 68%,
+      rgba(10, 14, 15, 0.55) 100%
+    ),
+    /* A cool cast pulled from the WebGL scene's own horizon colour, so the
+       photograph and the canvas grade as one river rather than two. */
+    linear-gradient(to bottom, rgba(29, 39, 37, 0.42), rgba(10, 14, 15, 0.08) 60%);
+}
+
+/* The desaturation pass.
+
+   The source is a bright summer snapshot: blue sky, green bank, blown
+   highlights on the foam. Measured across an 8x6 luminance grid it peaks at
+   210 in the top row, against a section ground of #0a0e0f. Shown raw it is not
+   a deep Danube environment (§7), it is a holiday photograph.
+
+   A flat grey plate in `saturation` blend mode pulls the greens and blues most
+   of the way out while leaving luminance untouched, so the hull keeps its
+   modelling. It is held to 0.55 opacity rather than 1 so the teak — the only
+   thing on this page allowed to be warm — survives it. */
+.desaturate {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #6b6f6d;
+  mix-blend-mode: saturation;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* The arrival blackout. Opaque at t=0, lifts out of the wake, and is then
+   permanently gone. This is the only element the arrival tween touches. */
+.veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--depth);
+}
+
+/* Holds through hydration without a flash: `[data-intro]` is set on <html> by
+   the preloader, so the first frame of the site is a black field with one line
+   on it whether or not React has caught up yet. */
+:global(html:not([data-intro="done"])) .veil {
+  opacity: 1;
+}
+
+/* ── The waterline, and what happens on it ────────────────────────────── */
+
+.line {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: var(--waterline);
+  z-index: 3;
+  height: 0;
+}
+
+/* The drawn waterline is at full strength during the arrival, when it is the
+   only thing on a black field and carries the whole first beat. Once the river
+   is up it drops to a whisper: a hairline at 45% white across a photograph of
+   moving water is illegible anyway, and insisting on it would only add noise
+   to the frame the vessel has just been given. It brightens again on scroll,
+   as the type leaves and the page hands over to the wake→line chapter — which
+   is the moment the line is actually about. */
+.waterline {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  height: var(--hairline);
+  background: var(--signal);
+  opacity: 0.16;
+}
+
+:global(html:not([data-intro="done"])) .waterline {
+  opacity: 0.55;
+}
+
+/* The wake leaves along the waterline. Its still-water axis is the SVG's
+   vertical centre, so the box is centred on the line rather than hung below
+   it. `scaleX` is animated from the left edge during the arrival, which is
+   what makes the wake appear to be *drawn* by the disturbance. */
+.wakeWrap {
+  --wake-h: clamp(3.5rem, 7vw, 7.5rem);
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: calc(var(--wake-h) / -2);
+  display: block;
+  height: var(--wake-h);
+  transform-origin: left center;
+  opacity: 0.55;
+  will-change: transform, opacity;
+}
+
+.wakeWrap > svg {
+  height: 100%;
+}
+
+/* The disturbance itself: a short, bright segment of the waterline that
+   travels along it. Not a dot, not a particle — a piece of the line moving,
+   which is the only reading that makes the wake behind it mean anything. */
+.disturbance {
+  position: absolute;
+  inset-block-start: calc(var(--hairline) * -1);
+  inset-inline-start: 0;
+  width: clamp(4rem, 9vw, 9rem);
+  height: calc(var(--hairline) * 3);
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--signal) 62%,
+    var(--signal) 78%,
+    transparent
+  );
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* ── Type ─────────────────────────────────────────────────────────────────
+   Distributed rather than stacked. The label hangs top-left on the shell grid;
+   the claim sits right and low, just above the waterline, so the frame reads
+   as a diagonal from the label down to the wordmark rather than as a
+   left-aligned column with a picture under it. */
+
+.register {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  z-index: 4;
+  height: var(--register-h);
   width: var(--shell);
   margin-inline: auto;
   display: grid;
-  gap: clamp(1.15rem, 2.2vw, 1.9rem);
-  align-content: start;
-  padding-block-end: clamp(1.25rem, 3vh, 2.5rem);
+  grid-template-rows: auto 1fr;
+  padding-block: clamp(4.75rem, 11vh, 8rem) clamp(1.75rem, 4vh, 3.5rem);
+  will-change: transform, opacity;
 }
 
 .kicker {
   color: var(--signal-45);
 }
 
-/* No max-width: the line breaks are authored in the component, and a measure
-   constraint would silently re-wrap them. The scale is tuned so the longer
-   line ("Built beyond convention.") holds on one line at 375px too. */
-/* `.head .claim` rather than `.claim`: it has to out-specify the shared d3
-   step from Type.module.css, whose source order isn't guaranteed. */
-.head .claim {
-  font-size: clamp(1.4rem, 5.6vw, 3.4rem);
+/* Right-aligned and bottom-aligned inside the upper register. */
+.claimWrap {
+  align-self: end;
+  justify-self: end;
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.75rem);
+  justify-items: start;
+  max-width: min(100%, 34rem);
+}
+
+/* `.claimWrap .claim` rather than `.claim`: it has to out-specify the shared
+   d3 step from Type.module.css, whose source order isn't guaranteed. No
+   max-width — the line breaks are authored in the component and a measure
+   constraint would silently re-wrap them. */
+.claimWrap .claim {
+  font-size: clamp(1.35rem, 3.4vw, 2.9rem);
   color: var(--signal);
+  text-wrap: nowrap;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: clamp(1rem, 2.5vw, 2.5rem);
+.entry {
+  display: block;
 }
 
-/* ── The wordmark, resting on the waterline ─────────────────────────────── */
-
-.markRow {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: clamp(1rem, 3vw, 3rem);
-  width: var(--shell);
-  margin-inline: auto;
-}
+/* ── The wordmark ─────────────────────────────────────────────────────────
+   Sits ON the waterline: the baseline is the line. The negative block-end
+   margin removes the descender space these caps never use, which is what
+   actually lands the baseline rather than floating the mark above it. */
 
 .mark {
-  font-size: var(--fs-mega);
+  position: absolute;
+  inset-block-start: var(--waterline);
+  inset-inline-start: 0;
+  z-index: 4;
+  /* Pull the D's left sidebearing flush to the gutter. */
+  padding-inline-start: calc(var(--gutter) - 0.045em);
+  transform: translateY(-100%);
+  margin-block-end: -0.15em;
+  /* NOT `--fs-mega`. At the mega step the wordmark is ~280px tall on a laptop
+     and, over a full-bleed vessel, it lands squarely across the helm and the
+     crew — the most detailed and most valuable part of the product shot. §9
+     asks that type not dominate the vessel, and §42 asks for typographic
+     rhythm rather than everything being enormous. The monumental moment on
+     this page belongs to the Duna 6.1 reveal, where the type has a plate
+     composed around it. Here DUNA is a mark resting on the water, not a
+     monument standing in front of the boat. */
+  font-size: clamp(2.5rem, 7.5vw, 7.5rem);
   font-stretch: 84%;
   line-height: 0.78;
   letter-spacing: var(--tr-mega);
-  /* Optical: pull the D's left sidebearing flush to the gutter. */
-  margin-inline-start: -0.045em;
-  /* The line box carries descender space these caps never use. Removing it is
-     what actually lands the baseline on the waterline — without this the
-     wordmark floats above the line instead of sitting on it. */
-  margin-block-end: -0.15em;
-  flex: none;
-  will-change: transform;
+  color: var(--signal-45);
+  will-change: transform, opacity;
+  pointer-events: none;
 }
 
-/* The wake continues from the wordmark along the waterline, so its still-water
-   axis (the SVG's vertical centre) must coincide with the line. */
-.wakeWrap {
-  --wake-h: clamp(2.75rem, 5vw, 5rem);
-  display: block;
-  flex: 1 1 auto;
-  min-width: 0;
-  height: var(--wake-h);
-  margin-block-end: calc(var(--wake-h) / -2);
-  opacity: 0.5;
-}
-
-/* Beats the WakeLine module's own height by specificity, not by source order. */
-.wakeWrap > svg {
-  height: 100%;
-}
-
-/* ── The waterline itself ───────────────────────────────────────────────── */
-
-.waterline {
-  flex: none;
-  height: 1px;
-  width: 100%;
-  background: var(--signal-16);
-}
-
-/* ── Lower register: the river ──────────────────────────────────────────── */
-
-/* Shrinkable: on a short viewport the river gives way before the type does. */
-.plate {
-  position: relative;
-  flex: 0 1 auto;
-  height: clamp(11rem, 34vh, 26rem);
-  min-height: 8.5rem;
-}
-
-.plateMedia {
-  height: 100%;
-  /* Meets the waterline at the hull rake, so the two geometries agree. */
-  clip-path: polygon(0 0, 100% var(--rake-cut), 100% 100%, 0 100%);
-}
-
-.plateMedia :global(img) {
-  height: 100%;
-}
+/* ── Scroll cue ───────────────────────────────────────────────────────── */
 
 .scroll {
   position: absolute;
@@ -131,8 +283,8 @@
   gap: 0.75rem;
   color: var(--signal);
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55);
-  /* Sits inside the river plate, which is the hero-vessel SceneSlot: the root
-     canvas paints over that box, so the indicator has to clear it. */
+  /* The field is the hero-vessel SceneSlot and the root canvas paints over
+     that box, so the cue has to clear it. */
   z-index: calc(var(--z-scene) + 1);
 }
 
@@ -164,41 +316,89 @@
   }
 }
 
-/* ── Small screens ─────────────────────────────────────────────────────────
-   Not a squeezed desktop: the claim leads, the wordmark is still monumental
-   relative to the viewport, and the plate keeps a usable portrait-ish crop. */
+/* ── Small screens ────────────────────────────────────────────────────────
+   §53: the vessel must stay visually substantial, so the waterline moves UP
+   rather than the plate shrinking — the river keeps 48% of the frame. The
+   claim moves to the left rail because a right-aligned block inside a 375px
+   gutter is not an asymmetric composition, it is a squeezed one. */
 
 @media (max-width: 47.99rem) {
-  .upper {
+  .hero {
+    --waterline: 66%;
+    --register-h: 46%;
+  }
+
+  /* NOT a squeezed desktop (§52).
+
+     The plate is 1920x1081. `object-fit: cover` against a 375x812 viewport
+     scales it to fit the *height*, which throws away two thirds of the width —
+     what survives is a crop of the cabin roof and the bow with no bow-to-stern
+     reading at all, and a 6.10 m hull that cannot be recognised as a boat. §53
+     asks for the vessel to stay visually substantial, and on a phone that means
+     giving it a band whose proportions a landscape hull actually fits.
+
+     So the river becomes a lower band rather than a full bleed, and the type
+     sits on the dark ground above it. The band is 4:3-ish at these widths,
+     which holds the whole vessel. */
+  .field {
+    inset-block-start: 42%;
+    transform-origin: 50% 100%;
+  }
+
+  /* The band has its own edge, so the structural grade stops being a full-frame
+     wash and becomes a short scrim over the top of the plate only. */
+  .grade,
+  .desaturate {
+    inset-block-start: 42%;
+  }
+
+  .grade {
+    background: linear-gradient(
+      to bottom,
+      var(--depth) 0%,
+      rgba(10, 14, 15, 0.55) 12%,
+      rgba(10, 14, 15, 0.12) 34%,
+      rgba(10, 14, 15, 0.1) 72%,
+      rgba(10, 14, 15, 0.6) 100%
+    );
+  }
+
+  /* Centred on the hull rather than pulled right: with the band this shallow
+     the bow is the first thing lost, and the bow is the Duna line. */
+  .plate :global(img) {
+    object-position: 46% 52%;
+  }
+
+  .register {
     padding-block-start: clamp(4.5rem, 12vh, 7rem);
   }
 
-  .head {
-    gap: clamp(1.25rem, 4vw, 2rem);
+  .claimWrap {
+    justify-self: start;
+    max-width: 100%;
   }
 
-  .actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.25rem;
+  .claimWrap .claim {
+    /* Tuned so "Built beyond convention." holds on one line at 375px inside
+       the gutters. */
+    font-size: clamp(1.3rem, 5.4vw, 2rem);
   }
 
-  .wake {
-    display: none;
-  }
-
-  .plate {
-    height: clamp(13rem, 30vh, 20rem);
+  .mark {
+    color: var(--signal-45);
   }
 }
 
-/* Landscape phones have almost no vertical budget — drop the plate rather
-   than let the type collapse. */
+/* Landscape phones have almost no vertical budget: drop the waterline so the
+   type register does not collapse onto the wordmark. */
 @media (max-height: 30rem) and (orientation: landscape) {
   .hero {
-    min-height: auto;
+    --waterline: 74%;
+    --register-h: 62%;
+    min-height: 32rem;
   }
-  .plate {
-    height: 42vw;
+
+  .claimWrap .claim {
+    font-size: clamp(1.2rem, 3vw, 1.6rem);
   }
 }

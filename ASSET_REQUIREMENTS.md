@@ -295,3 +295,70 @@ crushed blacks.
 
 Drop new masters into `scripts/.cache/` or point `ASSETS` in
 `scripts/build-assets.mjs` at a local path, then run `npm run assets`.
+
+---
+
+## PHASE 5 — HOMEPAGE REBUILD (added 2026-08-15)
+
+Ranked by how much each one is currently costing the homepage.
+
+### P5-01 · HERO PLATE — the single highest-value shot on the site  ★★★
+The homepage hero now runs full-bleed, so the plate carries the whole first
+screen. The best available asset is `hero-danube-alt` — a full profile with a
+real horizon, which is why it was chosen — but it is a **lifestyle snapshot**:
+three passengers, a Hungarian flag, harsh midday sun, blown highlights on the
+foam. It measures 210 luminance in its top row against a `#0a0e0f` ground and
+has to be desaturated and scrimmed in three layers to sit in the Duna palette
+at all.
+
+Grading gets it into the palette. It does not make it industrial-design
+photography, and it is the reason the hero cannot yet be called a portfolio
+hero.
+
+**Needed:** the Duna 6.1 underway, **profile, no crew, no flag**, shot in flat
+or low directional light — overcast river, or the hour before dusk. Wake
+visible and trailing astern. Horizon in frame and level. Bow leading. Enough
+clean water at the foot of the frame for type to sit on.
+
+- 3:2 or wider master, ≥ 4000 px on the long edge.
+- **A portrait or square variant of the same setup**, framed so the whole hull
+  reads at 375–430 px wide. Without it, mobile has to fall back to a lower band
+  because a landscape plate cropped to a phone viewport shows mid-hull only.
+
+### P5-02 · HANDS AND PROCESS  ★★★
+§30 asks the Győr chapter to show that a person physically built this object,
+and there is currently **no usable photograph of anyone making anything**. The
+existing workshop images are a building and a service bench. Until this exists
+the manufacturing chapter cannot do its job, and no amount of layout fixes it.
+
+**Needed:** 6–10 frames. Hands laying teak, planing, fitting joinery, applying
+the maker's plate. Faces optional; hands and material mandatory. Available
+light, no flash.
+
+### P5-03 · TEAK MACRO SERIES  ★★
+Signature moment #4 pushes a macro crop until the boat is unrecognisable and
+the frame is pure grain, then resolves a few grain lines into linework. The
+existing `teak-*` assets are product detail shots, not macro — they lose the
+grain before the boat is abstract.
+
+**Needed:** 4–6 true macro frames of finished teak, raking light, grain running
+close to a single axis so it can align to the design line.
+
+### P5-04 · DEPARTURE FRAME  ★★
+The closing chapter needs the vessel *leaving* — distant or overhead, small in
+frame, wake dominant. `hero-danube-alt` is too close and too frontal.
+
+**Needed:** one wide or elevated frame, boat in the outer third, wake filling
+the rest.
+
+### P5-05 · STUDIO PROFILE ON TRANSPARENT  ★
+The line → object reveal masks a plate through an SVG path derived from the
+hull silhouette. `cabin-studio-profile` works, but a **cut-out on transparency**
+would let the surface fill beneath the line cleanly instead of being clipped to
+a rectangle.
+
+**Needed:** `cabin-studio-profile` delivered as PNG with alpha, hull isolated.
+
+### NOT NEEDED
+Do not commission drone hero video. §59 rules out solving the homepage with a
+large cinematic video, and nothing in the storyboard requires one.
