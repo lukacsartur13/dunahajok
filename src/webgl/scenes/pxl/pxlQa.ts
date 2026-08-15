@@ -127,6 +127,16 @@ export interface PxlZoneReport {
   roughness: number;
   metalness: number;
   clearcoat: number;
+  /**
+   * §4.9 — how much of the studio this surface returns.
+   *
+   * Reported because it is the term NIGHT drives and the only one that can
+   * make the boat a silhouette; a night frame that still looks like a day
+   * frame is answered here rather than by eye.
+   */
+  environment: number;
+  /** Emissive output. Non-zero on the speaker ring alone, and only when lit. */
+  emission: number;
   /** Triangles, so a zone reported empty is distinguishable from one unlit. */
   triangles: number;
   visible: boolean;
@@ -511,6 +521,8 @@ function readZones(): PxlZoneReport[] {
       colour: `#${handle.material.color.getHexString()}`,
       roughness: handle.material.roughness,
       metalness: handle.material.metalness,
+      environment: handle.material.envMapIntensity,
+      emission: handle.material.emissiveIntensity,
       clearcoat: handle.material.clearcoat,
       triangles: Math.floor((index ? index.count : (position?.count ?? 0)) / 3),
       visible: handle.mesh.visible,

@@ -240,6 +240,7 @@ export function WebGLStage() {
                 water={pxlView.water}
                 arrival={pxlView.arrival}
                 adaptive={pxlView.adaptive}
+                night={pxlView.night}
               />
             </Suspense>
           </StageScene>

@@ -113,6 +113,35 @@ interface SurfaceState {
   sheenColour: Color;
   /** Grain strength, 0–0.5. Read by the triplanar injection. See `pxlGrain`. */
   grain: number;
+  /**
+   * §4.9's glazing terms, carried through the same interpolation as the rest.
+   *
+   * Meaningful on the plexi alone. Every other zone has `transmission: 0`, at
+   * which the other two do nothing at all — three's transmission model never
+   * evaluates attenuation on an opaque material — so the twenty-three zones
+   * that are not glass pay for their presence exactly what they pay for
+   * `sheen`: one comparison in `same()`, which finds them equal and skips the
+   * zone entirely.
+   *
+   * They are here rather than written directly because a tint change is a
+   * material change like any other, and popping one of the four surfaces a
+   * viewer can configure while the other three ease would be a seam in the
+   * product, not a saving.
+   */
+  transmission: number;
+  attenuation: Color;
+  attenuationDistance: number;
+  /**
+   * §4.9's emissive terms. Meaningful on the speaker ring alone.
+   *
+   * Every other zone carries `emissiveIntensity: 0`, at which the colour is
+   * multiplied by nothing — so the twenty-five zones that are not lights pay
+   * for their presence exactly what they pay for `sheen` and the glazing
+   * terms: one comparison in `same()`, which finds them equal and skips the
+   * zone entirely.
+   */
+  emissive: Color;
+  emissiveIntensity: number;
 }
 
 /**
@@ -536,6 +565,11 @@ function snapshot(handleOrMaterial: PxlZoneHandle | MeshPhysicalMaterial): Surfa
     clearcoatRoughness: material.clearcoatRoughness,
     sheen: material.sheen,
     sheenColour: material.sheenColor.clone(),
+    transmission: material.transmission,
+    attenuation: material.attenuationColor.clone(),
+    attenuationDistance: material.attenuationDistance,
+    emissive: material.emissive.clone(),
+    emissiveIntensity: material.emissiveIntensity,
     grain,
   };
 }
@@ -554,7 +588,16 @@ function same(a: SurfaceState, b: SurfaceState): boolean {
     Math.abs(a.grain - b.grain) < 1e-4 &&
     Math.abs(a.sheenColour.r - b.sheenColour.r) < 1e-4 &&
     Math.abs(a.sheenColour.g - b.sheenColour.g) < 1e-4 &&
-    Math.abs(a.sheenColour.b - b.sheenColour.b) < 1e-4
+    Math.abs(a.sheenColour.b - b.sheenColour.b) < 1e-4 &&
+    Math.abs(a.transmission - b.transmission) < 1e-4 &&
+    Math.abs(a.attenuationDistance - b.attenuationDistance) < 1e-4 &&
+    Math.abs(a.attenuation.r - b.attenuation.r) < 1e-4 &&
+    Math.abs(a.attenuation.g - b.attenuation.g) < 1e-4 &&
+    Math.abs(a.attenuation.b - b.attenuation.b) < 1e-4 &&
+    Math.abs(a.emissiveIntensity - b.emissiveIntensity) < 1e-4 &&
+    Math.abs(a.emissive.r - b.emissive.r) < 1e-4 &&
+    Math.abs(a.emissive.g - b.emissive.g) < 1e-4 &&
+    Math.abs(a.emissive.b - b.emissive.b) < 1e-4
   );
 }
 
@@ -570,6 +613,16 @@ function write(handle: PxlZoneHandle, state: SurfaceState): void {
   // snapshot and its target both read zero and `same()` skips it.
   if (material.sheen > 0) material.sheen = Math.max(state.sheen, 1e-3);
   material.sheenColor.copy(state.sheenColour);
+  // Only where there is glass to apply it to. Writing a transmission onto a
+  // painted hull would be a recompile per zone for a term the shader would then
+  // multiply by nothing.
+  if (material.transmission > 0) {
+    material.transmission = state.transmission;
+    material.attenuationColor.copy(state.attenuation);
+    material.attenuationDistance = state.attenuationDistance;
+  }
+  material.emissive.copy(state.emissive);
+  material.emissiveIntensity = state.emissiveIntensity;
   if (handle.grain) handle.grain.value.y = state.grain;
 }
 
@@ -622,6 +675,11 @@ export function applyConfiguration(
       clearcoatRoughness: paint.clearcoatRoughness,
       sheen: paint.sheen ?? 0,
       sheenColour: new Color().set(paint.sheenColour ?? paint.base),
+      transmission: paint.transmission ?? 0,
+      attenuation: new Color().set(paint.attenuation ?? "#ffffff"),
+      attenuationDistance: paint.attenuationDistance ?? Infinity,
+      emissive: new Color().set(paint.emissive ?? "#000000"),
+      emissiveIntensity: paint.emissiveIntensity ?? 0,
       grain: soft ? surfaceGrainStrength(paint.microNormal, config.interior.surface) : 0,
     };
 
@@ -822,6 +880,20 @@ export function tickVessel(vessel: PxlVesselHandle, delta: number): boolean {
       material.sheen = Math.max(from.sheen + (to.sheen - from.sheen) * e, 1e-3);
     }
     material.sheenColor.copy(from.sheenColour).lerp(to.sheenColour, e);
+    if (material.transmission > 0) {
+      material.transmission = from.transmission + (to.transmission - from.transmission) * e;
+      material.attenuationColor.copy(from.attenuation).lerp(to.attenuation, e);
+      /* Interpolated in its RECIPROCAL, which is the term the shader actually
+         uses: attenuation falls off as exp(−d/distance), so a straight lerp
+         from 200 mm to 5 mm spends most of its time barely changing and then
+         darkens all at once in the last few frames. */
+      const inv = MathUtils.lerp(1 / from.attenuationDistance,
+                                 1 / to.attenuationDistance, e);
+      material.attenuationDistance = 1 / inv;
+    }
+    material.emissive.copy(from.emissive).lerp(to.emissive, e);
+    material.emissiveIntensity =
+      from.emissiveIntensity + (to.emissiveIntensity - from.emissiveIntensity) * e;
     if (handle.grain) {
       handle.grain.value.y = from.grain + (to.grain - from.grain) * e;
     }

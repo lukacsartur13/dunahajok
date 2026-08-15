@@ -33,6 +33,8 @@ import {
   Color,
   LinearSRGBColorSpace,
   MathUtils,
+  Raycaster,
+  Vector2,
   type Object3D,
   type PerspectiveCamera,
 } from "three";
@@ -45,7 +47,7 @@ import { Backdrop as RiverBackdrop } from "@/webgl/scenes/hero/Backdrop";
 import { WaterSystem } from "@/webgl/scenes/hero/WaterSystem";
 import { createHeroUniforms } from "@/webgl/scenes/hero/heroUniforms";
 import { finishForRole } from "./pxlConfig";
-import { PXL_MODEL } from "./pxlModel";
+import { PXL_MODEL, type PxlZone } from "./pxlModel";
 import { finish } from "./pxlPalette";
 import { PxlBackdrop } from "./PxlBackdrop";
 import {
@@ -54,6 +56,13 @@ import {
   tickVessel,
   type PxlVesselHandle,
 } from "./PxlVessel";
+import {
+  createNightState,
+  nightBackdrop,
+  nightEnvironment,
+  primeNightLights,
+  tickNight,
+} from "./pxlNight";
 import { pxlStore } from "./pxlStore";
 import {
   PXL_DEFAULT_PRESET,
@@ -66,6 +75,14 @@ import {
   type PxlPresetId,
 } from "./pxlCamera";
 import { createPxlOrbit, type PxlOrbit } from "./pxlOrbit";
+import {
+  PXL_LID_ZONES,
+  createLidStates,
+  primeLids,
+  settleLid,
+  tickLids,
+  toggleLid,
+} from "./pxlLids";
 import { createStudioEnvironment } from "./pxlLighting";
 import { measureFraming, pxlTelemetry } from "./pxlTelemetry";
 import { registerPxlQa } from "./pxlQa";
@@ -105,6 +122,11 @@ interface PxlProductSceneProps {
    * a background that shifted under the vessel would read as a grade change.
    */
   adaptive?: boolean;
+  /**
+   * §4.9 — night. The boat falls to a silhouette and the speaker rings become
+   * the only source in the scene. Presentation, not configuration.
+   */
+  night?: boolean;
   /** Told when the model resolves, or definitively does not. */
   onStatusChange?: (status: PxlSceneStatus) => void;
   /** Exposed so a viewer can read what is actually on screen. */
@@ -161,6 +183,7 @@ export function PxlProductScene({
   water = false,
   arrival = false,
   adaptive = false,
+  night = false,
   onStatusChange,
   onZonesReady,
 }: PxlProductSceneProps) {
@@ -174,6 +197,11 @@ export function PxlProductScene({
   const appliedVersion = useRef(-1);
   const warmup = useRef(0);
   const orbit = useRef<PxlOrbit | null>(null);
+  /** §4.9 — the four seat lids, and whether the pointer is over one. */
+  const lids = useRef(createLidStates());
+  const hovering = useRef(false);
+  /** §4.9 — the night transition, and the four lights it turns up. */
+  const nightState = useRef(createNightState());
 
   /* Reused across frames — see the note in `cameraRig`. */
   const from = useRef<PxlCameraState>(emptyState());
@@ -251,6 +279,11 @@ export function PxlProductScene({
     (handle: PxlVesselHandle) => {
       vessel.current = handle;
       model.current = handle.root;
+      // §4.9 — the seats' own zero, taken once, before anything can move one.
+      primeLids(lids.current, (zone) => handle.zones.get(zone)?.mesh ?? null);
+      // …and a real light at each speaker ring, read off the rings themselves.
+      primeNightLights(nightState.current, handle.root,
+                       handle.zones.get("speaker_light")?.mesh ?? null);
       appliedVersion.current = -1;              // force the first paint
       // `?sceneDebug=1` reports how the vessel on screen is represented. On
       // this route it is a real mesh, and saying so keeps the panel honest
@@ -314,18 +347,106 @@ export function PxlProductScene({
   }, [gl, scene, camera, bounds, riverUniforms, reducedMotion]);
 
   /* ── Input ──────────────────────────────────────────────────────────────
-     Bound to the slot element rather than the canvas — see `pxlOrbit`.      */
+     Bound to the slot element rather than the canvas — see `pxlOrbit`.
+
+     §4.9 — AND PICKING, WHICH SHARES THE SAME ELEMENT AND THE SAME GESTURE.
+     TWO RAYCASTS, CHEAP ONE FIRST, and the pair is the whole design. Hitting
+     the four lids' own triangles answers "is the pointer over a seat" for
+     almost nothing, and on the overwhelming majority of pointer moves it
+     answers no and stops there. But it is not the question: from ahead the
+     console stands in front of the driver's seat, and a test against the lids
+     alone would open the locker when somebody clicked the dash. So a hit is
+     confirmed against the whole vessel — 32,000 triangles, run only when the
+     pointer is already inside a lid's silhouette, which is rare and brief. */
   useEffect(() => {
-    if (!interactive || reducedMotion) return;
+    if (!interactive) return;
     const element = document.querySelector<HTMLElement>(`[data-scene="${id}"]`);
     if (!element) return;
-    const handle = createPxlOrbit(element);
+
+    const ndc = new Vector2();
+    const picker = new Raycaster();
+    const lidMesh = (zone: PxlZone) => vessel.current?.zones.get(zone)?.mesh ?? null;
+
+    /* The pointer, in the SLOT's own normalised coordinates. The slot is not
+       the canvas and is not the window — one canvas serves every section of
+       the site — so neither of those rectangles would put the ray where the
+       viewer is looking. */
+    const aim = (x: number, y: number): PxlZone | null => {
+      const root = vessel.current?.root;
+      if (!root) return null;
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return null;
+      ndc.set(((x - rect.left) / rect.width) * 2 - 1,
+              -(((y - rect.top) / rect.height) * 2 - 1));
+      picker.setFromCamera(ndc, camera);
+
+      const byMesh = new Map<Object3D, PxlZone>();
+      for (const zone of PXL_LID_ZONES) {
+        const mesh = lidMesh(zone);
+        if (mesh?.visible) byMesh.set(mesh, zone);
+      }
+      let near = false;
+      for (const mesh of byMesh.keys()) {
+        if (picker.intersectObject(mesh, false).length > 0) { near = true; break; }
+      }
+      if (!near) return null;
+      /* Nearest first — three sorts by distance — so a lid is only picked when
+         nothing on the boat stands in front of it.
+
+         AND `visible` HAS TO BE CHECKED BY HAND. three's raycaster does not
+         skip hidden objects; `Object3D.raycast` is called for every descendant
+         whose layer matches, visible or not. This boat carries five meshes that
+         are hidden in the delivered configuration — the source outboard, the
+         two boarding-platform parts, and the cockpit cover, which is a tonneau
+         stretched over the whole cockpit. Without this the cover intercepts
+         every ray aimed at a seat and no lid could ever be picked, which is
+         exactly how it behaved the first time it was tried. */
+      for (const hit of picker.intersectObject(root, true)) {
+        let node: Object3D | null = hit.object;
+        let shown = true;
+        while (node && node !== root) {
+          if (!node.visible) { shown = false; break; }
+          node = node.parent;
+        }
+        if (!shown) continue;
+        return byMesh.get(hit.object) ?? null;
+      }
+      return null;
+    };
+
+    const handle = createPxlOrbit(element, !reducedMotion, {
+      onTap: (x, y) => {
+        const zone = aim(x, y);
+        if (!zone) return;
+        /* Reduced motion gets the locker, not the swing: what is under the
+           seat is information about the boat, and withholding it would be the
+           same mistake as withholding a colour change. */
+        if (reducedMotion) {
+          const state = lids.current.get(zone);
+          settleLid(lids.current, zone, lidMesh(zone), !state?.open);
+        } else {
+          toggleLid(lids.current, zone);
+        }
+        invalidateStageScene(id);
+      },
+      /* The affordance. Without it the seats are a secret: nothing else on this
+         canvas responds to a click, so there is no reason for anybody to try
+         one. A cursor change is the whole hint. */
+      onHover: (x, y) => {
+        const over = aim(x, y) !== null;
+        if (over === hovering.current) return;
+        hovering.current = over;
+        element.style.cursor = over ? "pointer" : "";
+      },
+    });
     orbit.current = handle;
     return () => {
       handle.dispose();
+      element.style.cursor = "";
+      hovering.current = false;
       orbit.current = null;
     };
-  }, [interactive, reducedMotion, id]);
+  }, [interactive, reducedMotion, id, camera]);
 
   /* ── Preset changes ─────────────────────────────────────────────────────
      Captured as a move *from wherever the camera actually is*, so switching
@@ -440,6 +561,35 @@ export function PxlProductScene({
     pxlTelemetry.finishing = finishing;
     if (finishing) dirty = true;
 
+    /* 1c. §4.9 — the seat lids. Not a configuration and not in the URL: they
+           are a way of looking at the boat, like an orbit angle. See `pxlLids`. */
+    if (tickLids(lids.current,
+                 (zone) => vessel.current?.zones.get(zone)?.mesh ?? null, delta)) {
+      dirty = true;
+    }
+
+    /* 1d. §4.9 — NIGHT. The boat stops answering the studio and its own rings
+           take over. Both halves are eased off one scalar, so a switch mid
+           transition simply reverses. See `pxlNight`. */
+    nightState.current.on = night;
+    {
+      const ring = vessel.current?.zones.get("speaker_light");
+      const lit = Boolean(ring?.mesh.visible) && ring!.material.emissiveIntensity > 0.01;
+      if (tickNight(nightState.current, delta,
+                    ring?.material.emissive ?? null, lit)) {
+        dirty = true;
+      }
+      /* ONE SCENE-LEVEL DIAL, NOT TWENTY-SEVEN MATERIAL ONES.
+         `envMapIntensity` per material was the first attempt and it is quietly
+         wrong here: `renderPxlFrame` re-applies the configuration before it
+         draws, and a deterministic frame therefore rebuilds every material
+         from its finish — so anything written outside `applyConfiguration`
+         survives the live loop and not the QA capture, which is the one place
+         this had to be verifiable. `scene.environmentIntensity` is the global
+         term, nothing else writes it, and it cannot be undone by a repaint. */
+      scene.environmentIntensity = nightEnvironment(nightState.current);
+    }
+
     /* 2. Camera. */
     const spec = PXL_PRESET_BY_ID.get(activePreset.current);
     if (!spec) return;
@@ -530,7 +680,10 @@ export function PxlProductScene({
         : 0;
       const next = MathUtils.damp(lift.value, target, 1 / LIFT_SETTLE, delta);
       if (Math.abs(next - lift.value) > 1e-4) dirty = true;
-      lift.value = next;
+      /* Night multiplies what the adaptive lift arrived at rather than
+         replacing it: the backdrop keeps answering the hull, at a third of the
+         level. `uLift` is a gain of `1 + lift`, so the two compose there. */
+      lift.value = (1 + next) * nightBackdrop(nightState.current) - 1;
     }
 
     const cam = camera as PerspectiveCamera;

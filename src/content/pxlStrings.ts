@@ -52,6 +52,8 @@ export interface PxlStrings {
   /** The rail's own name, for assistive technology. */
   categoryNav: string;
   viewHeading: string;
+  /** §4.9 — the night toggle beside the view picker. */
+  night: string;
   /**
    * The name of each view a CUSTOMER can reach.
    *
@@ -160,13 +162,19 @@ const EN: PxlStrings = {
     interiorPrimary: "Cockpit",
     interiorSecondary: "Console",
     interiorSurface: "Surface",
+    glazingTint: "Windscreen",
+    railTreatment: "Grab rails",
     propulsion: "Drive",
     boardingPlatform: "Boarding platform",
+    coolBox: "Cool box",
+    audio: "Cockpit speakers",
+    speakerLight: "Speaker lights",
   },
   optionLabel: "{control}: {name}",
   optionSelected: "{control} set to {name}",
   categoryNav: "Configuration categories",
   viewHeading: "View",
+  night: "Night",
   views: {
     hero_3q: "Three-quarter",
     side: "Profile",
@@ -251,13 +259,19 @@ const HU: PxlStrings = {
     interiorPrimary: "Utastér",
     interiorSecondary: "Konzol",
     interiorSurface: "Felület",
+    glazingTint: "Szélvédő",
+    railTreatment: "Kapaszkodók",
     propulsion: "Hajtómű",
     boardingPlatform: "Beszállóplató",
+    coolBox: "Hűtőláda",
+    audio: "Hangszórók",
+    speakerLight: "Hangszóró világítás",
   },
   optionLabel: "{control}: {name}",
   optionSelected: "{control} beállítva: {name}",
   categoryNav: "Összeállítási kategóriák",
   viewHeading: "Nézet",
+  night: "Éjszaka",
   views: {
     hero_3q: "Háromnegyed",
     side: "Oldalnézet",

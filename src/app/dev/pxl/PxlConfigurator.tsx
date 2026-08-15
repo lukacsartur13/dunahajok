@@ -132,6 +132,11 @@ export function PxlConfigurator() {
   const reducedMotion = useReducedMotion();
 
   const [view, setView] = useState<PxlCustomerPresetId>("hero_3q");
+  /* §4.9 — night. A way of LOOKING at the boat, so it lives beside the camera
+     rather than in the configuration: it is not in the URL and a shared link
+     opens in daylight. What the rings are set to travels, because that is a
+     specification. */
+  const [night, setNight] = useState(false);
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [shared, setShared] = useState(false);
   const [debug, setDebug] = useState(false);
@@ -271,6 +276,7 @@ export function PxlConfigurator() {
           <PxlStage
             preset={view}
             interactive={!reducedMotion}
+            night={night}
             priority
             label={t.sceneDescription}
             sizes="(max-width: 900px) 100vw, 70vw"
@@ -337,6 +343,15 @@ export function PxlConfigurator() {
             <section className={styles.block}>
               <h2 className={styles.label}>{t.viewHeading}</h2>
               <div className={styles.views} role="radiogroup" aria-label={t.viewHeading}>
+                <button
+                  type="button"
+                  aria-pressed={night}
+                  className={styles.view}
+                  data-on={night || undefined}
+                  onClick={() => setNight((on) => !on)}
+                >
+                  {t.night}
+                </button>
                 {PXL_CONFIGURATOR_VIEWS.map((id) => {
                   const on = id === activeView;
                   return (

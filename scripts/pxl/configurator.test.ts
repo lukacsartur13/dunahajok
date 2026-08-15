@@ -283,10 +283,18 @@ group("catalogue", () => {
     ["exterior", "hull_detail", "interior", "propulsion", "equipment"],
     "in the authored order",
   );
+  /* THREE FROM 4.9, AND §25 IS STILL SATISFIED. Its rule is not a count — it
+     is "do not add artificial additional equipment just to fill it". The
+     platform earned the tab in 4.4; cockpit audio was asked for by the client
+     and is real geometry with a real switch; and the ring light is a separate
+     control because the client asked for it separately, so that a night
+     configuration can reach the lights without also deciding whether the boat
+     has speakers; and the cool box is an extra the client asked for by name.
+     Nothing here is padding. */
   eq(
     PXL_CATEGORY_BY_ID.get("equipment")!.controls.length,
-    1,
-    "§25: EQUIPMENT carries exactly the one option that earned it the tab",
+    4,
+    "§25: EQUIPMENT carries four real options and no padding",
   );
   eq(
     PXL_AVAILABLE_CATEGORIES.length,
@@ -1295,9 +1303,10 @@ group("summary", () => {
   );
   eq(
     lines.map((l) => l.category),
-    ["exterior", "hull_detail", "interior", "interior", "interior", "propulsion",
+    ["exterior", "hull_detail", "interior", "interior", "interior", "interior",
+     "interior", "propulsion", "equipment", "equipment", "equipment",
      "equipment"],
-    "grouped by category, with INTERIOR contributing three and EQUIPMENT one",
+    "grouped by category, with INTERIOR contributing five and EQUIPMENT four",
   );
   eq(lines[0].value, "Sage Green", "and prints the working name on a preview surface");
   eq(lines[0].slug, "sage", "and carries the stable token");
@@ -1673,7 +1682,12 @@ group("aft boarding platform", () => {
 
   /* ── 7, 8 · Interior changes recolour neither the gunwale nor the teak ─ */
   const interiorReach = zonesForChannel("interiorPrimary");
-  eq(interiorReach, ["upholstery_primary"], "§10: the cockpit colour reaches upholstery alone");
+  eq(
+    interiorReach,
+    ["upholstery_primary", "seat_lid", "cushion_lid_starboard",
+     "cushion_lid_port", "cushion_lid_nose"],
+    "§10: the cockpit colour reaches the upholstery and the four lids, and nothing else",
+  );
   for (const zone of ["gunwale_capping", ...platformZones] as PxlZone[]) {
     ok(
       !interiorReach.includes(zone),
@@ -1714,7 +1728,7 @@ group("aft boarding platform", () => {
     const lines = summariseConfiguration(configOn, "preview");
     const line = lines.find((l) => l.category === "equipment")!;
     ok(line !== undefined, "§27: the summary shows an EQUIPMENT line");
-    eq(line.value, "Aft Boarding Platform", "naming the option");
+    eq(line.value, "Aft Platform and Spoiler", "naming the option");
     for (const pattern of PXL_CATALOGUE_FORBIDDEN) {
       ok(!pattern.test(line.value ?? ""), `§27: and no forbidden term (${pattern})`);
     }
@@ -1748,7 +1762,14 @@ group("material roles", () => {
      platform's two materials. `npm run model` checks the other direction —
      that every name here is a node the exported GLB actually contains — so a
      zone declared and never built fails the build rather than this count. */
-  eq(PXL_ZONES.length, 20, "twenty zones, one per mesh in the GLB");
+  /* 30 from 4.9: four squabs cut out of the upholstery so each can be hinged
+     over the locker built under it — the driver's seat, the two forward side
+     runs and the nose panel — the stern spoiler, which is the last row of
+     PXL_REFERENCE_QA.md's table to come off PARTIAL, the cockpit speakers,
+     which are two zones because a grille is a moulding and a ring is a light,
+     and the cool box, which is three because a shell, a lining and a lid are
+     three different material questions. */
+  eq(PXL_ZONES.length, 30, "thirty zones, one per mesh in the GLB");
 
   const zoneIds = PXL_ZONES.map((z) => z.id);
   eq(new Set(zoneIds).size, zoneIds.length, "zone ids are unique");
@@ -1771,10 +1792,25 @@ group("material roles", () => {
      stays valid, the URL round-trips, and the boat looks wrong. */
   eq(
     zonesForChannel("interiorPrimary"),
-    ["upholstery_primary"],
-    "the cockpit colour reaches the upholstery and nothing else",
+    ["upholstery_primary", "seat_lid", "cushion_lid_starboard",
+     "cushion_lid_port", "cushion_lid_nose"],
+    "the cockpit colour reaches the upholstery and its four lids and nothing else",
   );
-  eq(zonesForRole("UPHOLSTERY"), ["upholstery_primary"], "one mesh carries the soft trim");
+  eq(
+    zonesForRole("UPHOLSTERY"),
+    ["upholstery_primary", "seat_lid", "cushion_lid_starboard",
+     "cushion_lid_port", "cushion_lid_nose"],
+    "five meshes carry the soft trim: the backrest, and the four squabs that are lids",
+  );
+  /* §4.9 — AND THE RAILS ARE STILL NOT ON IT. The client asked the rails to
+     follow the interior, which they now do; §15's rule is about the CHANNEL,
+     and the rails reach the leather through `railings` instead. This assertion
+     is what stops somebody "simplifying" that by binding them here. */
+  ok(
+    !zonesForChannel("interiorPrimary").includes("rails" as PxlZone),
+    "§15: the interior channel still cannot reach the rails",
+  );
+  eq(zonesForChannel("railings"), ["rails"], "the rail control reaches the rails alone");
   eq(zonesForRole("SOLE"), ["cockpit_sole"], "the sole is its own zone");
   eq(
     zonesForRole("INTERIOR_SHELL"),
@@ -1846,7 +1882,20 @@ group("material roles", () => {
      COLOUR could repaint the bottom without repainting the mark's ground. The
      two channels must stay bound to different meshes. */
   eq(zonesForChannel("hullLower"), ["hull_lower"], "the bottom is its own channel");
-  eq(zonesForChannel("sternMoulding"), ["transom_black"], "and so is the stern moulding");
+  /* TWO MESHES ON IT FROM 4.9, and they are one moulding: the spoiler is the
+     stern's own aft rake, drawn in the July plate and absent from the STL, and
+     it wears the stern's black rather than a black of its own. What the split
+     buys is that it can be FITTED or not — see the EQUIPMENT option — which is
+     the client's answer to the two reference sheets disagreeing about it. */
+  eq(
+    zonesForChannel("sternMoulding"),
+    ["transom_black", "stern_spoiler"],
+    "and the stern moulding reaches its own two meshes and nothing else",
+  );
+  ok(
+    !zonesForChannel("hullLower").includes("stern_spoiler" as PxlZone),
+    "the spoiler is stern moulding, not hull bottom",
+  );
 
   // §83: replacing the console must touch the console and nothing else.
   for (const zone of PXL_CONSOLE_ZONES) {

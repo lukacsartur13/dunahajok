@@ -57,7 +57,7 @@ from pathlib import Path
 import bmesh
 import bpy
 import numpy as np
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -85,6 +85,20 @@ TRANSOM_BLACK = "transom_black"
 INTERIOR_LINER = "interior_hard_liner"
 COCKPIT_SOLE = "cockpit_sole"
 UPHOLSTERY = "upholstery_primary"
+#: NEW IN 4.9. The driver's squab, and the only upholstery that is not part of
+#: `upholstery_primary`. It is the same leather in the same role and it is a
+#: separate NODE because it is a lid: `build_seat_base` leaves an aperture under
+#: it and the runtime turns this object about its own origin, which `main` moves
+#: to the hinge so nothing downstream has to know where the seat is.
+SEAT_LID = "seat_lid"
+#: NEW IN 4.9. The three forward squabs, each the lid of the locker under it.
+#: Same leather, same role, same channel as `upholstery_primary`; separate
+#: nodes because a rotation applies to a node.
+CUSHION_LIDS = {
+    "starboard": "cushion_lid_starboard",
+    "port": "cushion_lid_port",
+    "nose": "cushion_lid_nose",
+}
 COAMING_INLAY = "coaming_inlay"
 BOW_FITTING = "bow_fitting"
 CONSOLE_BODY = "console_body"
@@ -109,6 +123,22 @@ GUNWALE = "gunwale_capping"
 #: colour and the teak cannot be reached by the exterior one.
 PLATFORM_FRAME = "platform_frame"
 PLATFORM_DECK = "platform_deck"
+#: NEW IN 4.9. The raked stern moulding the July side plate draws and the STL
+#: does not — PXL_REFERENCE_QA.md's one PARTIAL row, built at last. It ships
+#: with the boarding platform because it lands ON the platform: see
+#: `pxl_upper.build_stern_spoiler`.
+STERN_SPOILER = "stern_spoiler"
+#: NEW IN 4.9. Cockpit audio, as two zones rather than one: the grille is a
+#: moulding and the ring is a light, and a night configuration has to be able to
+#: light the second without the first glowing. Both optional.
+SPEAKER_GRILLE = "speaker_grille"
+SPEAKER_LIGHT = "speaker_light"
+#: NEW IN 4.9. The optional cool box forward of the console: shell, lining and
+#: lid. Three zones because they are three material questions — see
+#: `pxl_upper.build_cool_box`.
+COOL_BOX = "cool_box"
+COOL_BOX_LINER = "cool_box_liner"
+COOL_BOX_LID = "cool_box_lid"
 
 #: NEW IN 4.4. A LABEL WITH NO OBJECT BEHIND IT. Faces routed here are dropped
 #: on the floor by `split_by_zone`; it is how §2's deletion is expressed inside
@@ -120,6 +150,28 @@ BOW_VOID = "__deleted_bow_panel"
 #: for, so the faces leave the model rather than being recoloured or
 #: renamed. See `pxl_upper.SPEC.platform_void_x` for what is kept and why.
 SIDE_VOID = "__deleted_side_platform"
+#: PHASE 4.9. THE DELIVERED STRUCTURE UNDER THE DECK, WHICH NOTHING HAS BEEN
+#: ABLE TO SEE SINCE 4.7.2 EXCEPT WHERE IT COMES OUT THROUGH THE HULL.
+#:
+#: The STL recovery carries a second floor low in the boat: a flat slab at
+#: z 0.107–0.15 and the short walls that stand on it, 100 triangles of sole and
+#: 184 of liner, running from the transom to x 1.08. It was the bilge under the
+#: delivered interior. Phase 4.7.2 replaced the delivered interior with one deck
+#: at `SPEC.deck_z` = 0.372, and from that point the slab was 200 mm below a
+#: floor that covers it from the transom to the forward pads — invisible, and
+#: kept only because no rule mentioned it.
+#:
+#: EXCEPT THAT IT IS NOT ENTIRELY INSIDE THE BOAT. Its outboard edge reaches
+#: |y| 1.025 where the hull's own skin at that height is 0.975, so it stands
+#: 50 mm PROUD of the topsides. Bow-on it draws as a small hard-edged flange
+#: coming out of the side around x 1.0; from below and ahead its ragged
+#: protruding edge throws a comb of shadow teeth down the hull bottom, which is
+#: the "hatching" under the chine.
+#:
+#: So the same bin as the two above: a label `split_by_zone` builds no object
+#: for. Not lowered, not tucked in, not recoloured — there is no floor under the
+#: floor, and a boat that has one is carrying it for nothing.
+UNDER_VOID = "__deleted_under_deck"
 
 #: Zones welded into one skin in the source and re-cut here.
 SHELL_ZONES = [HULL_PRIMARY, HULL_LOWER, HULL_ACCENT, TRANSOM_BLACK,
@@ -134,11 +186,13 @@ GROUPS: list[tuple[str, list[str]]] = [
     ("TRANSOM", [TRANSOM_BLACK]),
     ("GUNWALE", [GUNWALE]),
     ("DECK", [INTERIOR_LINER, COCKPIT_SOLE]),
-    ("INTERIOR", [UPHOLSTERY, COAMING_INLAY]),
+    ("INTERIOR", [UPHOLSTERY, SEAT_LID, *CUSHION_LIDS.values(), COAMING_INLAY]),
     ("CONSOLE", [CONSOLE_BODY, CONSOLE_DETAIL, WINDSHIELD, HELM_WHEEL]),
     ("METAL", [RAILS, BOW_FITTING]),
     ("PROPULSION", [MOTOR, MOTOR_TRIM]),
-    ("OPTIONAL", [ACCESSORY_COVER, PLATFORM_FRAME, PLATFORM_DECK]),
+    ("OPTIONAL", [ACCESSORY_COVER, PLATFORM_FRAME, PLATFORM_DECK, STERN_SPOILER,
+                  SPEAKER_GRILLE, SPEAKER_LIGHT,
+                  COOL_BOX, COOL_BOX_LINER, COOL_BOX_LID]),
 ]
 
 # ── Measured constants (unchanged from Phase 4.2 unless noted) ──────────────
@@ -183,7 +237,34 @@ PLATFORM_MAX_Z = 0.62
 #: from the interior probe: the liner steps up to z ≈ 0.73 abaft x −2.15 and
 #: carries round to the transom.
 AFT_DECK_MIN_Z = 0.56
-AFT_DECK_MAX_X = -2.10
+#: MOVED IN 4.9, FROM −2.10, AND IT IS NOW THE SAME NUMBER AS THE VOID'S OWN
+#: AFT END rather than an independent one 50 mm forward of it.
+#:
+#: They used to disagree, and 50 mm of overlap is all it took: `build_seat_base`
+#: puts its aft rim at z 0.570 from −2.150 to −2.100, and this rule was handing
+#: the delivered surface at that same height and that same station to the stern
+#: moulding instead of deleting it. Two coplanar faces, one authored and one
+#: delivered, both at 0.570 — which draws as a bright band flickering across the
+#: back of the locker mouth, and which is the kind of defect that only appears
+#: once somebody opens the seat and looks in.
+#:
+#: Written as the void's own number so the two cannot drift apart again: from
+#: here forward is authored interior, abaft it is the stern moulding, and there
+#: is exactly one station where that changes.
+AFT_DECK_MAX_X = U.SPEC.platform_void_x[0]
+
+#: NEW IN 4.9. The height below which delivered interior is bilge — see
+#: `UNDER_VOID`.
+#:
+#: PICKED IN A GAP, NOT AT A BOUNDARY. On the 4.8 production file the two
+#: interior zones between them have nothing at all between z 0.30 and z 0.35:
+#: the under-deck slab and its walls finish at 0.30 and the next surface up is
+#: the deck at 0.372. So the cut can be anywhere in 50 mm of empty height and
+#: cannot take a face somebody meant to keep, whichever way the recovery's
+#: numbers drift. It is also `SPEC.platform_void_z[0]`, which is the same
+#: statement made by Phase 4.7.2 about the delivered platform: below this the
+#: delivered interior is structure, not surface.
+UNDER_DECK_MAX_Z = 0.300
 
 #: NEW IN 4.4, §2. THE LARGE BOW ELEMENT, AND THE RULE THAT DELETES IT.
 #:
@@ -246,6 +327,13 @@ MATERIALS: dict[str, dict] = {
     INTERIOR_LINER: dict(base=(0.223, 0.278, 0.263), rough=0.32, metal=0.0),
     COCKPIT_SOLE: dict(base=(0.010, 0.010, 0.011), rough=0.90, metal=0.0),
     UPHOLSTERY: dict(base=(0.196, 0.079, 0.030), rough=0.62, metal=0.0),
+    # The squab is the same leather as the rest of the upholstery, to the
+    # decimal. It is a separate object because it moves, not because it is a
+    # different material, and the day those two numbers differ is the day the
+    # seat reads as a lid dropped on from another boat.
+    SEAT_LID: dict(base=(0.196, 0.079, 0.030), rough=0.62, metal=0.0),
+    **{name: dict(base=(0.196, 0.079, 0.030), rough=0.62, metal=0.0)
+       for name in CUSHION_LIDS.values()},
     COAMING_INLAY: dict(base=(0.412, 0.145, 0.036), rough=0.44, metal=0.0),
     BOW_FITTING: dict(base=(0.412, 0.145, 0.036), rough=0.40, metal=0.0),
     CONSOLE_BODY: dict(base=(0.223, 0.278, 0.263), rough=0.28, metal=0.0),
@@ -276,6 +364,27 @@ MATERIALS: dict[str, dict] = {
     # — and the lit sample is the surface's own colour: sRGB #b0753f, linear
     # (0.434, 0.178, 0.050). Rough, because oiled teak is not a varnished sole.
     PLATFORM_DECK: dict(base=(0.434, 0.178, 0.050), rough=0.68, metal=0.0),
+    # The spoiler is the stern moulding, so it is the stern moulding's black to
+    # the decimal. The plate draws one continuous black shape at this station
+    # and the two halves of it wearing different blacks would be worse than not
+    # building the second half at all.
+    STERN_SPOILER: dict(base=(0.019, 0.020, 0.022), rough=0.35, metal=0.0),
+    # A moulded marine grille: dark grey, matte, and no clearcoat. It is the one
+    # part of this boat that is meant to look like a bought component rather
+    # than a sprayed moulding.
+    SPEAKER_GRILLE: dict(base=(0.045, 0.047, 0.052), rough=0.62, metal=0.0),
+    # The ring's UNLIT colour. What it does when it is lit is a runtime finish —
+    # see `PXL_SPEAKER_LIGHT_FINISHES` — because being lit is a configuration,
+    # not a material the exporter should be deciding.
+    SPEAKER_LIGHT: dict(base=(0.030, 0.032, 0.038), rough=0.30, metal=0.0),
+    # The console's own dark, on the shell and the lid: the box stands directly
+    # in front of the console and the two are one helm station.
+    COOL_BOX: dict(base=(0.021, 0.023, 0.026), rough=0.30, metal=0.0),
+    COOL_BOX_LID: dict(base=(0.021, 0.023, 0.026), rough=0.30, metal=0.0),
+    # And white inside, which is the whole of what makes it read as insulated
+    # rather than as one more graphite locker. Matte: a cool box liner is a
+    # moulded polymer, not a gelcoat.
+    COOL_BOX_LINER: dict(base=(0.742, 0.755, 0.760), rough=0.72, metal=0.0),
 }
 
 
@@ -445,7 +554,13 @@ def split_interior(zones, labels, centres, normals, bm) -> np.ndarray:
     # floor and were reaching the boat in the hull's colour. See
     # PLATFORM_MAX_Z. The step face between the two levels was already dark and
     # is unchanged.
-    sole = mine & up & (z < PLATFORM_MAX_Z)
+    # §4.9 — THE BILGE. Everything below the deck, deleted before anything else
+    # is decided, because every rule below it was written for surfaces a person
+    # can see and none of these is one. See UNDER_VOID for what it is and for
+    # where it was coming out through the hull.
+    under = mine & (z < UNDER_DECK_MAX_Z)
+
+    sole = mine & up & (z < PLATFORM_MAX_Z) & ~under
     step = mine & vertical & (z >= SOLE_MAX_Z - 0.09) & (z < STEP_MAX_Z)
     # §19 — THE AFT DECK IS PART OF THE STERN MOULDING, NOT OF THE LINER.
     # Abaft the bench the liner steps up to a shelf at z ≈ 0.73 that carries
@@ -488,18 +603,29 @@ def split_interior(zones, labels, centres, normals, bm) -> np.ndarray:
     # is what the driver's seat stands on (§5). What leaves is the 1.70 m
     # between them, which is the cockpit — and `build_cockpit_floor` continues
     # the sole through the space it occupied.
+    #
+    # 4.9 — AND `~aft_deck`, WHICH IS LOAD-BEARING NOW. The window used to stop
+    # at x −1.750 and could not reach the stern shelf; it runs to −2.150 from
+    # 4.9 on, so 50 mm of it lies abaft `AFT_DECK_MAX_X` and this bin is
+    # assigned AFTER `aft_deck` and would quietly delete that overlap. The
+    # stern moulding wins the argument wherever the two rules meet.
     vx0, vx1 = U.SPEC.platform_void_x
     vz0, vz1 = U.SPEC.platform_void_z
     side_void = (mine & (centres[:, 0] >= vx0) & (centres[:, 0] < vx1)
-                 & (z >= vz0) & (z < vz1))
+                 & (z >= vz0) & (z < vz1) & ~aft_deck)
 
-    liner = mine & ~sole & ~step & ~aft_deck & ~bow_deck & ~side_void
+    liner = mine & ~sole & ~step & ~aft_deck & ~bow_deck & ~side_void & ~under
 
     zones[liner] = labels.index(INTERIOR_LINER)
     zones[sole | step] = labels.index(COCKPIT_SOLE)
     zones[aft_deck] = labels.index(TRANSOM_BLACK)
     zones[bow_deck] = labels.index(BOW_VOID)
     zones[side_void] = labels.index(SIDE_VOID)
+    # LAST, so it wins outright. `step`, `aft_deck` and `bow_deck` all have
+    # their own height floors well above the deck and cannot reach down here,
+    # but a rule that deletes structure should not depend on the other rules
+    # staying where they are.
+    zones[under] = labels.index(UNDER_VOID)
     area = np.array([f.calc_area() for f in bm.faces])
     log(f"interior split  {mine.sum():,} faces, {area[mine].sum():.2f} m² → "
         f"sole {int(sole.sum()):,}f/{area[sole].sum():.2f} m² · "
@@ -511,6 +637,8 @@ def split_interior(zones, labels, centres, normals, bm) -> np.ndarray:
     log(f"§1 side   {int(side_void.sum()):,} faces / {area[side_void].sum():.3f} m² "
         f"of raised side platform, x {vx0:.2f}..{vx1:.2f}, z {vz0:.2f}..{vz1:.2f} "
         f"DELETED")
+    log(f"4.9 bilge {int(under.sum()):,} faces / {area[under].sum():.3f} m² of "
+        f"delivered structure below z {UNDER_DECK_MAX_Z:.2f} DELETED")
     return zones
 
 
@@ -871,7 +999,7 @@ def split_by_zone(shell, zones, labels) -> None:
         # §2. `BOW_VOID` is where the large bow panel goes, and the whole point
         # of it is that no object is ever created here — the faces are simply
         # never carried out of the shell before it is removed.
-        if name in (BOW_VOID, SIDE_VOID):
+        if name in (BOW_VOID, SIDE_VOID, UNDER_VOID):
             continue
         keep = set(np.where(zones == idx)[0].tolist())
         if not keep:
@@ -892,6 +1020,107 @@ def split_by_zone(shell, zones, labels) -> None:
     bpy.data.objects.remove(shell, do_unlink=True)
 
 
+def hinge_on(ob: bpy.types.Object, point: Vector, direction: Vector) -> None:
+    """Re-origin an object onto a hinge line, and align its local X to it.
+
+    Afterwards the object stands exactly where it stood and `rotateX` on the
+    exported node is a swing about `direction` through `point`. Two things move
+    and cancel: the mesh goes into the hinge's own frame, and the object's
+    transform puts that frame back where the world expects it.
+
+    The other two axes are arbitrary — a rotation about X does not care what Y
+    and Z are — so they are picked to be stable rather than meaningful, and
+    world up is only abandoned when the hinge is very nearly vertical, which no
+    lid on this boat is.
+    """
+    x = direction.normalized()
+    up = Vector((0.0, 0.0, 1.0))
+    if abs(x.dot(up)) > 0.95:
+        up = Vector((1.0, 0.0, 0.0))
+    y = up.cross(x).normalized()
+    basis = Matrix((x, y, x.cross(y))).transposed().to_4x4()
+    ob.data.transform(basis.inverted() @ Matrix.Translation(-point))
+    ob.matrix_world = Matrix.Translation(point) @ basis
+
+
+def lid_hinge(key: str, ob: bpy.types.Object) -> tuple[Vector, Vector]:
+    """Where one lid's hinge line is, measured off the lid itself.
+
+    MEASURED, NOT AUTHORED, and the difference matters for the side runs: their
+    outboard edge is a traced curve, so a number typed here would be a fourth
+    reading of it after `forward_pad_plan`, the cushion and the plinth. The
+    bounding box and two end sections are enough to place a chord along the edge
+    the lid actually has.
+
+    The direction is chosen so that a POSITIVE turn lifts the squab. That is a
+    right-hand rule about the returned vector and the reason each one below
+    points the way it does rather than the way that reads naturally.
+    """
+    pts = [ob.matrix_world @ v.co for v in ob.data.vertices]
+    # THE HINGE IS ON THE SQUAB'S TOP SURFACE, NOT ITS FOOT.
+    #
+    # A cushion is 75 mm thick, and a lid turned about the bottom of its hinge
+    # edge swings that whole thickness the OTHER way: the top of the port squab
+    # ended 73 mm outboard of where it started, which on a side run is 73 mm
+    # outside the topsides — a tan wedge through the paint, one side, visible
+    # from anywhere abeam. About the top edge the thickness sweeps inboard
+    # instead, into the cockpit, where there is nothing to hit.
+    #
+    # It is also where a piano hinge actually goes on a locker lid.
+    hi_z = max(p.z for p in pts)
+
+    if key == "seat":
+        # Athwartships, along the squab's own AFT edge, so it lifts forward and
+        # up: a helm seat opens toward the driver rather than the transom.
+        #
+        # About −Y, because the lid lies FORWARD of its hinge and R(−Y, θ) takes
+        # +X to +Z. About +Y it would take +X to −Z, which is the same swing
+        # driven straight down through the deck.
+        return (Vector((min(p.x for p in pts), 0.0, hi_z)),
+                Vector((0.0, -1.0, 0.0)))
+
+    if key == "nose":
+        # THE OTHER WAY ROUND FROM THE SEAT, at the client's instruction: the
+        # bow panel hinges on its FORWARD edge and opens aft, over the cockpit.
+        # It is the better answer as well as the asked-for one — the foredeck it
+        # used to open over is where the capping converges and the cleats are,
+        # and a lid standing up there is a lid in front of the only part of the
+        # bow anybody handles.
+        #
+        # Mirror of the seat in both terms: the hinge is at max x rather than
+        # min, and the lid lies AFT of it, so it turns about +Y, which takes −X
+        # to +Z.
+        return (Vector((max(p.x for p in pts), 0.0, hi_z)),
+                Vector((0.0, 1.0, 0.0)))
+
+    # A side run. Its outboard edge, as the chord between the outermost point
+    # at each end of the run — which is the line the real hinge would be
+    # fastened along, and close enough to the traced curve over two metres that
+    # the squab neither dives into the plinth nor lifts off it.
+    sign = 1.0 if sum(p.y for p in pts) > 0 else -1.0
+    x_lo, x_hi = min(p.x for p in pts), max(p.x for p in pts)
+    band = 0.15 * (x_hi - x_lo)
+
+    def edge(near: float) -> Vector:
+        # Sampled at the TOP of the section, because the cushion's 22 mm edge
+        # radius makes it widest at mid-height — and a line drawn through the
+        # widest points would sit outboard of the top surface by that radius,
+        # which is the same 20 mm through the paint in miniature.
+        window = [p for p in pts if abs(p.x - near) <= band and p.z >= hi_z - 0.012]
+        if not window:
+            window = [p for p in pts if abs(p.x - near) <= band] or pts
+        return max(window, key=lambda p: sign * p.y)
+
+    a, b = edge(x_lo), edge(x_hi)
+    line = (b - a)
+    line.z = 0.0                       # a hinge is level; the edge's z is noise
+    if line.length < 1e-6:
+        line = Vector((1.0, 0.0, 0.0))
+    # About −X to starboard and +X to port, so the squab lifts INBOARD-up in
+    # both cases rather than mirroring into the hull on one of them.
+    return (Vector((a.x, a.y, hi_z)), line.normalized() * -sign)
+
+
 def shade(ob: bpy.types.Object, spec: dict) -> None:
     old = bpy.data.materials.get(ob.name)
     if old is not None:
@@ -907,9 +1136,73 @@ def shade(ob: bpy.types.Object, spec: dict) -> None:
     ob.data.materials.append(mat)
 
 
-def finish(ob: bpy.types.Object, angle_deg: float = 33.0) -> None:
+#: NEW IN 4.9. The auto-smooth angle for the hull BOTTOM: no split, at all.
+#:
+#: WHAT THE BOTTOM ACTUALLY HAS ON IT. The delivered hull is not a plain vee.
+#: Its dihedral histogram, per `scripts/pxl/_dihedral.mjs`, is a fair surface —
+#: 10,488 of 13,454 edges under 15° — with moulded lines running through it:
+#:
+#:     ~40°   a spray rail, 74 mm of horizontal ledge at the waterline, y ±0.72
+#:     ~24°   that rail's underside meeting the deadrise below it
+#:     26–30° three running strakes on the deadrise, y ±0.24 / ±0.35 / ±0.44
+#:
+#: and all of them are modelled COARSELY: the recovery stations the bottom every
+#: 94 mm and tessellates the deadrise as a fan of triangles from 1 to 145 cm².
+#:
+#: WHY ANY SPLIT AT ALL MAKES IT WORSE. Wherever `shade_auto_smooth` cuts one of
+#: those creases it leaves the vertices on it carrying two normals, one averaged
+#: over the faces ahead and one over the faces behind, and on a 94 mm station
+#: those two tip about ±8° fore and aft. Read off the shipped file at 20°, the
+#: normals down the rail's inner edge run +0.11, −0.06, +0.02, −0.08, +0.13 … in
+#: x, on positions whose z climbs smoothly through 3 mm. Every station shades as
+#: a stripe and the whole bottom reads as corduroy — which is the "hatching"
+#: under the chine, and the reason the underside looked machined rather than
+#: moulded. 33° did it at the rail, 20° did it at the rail and at all three
+#: strakes, and 50° still beaded the rail.
+#:
+#: So the bottom is one smoothing group and the moulded lines are left to the
+#: SILHOUETTE, which still has them, because nothing here moves a vertex. The
+#: chine survives too, and for a better reason than an angle: the bottom and the
+#: topsides are different objects, so their shared edge cannot be smoothed
+#: across whatever either of them chooses.
+#:
+#: It is deliberately not applied to `hull_primary`, whose creases over 15° are
+#: at the stem and want to stay there.
+HULL_BOTTOM_SMOOTH_DEG = 180.0
+
+
+def finish(ob: bpy.types.Object, angle_deg: float = 33.0,
+           weighted: bool = False) -> None:
+    """Shade the object smooth, splitting at `angle_deg`.
+
+    `weighted` ADDITIONALLY REPLACES THE VERTEX NORMALS WITH AREA-WEIGHTED
+    ONES. It is on for exactly one surface, the hull bottom, and it is the
+    second half of a fix whose first half is `HULL_BOTTOM_SMOOTH_DEG` — read
+    that first; it is what actually removed the corduroy.
+
+    What this adds on top. Blender's ordinary smooth normal at a vertex is the
+    average of the incident faces' normals weighted by their corner angle,
+    which treats a 1 cm² sliver and the 145 cm² triangle beside it as equals.
+    The delivered deadrise is a fan of exactly that mixture, so the angle
+    average wanders where the tessellation is uneven rather than where the
+    surface is. Area weighting hands the average to the large triangles, which
+    are the ones describing the deadrise.
+
+    ON ITS OWN IT FIXED NOTHING — it was tried first, against a bottom still
+    split at 20°, and the shipped normals came back unchanged to three decimals.
+    A split vertex carries one normal per smoothing group and no weighting
+    inside a group can undo the split between them. It earns its place only now
+    that the bottom is one group.
+    """
     with bpy.context.temp_override(object=ob, selected_editable_objects=[ob]):
         bpy.ops.object.shade_auto_smooth(angle=math.radians(angle_deg))
+        if not weighted:
+            return
+        modifier = ob.modifiers.new("weighted_normal", "WEIGHTED_NORMAL")
+        modifier.mode = "FACE_AREA"
+        modifier.weight = 100
+        modifier.keep_sharp = True
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
 
 
 def name_mesh_data() -> None:
@@ -971,7 +1264,7 @@ def main() -> int:
     drop_superseded()
     purge_orphans()
     shell, labels = weld_shell()
-    for name in (INTERIOR_LINER, COCKPIT_SOLE, BOW_VOID, SIDE_VOID):
+    for name in (INTERIOR_LINER, COCKPIT_SOLE, BOW_VOID, SIDE_VOID, UNDER_VOID):
         labels.append(name)
 
     def survey_mesh():
@@ -1072,6 +1365,17 @@ def main() -> int:
     for part in (floor, cockpit_liner):
         if part:
             hull.objects.append(part)
+
+    # §4.9 — THE SEAT BASE, BEFORE THE SEAT. It takes the deck's own station
+    # list rather than re-deriving one, so its rim lands on the same line the
+    # deck edge and the wall foot land on. It is moulding, so it joins the sole
+    # a few lines below rather than becoming a zone of its own.
+    seat_base = U.build_seat_base(hull, interior["stations"])
+    if seat_base:
+        hull.objects.append(seat_base)
+        bpy.context.view_layer.update()
+        log(f"seat base {len(seat_base.data.polygons):,}f closed plinth with a "
+            f"locker in it, replacing the delivered shelf")
     if floor:
         bpy.context.view_layer.update()
         log(f"deck     {len(floor.data.polygons):,}f one level, plus "
@@ -1093,6 +1397,51 @@ def main() -> int:
         log(f"plinth   {len(forward_base.data.polygons):,}f under the cushions' own "
             f"footprint, both sides, in the deck's graphite")
 
+    # §4.9 — THE STERN SPOILER, BUILT HERE AND NOT LATER, because it measures
+    # the hull's own wall by ray and the survey it fires against is only intact
+    # until the deck, the plinths and the seat base are joined into
+    # `cockpit_sole` and their sources removed. It depends on nothing built
+    # after this line.
+    cool = U.build_cool_box(hull)
+    for key, name in (("box", COOL_BOX), ("liner", COOL_BOX_LINER),
+                      ("lid", COOL_BOX_LID)):
+        if cool[key]:
+            cool[key].name = cool[key].data.name = name
+    if cool["lid"]:
+        # §4.9.1, at the client's word: hinged on its AFT edge, opening FORWARD.
+        # The leaf lies forward of its hinge, so the turn that lifts it is the
+        # one about -Y — the opposite hand to the version this replaced, and the
+        # only thing that had to change besides which end of the box the hinge
+        # line is measured at.
+        pts = [cool["lid"].matrix_world @ v.co for v in cool["lid"].data.vertices]
+        hinge_on(cool["lid"],
+                 Vector((min(p.x for p in pts), 0.0, max(p.z for p in pts))),
+                 Vector((0.0, -1.0, 0.0)))
+    if cool["box"]:
+        log(f"cool box {len(cool['box'].data.polygons):,}f shell + "
+            f"{len(cool['liner'].data.polygons) if cool['liner'] else 0:,}f of "
+            f"white lining + {len(cool['lid'].data.polygons) if cool['lid'] else 0:,}f "
+            f"lid, hinged aft and opening forward, on the sole ahead of the "
+            f"console")
+
+    audio = U.build_speakers(hull)
+    for key, name in (("grille", SPEAKER_GRILLE), ("light", SPEAKER_LIGHT)):
+        if audio[key]:
+            audio[key].name = audio[key].data.name = name
+    if audio["grille"]:
+        log(f"speakers {len(audio['grille'].data.polygons):,}f of grille + "
+            f"{len(audio['light'].data.polygons) if audio['light'] else 0:,}f "
+            f"of light ring, flush in the cockpit wall, both sides")
+
+    spoiler = U.build_stern_spoiler(hull, [
+        bpy.data.objects[n] for n in (TRANSOM_BLACK, HULL_PRIMARY, HULL_ACCENT)
+        if n in bpy.data.objects])
+    if spoiler:
+        spoiler.name = spoiler.data.name = STERN_SPOILER
+        log(f"spoiler  {len(spoiler.data.polygons):,}f of stern moulding "
+            f"carried aft between the platform's edge and the hull's own wall "
+            f"— the plate's 774 mm row, built")
+
     seating = U.build_seating(hull)
     if seating["upholstery"]:
         seating["upholstery"].name = UPHOLSTERY
@@ -1100,6 +1449,46 @@ def main() -> int:
             f"{U.SPEC.cushion_thickness * 1000:.0f} mm thick, "
             f"{U.SPEC.cushion_radius * 1000:.0f} mm edge, "
             f"{U.SPEC.cushion_crown * 1000:.0f} mm crown")
+
+    # §4.9 — EVERY LID'S HINGE GOES INTO ITS OWN NODE TRANSFORM.
+    #
+    # The runtime opens a lid by turning the node about its LOCAL X, and knows
+    # nothing else about it. Everything that decides which line that is — where
+    # the hinge sits, which way it runs, which way is up from it — is settled
+    # here, by `hinge_on`, out of the same numbers that built the box. Re-export
+    # with the bench 100 mm aft or the side runs a hand wider and the runtime
+    # needs no edit; nor does it have to reproduce Blender's axis conversion to
+    # use a coordinate, because it never sees one.
+    #
+    # WHERE EACH LINE IS, AND WHY:
+    #
+    #   seat        its AFT bottom edge, running athwartships. A helm seat opens
+    #               toward the driver, so the locker mouth faces the cockpit
+    #               rather than the transom.
+    #   side runs   their OUTBOARD edge, running fore-and-aft, which is where a
+    #               long side locker is hinged on every boat that has one — the
+    #               squab stands up against the topsides and leaves the whole
+    #               opening clear.
+    #   nose        its aft edge, opening forward over the foredeck, which is
+    #               the only direction with nothing in the way.
+    #
+    # THE SIDE RUNS' LINE IS NOT PARALLEL TO ANYTHING. Their outboard edge
+    # sweeps from 0.89 to 0.33 over two metres, so a hinge along the boat's own
+    # X would have the forward half of the squab swinging DOWN through the
+    # plinth. `hinge_on` takes the direction as an argument for exactly this:
+    # the line is the chord of the edge it belongs to, and the node is rotated
+    # onto it so that "local X" means that line and not the boat's.
+    for key, name in (("seat", SEAT_LID), *CUSHION_LIDS.items()):
+        lid = seating["lids"].get(key)
+        if not lid:
+            continue
+        lid.name = lid.data.name = name
+        point, direction = lid_hinge(key, lid)
+        hinge_on(lid, point, direction)
+        log(f"lid      {name} — {len(lid.data.polygons):,}f on a hinge at "
+            f"({point.x:.2f}, {point.y:.2f}, {point.z:.2f}) along "
+            f"({direction.x:.2f}, {direction.y:.2f}, {direction.z:.2f})")
+    bpy.context.view_layer.update()
 
     # The cove IS the liner. It joins `interior_hard_liner` rather than
     # becoming a zone of its own, because the configurator's material roles are
@@ -1116,7 +1505,7 @@ def main() -> int:
     # material correction: after it, every up-facing surface a person could
     # stand on between the transom and the stem is `cockpit_sole`.
     floor_parts = [bpy.data.objects[COCKPIT_SOLE]] if COCKPIT_SOLE in bpy.data.objects else []
-    floor_parts += [o for o in (forward_floor, forward_base, floor) if o]
+    floor_parts += [o for o in (forward_floor, forward_base, floor, seat_base) if o]
     if len(floor_parts) > 1:
         U.join(COCKPIT_SOLE, floor_parts)
 
@@ -1158,7 +1547,10 @@ def main() -> int:
         ob = bpy.data.objects.get(name)
         if ob:
             shade(ob, spec)
-            finish(ob, 46.0 if name == UPHOLSTERY else 33.0)
+            if name == HULL_LOWER:
+                finish(ob, HULL_BOTTOM_SMOOTH_DEG, weighted=True)
+            else:
+                finish(ob, 46.0 if name == UPHOLSTERY else 33.0)
 
     total = sum(len(o.data.polygons) for o in bpy.data.objects if o.type == "MESH")
     log(f"total    {total:,} faces across "

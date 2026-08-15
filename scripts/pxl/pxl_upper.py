@@ -73,9 +73,16 @@ class Spec:
     #: Half-width at the base and at the dash. The console tapers upward —
     #: cockpit three-quarter, where its sides visibly lean in.
     console_half: tuple[float, float] = (0.272, 0.239)
-    #: Offset to starboard. The driver sits to port of it in both
-    #: three-quarter references; the plate cannot see this at all.
-    console_y: float = 0.132
+    #: Offset to starboard. ZERO — the console stands on the centreline.
+    #:
+    #: The three-quarter references do show it offset, with the driver to port
+    #: of it, and this carried 0.132 for four phases on that reading. Seen in
+    #: plan, though, an offset console on a symmetrical cockpit reads as a
+    #: mistake rather than as a layout: the bench behind it, the forward
+    #: cushions in front of it and the capping around it are all centred, so the
+    #: one part that is not looks displaced instead of deliberate. Centred, on
+    #: the client's instruction.
+    console_y: float = 0.0
     #: Dash top above the LOCAL SHEER, aft and forward.
     #:
     #: MEASURED: the plate's dash runs z 1.009 at x −0.503 to z 1.091 at
@@ -174,6 +181,19 @@ class Spec:
     #: part and nowhere else.
     bench_x: tuple[float, float] = (-2.130, -1.720)
     bench_half: float = 0.560
+    #: 4.9 — THE SEAT BASE, which is the plinth the bench stands on and the
+    #: locker inside it. It fills the station the delivered platform used to
+    #: occupy, from the stern moulding forward to where the deck begins.
+    seat_base_x: tuple[float, float] = (-2.150, -1.700)
+    #: How far the aperture is inset from the cushion's own edge — so the squab
+    #: lands on moulding all the way round rather than on its own rim, and the
+    #: gap cannot be seen into from a standing eye height.
+    seat_lid_overlap: float = 0.030
+    #: How far the lid swings when it is opened, in degrees. 78° is past the
+    #: point a real squab on a gas strut stays up at, and it clears the locker
+    #: mouth completely. The locker's own depth is not a number here: its floor
+    #: is the deck, so it is `platform_z − deck_z` and cannot drift from it.
+    seat_lid_open_deg: float = 78.0
     #: Backrest, above the LOCAL SHEER. MEASURED: the plate's orange block tops
     #: at z 1.024 at x −1.35 against a deck line of 0.839 → +0.185. Its 0.090 m
     #: of visible fore-aft run is the block's own thickness; the rest is behind
@@ -209,10 +229,23 @@ class Spec:
     # the full-beam platform the driver's bench stands on and §5 keeps the rear
     # seat. What goes is the 1.70 m between them, which is the cockpit.
 
-    #: The window the delivered side platform is deleted in. Both ends are
-    #: structural: the aft one is the bench's own platform, the forward one is
-    #: the forward cushions' aft station.
-    platform_void_x: tuple[float, float] = (-1.750, 2.400)
+    #: The window the delivered side platform is deleted in.
+    #:
+    #: PULLED AFT TO THE STERN MOULDING IN 4.9, from −1.750. The old aft end was
+    #: the bench's own platform, kept because the driver's seat stood on it. It
+    #: was not a seat base. It was a shelf at 0.570 with NOTHING UNDER IT and no
+    #: face closing its forward end — rays dropped at x −1.90 find the platform
+    #: at 0.570 and then the hull at −0.014, a metre below — so the cut the void
+    #: made at x −1.750 opened straight into that cavity, port and starboard.
+    #: That is the pair of holes beside the bench.
+    #:
+    #: So the shelf goes with the rest of it, the deck runs aft to the stern
+    #: moulding underneath, and `build_seat_base` builds what a seat base
+    #: actually is: a closed plinth with a locker in it. The aft end is now the
+    #: station the delivered aft moulding takes over at, which `split_interior`
+    #: already knows as `AFT_DECK_MAX_X` — see the `~aft_deck` guard there,
+    #: which is what stops this window eating the stern shelf on its way past.
+    platform_void_x: tuple[float, float] = (-2.150, 2.400)
     #: The band of the deleted moulding, by height. Takes the platform's top at
     #: 0.570 and the step face down to the sole; leaves the coaming above it,
     #: which is the hard liner §10 wants between the gunwale and the floor.
@@ -616,6 +649,123 @@ class Spec:
     #: material and §22 requires the support be real rather than implied.
     platform_teak: float = 0.028
     platform_frame: float = 0.078
+    #: 4.9 — THE STERN SPOILER, and how much of it the plate actually gives.
+    #:
+    #: PXL_REFERENCE_QA.md has carried one PARTIAL row since Phase 4.1: the
+    #: July side plate draws 774 mm of stern moulding abaft the sheer that the
+    #: delivered STL does not have, and §29 forbade papering over a geometry
+    #: difference with invented geometry. The client has now asked for it, and
+    #: asked for it as an option that arrives with the platform — which is also
+    #: what resolves the conflict between the two references, because the two
+    #: drawings disagree about this station and the option is the disagreement
+    #: made configurable.
+    #:
+    #: WHAT THE PLATE MEASURES. Sampling its silhouette between the transom and
+    #: the stern tip, in metres below the sheer datum:
+    #:
+    #:     x −2.80   top 0.243   bottom 0.878
+    #:     x −3.00   top 0.443   bottom 0.869
+    #:     x −3.20   top 0.597   bottom 0.861
+    #:     x −3.40   top 0.753   bottom 0.855
+    #:
+    #: A wedge on a flat underside: the underside is the boarding platform's own
+    #: tread and the rake above it is this moulding, which is why the two are one
+    #: shape in profile and one option in the configurator.
+    #:
+    #: ONLY THE RAKE IS AUTHORED HERE. The plate's wedge runs 0.70 m aft and
+    #: keeps 0.102 m of thickness at its tip; the model's platform is 0.504 m
+    #: long, so the rake is laid on the platform the model HAS rather than on
+    #: the one the plate draws. The tip thickness is the plate's own, unscaled —
+    #: a moulding that closed to a knife edge would be a different part.
+    spoiler_tip: float = 0.100
+    #: How far the moulding's own top sits below the sheer at the transom. The
+    #: plate reads 0.243 below its datum against a sheer 0.174 below the same
+    #: datum, so the moulding's top is 69 mm under the sheer line — it is a
+    #: moulding fitted below the capping, not a continuation of it.
+    spoiler_below_sheer: float = 0.069
+    #: THE WIDTH IS NOT AUTHORED. It is the space between two lines the boat
+    #: already has, and the client gave the rule rather than the number: the
+    #: moulding's inner face lies against the platform's outer side, and its
+    #: outer face is the hull's own wall carried aft.
+    #:
+    #: Both ends are therefore measured, and the section that falls out is a
+    #: wedge — because the topsides tumble IN going up. At the transom the outer
+    #: skin runs 1.025 at the tread's own height and 0.906 by z 0.60, against a
+    #: platform edge at 0.905:
+    #:
+    #:     z 0.20   hull 1.024   platform 0.905   →  119 mm of moulding
+    #:     z 0.35   hull 0.991   platform 0.905   →   86 mm
+    #:     z 0.50   hull 0.951   platform 0.905   →   46 mm
+    #:     z 0.60   hull 0.906   platform 0.905   →    1 mm
+    #:
+    #: So the moulding dies out on its own at about z 0.60, where the wall meets
+    #: the platform's edge — which is the transom's outboard corner, and where
+    #: the client's line starts. Nothing sets its top but that intersection.
+    #:
+    #: This is the least width the section may keep before it is treated as
+    #: closed. Below it the two faces are the same face.
+    spoiler_min_width: float = 0.018
+
+    # ── Cockpit audio ──────────────────────────────────────────────  4.9
+    #
+    # MARINE COAXIALS, FLUSH IN THE COCKPIT'S INNER WALL, at the four stations
+    # the client circled: one pair in the side liner forward of the console and
+    # one pair aft, level with the driver.
+    #
+    # THE DIAMETER IS A PRODUCT SIZE, NOT A GUESS. Marine coaxials come in a
+    # short list of sizes and 6½ inch is the one that fits a 470 mm liner wall
+    # with a hand's width of moulding above and below it: 165 mm of cone plus a
+    # bezel is 180 mm over the flange, which is what these are built to. A 10 in
+    # — the size of the reference photograph — would stand 254 mm on a wall that
+    # is 470 mm tall at its deepest and less than that everywhere forward.
+    speaker_x: tuple[float, ...] = (0.560, -1.050)
+    #: Centre height above the deck.
+    #:
+    #: CLEAR OF THE CUSHIONS, WHICH IS WHAT SETS IT. At 0.250 the forward pair
+    #: centred on z 0.622 and the side cushions' tops are at 0.582 — so 50 mm of
+    #: every forward speaker was behind a squab. 0.310 puts the flange 10 mm
+    #: above the cushion and its top at 0.772, still 70 mm under the coaming at
+    #: the narrowest station either pair is fitted at.
+    speaker_above_deck: float = 0.310
+    speaker_radius: float = 0.090
+    #: The bezel, and the light ring inside it. The reference carries the LED as
+    #: a ring around the cone rather than as a glow behind the grille, which is
+    #: how a marine speaker with lighting is actually built — the ring is a
+    #: separate part in a separate colour, and it is a separate zone here for
+    #: the same reason.
+    speaker_bezel: float = 0.014
+    speaker_light_ring: float = 0.011
+    #: How far the assembly stands proud of the wall it is let into.
+    speaker_proud: float = 0.016
+    #: Spokes across the grille. Six, as the reference has.
+    speaker_spokes: int = 6
+
+    # ── The cool box ───────────────────────────────────────────────  4.9
+    #
+    # An optional insulated locker on the sole FORWARD of the console, which is
+    # the one piece of open deck on this boat big enough to carry one and the
+    # only place a person at the helm can reach into without leaving the wheel.
+    #
+    # ITS TOP IS A STEP HEIGHT, NOT A BOX HEIGHT. 268 mm above the deck puts the
+    # lid at z 0.640 — under the side cushions' own tops at 0.582 plus a hand,
+    # and well under the console's crest, so it neither blocks the view forward
+    # from the helm nor reads as a crate somebody left in the cockpit. A cool
+    # box in this position is stood on as often as it is opened.
+    #
+    # STOOD OFF THE CONSOLE, AND THE GAP IS THE HINGE'S. §4.9.1 reversed the lid
+    # to open forward, which puts the hinge on the box's AFT edge — and a raised
+    # leaf sweeps its own 30 mm of thickness back over that edge before it comes
+    # up (30·sin 78° = 29 mm, plus the bevel). The first placement left the box
+    # 30 mm off the console's forward face at -0.980, which was clearance enough
+    # for a lid that opened the other way and none at all for this one. Moved
+    # 60 mm forward: 90 mm of air behind the box, ~55 mm behind the open lid.
+    cool_box_x: tuple[float, float] = (-0.890, -0.440)
+    cool_box_half: float = 0.280
+    cool_box_top: float = 0.640
+    #: Wall thickness — and on this part it is the insulation, which is why it
+    #: is 30 mm rather than the 12 mm a moulding would need. It is also what
+    #: makes the rim wide enough to read as a lid seat rather than as a lip.
+    cool_box_wall: float = 0.030
     #: Half-width at the transom and at the aft edge. The platform follows the
     #: transom's own taper rather than being a rectangle stuck on the back.
     platform_half: tuple[float, float] = (0.905, 0.845)
@@ -1328,7 +1478,7 @@ def build_cockpit_floor(hull: Hull, steps: int = 150) -> dict[str, bpy.types.Obj
 
     if len(stations) < 6:
         print("    deck: no stations, skipped", flush=True)
-        return {"deck": None, "liner": None}
+        return {"deck": None, "liner": None, "stations": []}
 
     for _ in range(3):
         prev = list(stations)
@@ -1341,9 +1491,29 @@ def build_cockpit_floor(hull: Hull, steps: int = 150) -> dict[str, bpy.types.Obj
     # ── the deck ────────────────────────────────────────────────────────
     # 10 mm PAST the wall's foot, so the wall covers the joint rather than
     # butting onto it and leaving a hairline at a grazing angle.
+    #
+    # AND NEVER PAST THE HULL, WHICH THE OVERHANG DID. `stations` carries the
+    # CAPPING's inner half-width — see `interior_edge`, which reads it there on
+    # purpose so the wall and the moulding cannot disagree. Near the bow the
+    # capping's inner edge is not the narrowest thing at deck level: the
+    # topsides tuck in below it, and from x ≈ 1.6 forward they are inboard of it
+    # by less than the overhang is wide. The deck came through the paint, both
+    # sides, as a black speck about 1 mm proud around x 1.68.
+    #
+    # So the overhang is a maximum rather than a constant, and what caps it is
+    # the hull's own inner face at the deck's own height, measured — not the
+    # sheer, not the capping, not a station list. 4 mm of clearance is left
+    # inside it, which is under the wall's own thickness, so the wall still
+    # covers the joint everywhere the overhang has had to give way.
+    def deck_half(x: float, wall_y: float) -> float:
+        skin = hull.inner_y(x, z + 0.004)
+        if skin is None:
+            return wall_y + 0.010
+        return min(wall_y + 0.010, abs(skin) - 0.004)
+
     on_deck = [r for r in stations if r[0] <= SPEC.forward_pad_x[1] + 1e-6]
     deck_parts = [weld(mesh_from("deck", *loft(
-        [[Vector((x, -(y + 0.010), z)), Vector((x, y + 0.010, z))]
+        [[Vector((x, -deck_half(x, y), z)), Vector((x, deck_half(x, y), z))]
          for x, y, _t in on_deck],
         close_ring=False, cap_first=False, cap_last=False)))]
     x, y, _t = stations[0]
@@ -1436,7 +1606,11 @@ def build_cockpit_floor(hull: Hull, steps: int = 150) -> dict[str, bpy.types.Obj
           f"{2 * mid[1]:.2f} m across amidships", flush=True)
     print(f"    liner: vertical wall z {z:.3f}→{mid[2]:.3f} at the capping's own "
           f"inner edge, both sides, closing at x {stations[-1][0]:.2f}", flush=True)
-    return {"deck": deck, "liner": liner}
+    # THE STATIONS GO OUT WITH THE OBJECTS. `build_seat_base` has to land on the
+    # same line the deck and the wall land on, and the only way to be sure of
+    # that is to hand it the same numbers rather than to re-derive them from
+    # `interior_edge` and hope the smoothing pass above is reproduced exactly.
+    return {"deck": deck, "liner": liner, "stations": stations}
 
 
 def _mirrored(rings: list[list[Vector]]) -> list[list[Vector]]:
@@ -1542,48 +1716,239 @@ def pad_meeting_x(plan: list[tuple[float, float, float]]) -> float | None:
     return None
 
 
+def oriented_quad(name: str, corners: list[Vector], facing: Vector
+                  ) -> bpy.types.Object:
+    """One quad, wound so that it faces `facing`.
+
+    THE DIRECTION IS DECLARED AND THE WINDING IS DERIVED, rather than the other
+    way round. Getting a quad's winding right by reading its corner order is a
+    coin flip performed once per face, and a face that comes out backwards does
+    not fail — the materials are double-sided, so it renders, and only its
+    SHADING is wrong. That is the worst kind of defect to have in a build
+    script: invisible in the log, invisible in the silhouette, and visible as
+    one panel of a locker lit from underneath.
+    """
+    normal = (corners[1] - corners[0]).cross(corners[2] - corners[0])
+    if normal.dot(facing) < 0:
+        corners = list(reversed(corners))
+    return mesh_from(name, corners, [[0, 1, 2, 3]])
+
+
+UP = Vector((0.0, 0.0, 1.0))
+DOWN = Vector((0.0, 0.0, -1.0))
+FWD = Vector((1.0, 0.0, 0.0))
+AFT = Vector((-1.0, 0.0, 0.0))
+
+
+def locker_box(name: str, plan: list[tuple[float, float, float]],
+               ztop: float, zdeck: float, overlap: float,
+               lean: float = 0.016) -> bpy.types.Object | None:
+    """A closed plinth with a locker in it, from one cushion's own plan.
+
+    THE ONE SHAPE ALL FOUR SEATS ARE. `plan` is a list of (x, edge_a, edge_b)
+    — the two y edges of the cushion this stands under, in whatever order and
+    whatever sign the caller has them in, because a starboard run, its mirrored
+    port twin and a nose panel that straddles the centreline are the same
+    object described from three different directions. Every face below is wound
+    from a DECLARED direction rather than from a corner order (see `panel`), so
+    none of that matters to the winding.
+
+    What it builds, and what closes it:
+
+        RIM        at `ztop`, from the plan out to an aperture inset by
+                   `overlap`, so the squab lands on moulding all the way round
+        SKIRTS     the two visible faces, down to the deck; the inboard one
+                   leans `lean` under itself, which is the draft angle a
+                   moulding has and the reason the face does not read as a wall
+        ENDS       one cap at each end of the run
+        LOCKER     four walls from the aperture's edge down to the deck
+        FLOOR      the deck. There is no bottom face here, and that is on
+                   purpose: the plinth used to have one, coplanar with the deck
+                   to the millimetre, which is two surfaces fighting for the
+                   same pixels in a place nobody would ever have looked.
+    """
+    if len(plan) < 3:
+        return None
+    # The aperture. Inset along the run at both ends and across at both edges,
+    # and abandoned wherever the plan is too narrow to leave a rim — which at
+    # the bow is most of the nose panel's last few stations.
+    x0, x1 = plan[0][0], plan[-1][0]
+    ax0, ax1 = x0 + overlap, x1 - overlap
+    if ax1 - ax0 < 0.10:
+        return None
+
+    def edges(x: float) -> tuple[float, float]:
+        a = _lerp_table([(r[0], r[1]) for r in plan], x)
+        b = _lerp_table([(r[0], r[2]) for r in plan], x)
+        return a, b
+
+    def aperture(x: float) -> tuple[float, float] | None:
+        a, b = edges(x)
+        step = overlap if b > a else -overlap
+        ia, ib = a + step, b - step
+        return (ia, ib) if abs(ib - ia) > 0.045 else None
+
+    parts: list[bpy.types.Object] = []
+
+    def panel(pname: str, corners: list[Vector], facing: Vector) -> None:
+        parts.append(oriented_quad(pname, corners, facing))
+
+    UP = Vector((0.0, 0.0, 1.0))
+    steps = max(8, min(28, len(plan) // 4))
+    span = [ax0 + (ax1 - ax0) * i / steps for i in range(steps + 1)]
+    # Any station whose aperture has collapsed takes the rim solid across.
+    if any(aperture(x) is None for x in span):
+        span = [x for x in span if aperture(x) is not None]
+        if len(span) < 3:
+            return None
+        ax0, ax1 = span[0], span[-1]
+
+    def out_dir(mine: float, other: float) -> Vector:
+        """Away from the other edge — which is outward on a skirt and inward
+        on the locker wall opposite it."""
+        return Vector((0.0, 1.0 if mine > other else -1.0, 0.0))
+
+    # ── the top ─────────────────────────────────────────────────────────
+    # Solid across both ends of the run, a border either side of the box, and
+    # nothing over the box itself. Written as three spans rather than as one
+    # loft with a hole in it, because a loft whose middle collapses to nothing
+    # is a row of degenerate quads and a degenerate quad has no normal.
+    for xa, xb in ((plan[0][0], ax0), (ax1, plan[-1][0])):
+        if xb - xa < 1e-6:
+            continue
+        ea, eb = edges(xa), edges(xb)
+        panel("plinth_rim", [
+            Vector((xa, ea[0], ztop)), Vector((xa, ea[1], ztop)),
+            Vector((xb, eb[1], ztop)), Vector((xb, eb[0], ztop)),
+        ], UP)
+    for a, b in zip(span, span[1:]):
+        ea, eb = edges(a), edges(b)
+        ia, ib = aperture(a), aperture(b)
+        if not ia or not ib:
+            continue
+        for k in (0, 1):
+            panel("plinth_rim", [
+                Vector((a, ea[k], ztop)), Vector((a, ia[k], ztop)),
+                Vector((b, ib[k], ztop)), Vector((b, eb[k], ztop)),
+            ], UP)
+
+    # ── the skirts, the ends and the locker ─────────────────────────────
+    for a, b in zip(plan, plan[1:]):
+        xa, xb = a[0], b[0]
+        # 1 AND 2, NOT 0 AND 1. A plan row is (x, edge, edge): the station comes
+        # first and the two edges after it. Indexing from zero here took the
+        # STATION as one of the edges, so every locker grew a skirt along the
+        # line y = x — three of them, superimposed, running out through the
+        # starboard topsides and two metres past the boat. It rendered as a
+        # single hard black bar and it is the reason a plan row is unpacked by
+        # name everywhere else in this function.
+        for k in (1, 2):
+            other = 3 - k
+            # Both faces lean under themselves. The outboard one is against the
+            # hull and rarely seen; the nose box has no outboard face at all,
+            # only two sides, and a moulding with draft on one of them is a
+            # moulding somebody would notice from the wrong side.
+            step = lean if a[k] < a[other] else -lean
+            panel("plinth_skirt", [
+                Vector((xa, a[k] + step, zdeck)), Vector((xa, a[k], ztop)),
+                Vector((xb, b[k], ztop)), Vector((xb, b[k] + step, zdeck)),
+            ], out_dir(a[k], a[other]))
+    for r, facing in ((plan[0], Vector((-1.0, 0.0, 0.0))),
+                      (plan[-1], Vector((1.0, 0.0, 0.0)))):
+        step = lean if r[1] < r[2] else -lean
+        panel("plinth_end", [
+            Vector((r[0], r[1] + step, zdeck)), Vector((r[0], r[2] - step, zdeck)),
+            Vector((r[0], r[2], ztop)), Vector((r[0], r[1], ztop)),
+        ], facing)
+    for a, b in zip(span, span[1:]):
+        ia, ib = aperture(a), aperture(b)
+        if not ia or not ib:
+            continue
+        for k in (0, 1):
+            panel("plinth_locker", [
+                Vector((a, ia[k], zdeck)), Vector((a, ia[k], ztop)),
+                Vector((b, ib[k], ztop)), Vector((b, ib[k], zdeck)),
+            ], out_dir(ia[1 - k], ia[k]))
+    for x, facing in ((ax0, Vector((1.0, 0.0, 0.0))),
+                      (ax1, Vector((-1.0, 0.0, 0.0)))):
+        i = aperture(x)
+        if not i:
+            continue
+        panel("plinth_locker", [
+            Vector((x, i[0], zdeck)), Vector((x, i[0], ztop)),
+            Vector((x, i[1], ztop)), Vector((x, i[1], zdeck)),
+        ], facing)
+
+    box = join(name, parts)
+    return weld(box) if box else None
+
+
 def build_forward_base(hull: Hull) -> bpy.types.Object | None:
-    """The plinth under each cushion — local to its own footprint.
+    """The plinth under each forward cushion — now a locker, one per cushion.
 
     The deck is one level and the cushions are furniture standing on it, so
     what carries them is a box the size of the cushion and nothing more: it does
     not extend aft into the cockpit, it does not run outboard to the hull, and
     it is not deck. In the reference this is the dark face under the cognac.
 
+    4.9 — AND IT IS A BOX YOU CAN PUT SOMETHING IN. Three of them: one under
+    each side run and one under the nose panel, which up to 4.8 had NOTHING
+    under it at all — a ray dropped at x 1.90 on the centreline found the
+    cushion at 0.500 and then the deck 128 mm below, with air in between.
+
     It goes into `cockpit_sole`, which is the graphite the deck and every step
     face in this interior have worn since Phase 4.3.
     """
-    plan = forward_pad_plan(hull)
-    if len(plan) < 6:
+    plans = forward_seat_plans(hull)
+    if not plans["side"]:
         print("    plinth: no plan, skipped", flush=True)
         return None
 
     top = SPEC.plinth_z
     z = SPEC.deck_z
-    rings: list[list[Vector]] = []
-    for x, inboard, out in plan:
-        if out - inboard < 0.045:
-            continue
-        # A slight inboard lean on the visible face. Every moulded seat base has
-        # one — it is what lets the part come out of the tool — and it is also
-        # what stops the face reading as a wall dropped onto the deck.
-        rings.append([
-            Vector((x, inboard + 0.016, z)),
-            Vector((x, inboard, top)),
-            Vector((x, out, top)),
-            Vector((x, out, z)),
-        ])
-    if len(rings) < 3:
-        return None
+    overlap = SPEC.seat_lid_overlap
+
+    def capped(rows: list[tuple[float, float, float]]
+               ) -> list[tuple[float, float, float]]:
+        """The traced plan, held inside the hull's own skin at the plinth's foot.
+
+        `forward_pad_plan` traces the cushion's outboard edge off the reference,
+        and a cushion sits at `plinth_z` and above, where the topsides have
+        already flared. The plinth stands under it, from the deck up, and near
+        the bow the hull at deck level is INBOARD of where the cushion's edge is
+        — by about a millimetre at x 1.67. That was the pair of black specks on
+        the topsides, one a side: a millimetre of moulding standing outside a
+        painted hull. The cushion above keeps the full traced plan; it is 130 mm
+        higher, where the hull has the beam for it.
+        """
+        out: list[tuple[float, float, float]] = []
+        for x, a, b in rows:
+            skin = hull.inner_y(x, z + 0.004)
+            if skin is not None:
+                limit = abs(skin) - 0.006
+                a = math.copysign(min(abs(a), limit), a) if a else a
+                b = math.copysign(min(abs(b), limit), b) if b else b
+            if abs(b - a) < 0.045:
+                continue
+            out.append((x, a, b))
+        return out
 
     parts: list[bpy.types.Object] = []
-    for name, rs in (("plinth_starboard", rings),
-                     ("plinth_port", _mirrored(rings))):
-        verts, faces = loft(rs, close_ring=True)
-        parts.append(bevel_object(weld(mesh_from(name, verts, faces)),
-                                  0.008, 2, 50.0))
-    print(f"    plinth: 2 x {len(rings)} stations x {rings[0][0].x:.2f}.."
-          f"{rings[-1][0].x:.2f}  z {z:.3f}→{top:.3f}", flush=True)
+    counts: list[str] = []
+    for name, rows in (
+        ("plinth_starboard", [(x, i, o) for x, i, o, _z in plans["side"]]),
+        ("plinth_port", [(x, -i, -o) for x, i, o, _z in plans["side"]]),
+        ("plinth_nose", [(x, -y, y) for x, y, _z in plans["middle"]]),
+    ):
+        box = locker_box(name, capped(rows), top, z, overlap)
+        if box:
+            parts.append(bevel_object(box, 0.006, 2, 50.0))
+            counts.append(f"{name.split('_')[1]} {len(rows)}")
+    if not parts:
+        return None
+    print(f"    plinth: {len(parts)} lockers ({', '.join(counts)} stations)  "
+          f"z {z:.3f}\u2192{top:.3f}, aperture inset {overlap * 1000:.0f} mm",
+          flush=True)
     return join("forward_base", parts)
 
 
@@ -1632,55 +1997,43 @@ def _pad_seat(hull: Hull, x: float, inboard: float, outboard: float
     return inboard, outboard, highest
 
 
-def build_forward_cushions(hull: Hull) -> list[bpy.types.Object]:
-    """The two side cushions — §2, §4, §14, §15.
+def forward_seat_plans(hull: Hull) -> dict[str, list]:
+    """The forward seating's plans — the three cushions, and the boxes under them.
 
-    ONE MESH PER SIDE. §4 requires each side to read as one continuous
-    upholstered form rather than as separate blocks, so there is no seam
-    anywhere in the fore-and-aft run: `pad_splits` and `pad_seam` are gone, and
-    the only division in the whole forward architecture is the 16 mm the two
-    cushions leave between them on the centreline.
+    COMPUTED ONCE AND HANDED TO BOTH BUILDERS. Up to 4.8 the cushions worked
+    this out and the plinth worked out its own, from the same trace by a
+    different route; that was survivable while the plinth was a solid block the
+    cushion merely stood on. It is not survivable now that the plinth has an
+    aperture in it that the cushion has to cover: two readings of "where is the
+    starboard run" would be a gap around the lid the first time either moved.
 
-    Each station's base height is taken by raycast, so the cushions sit on the
-    forward liner where there is forward liner, on the base where there is
-    base, and on the delivered moulding where there is neither — without any of
-    the three being named here. `build_forward_liner` and `build_forward_base`
-    both have to have run first, and `pxl_blender` runs them first for exactly
-    this reason.
+    Returns the starboard side run as (x, inboard, outboard, z) — the port one
+    is its mirror — and the nose panel as (x, half_width, z).
     """
     plan = forward_pad_plan(hull)
     if len(plan) < 6:
-        print("    forward cushions: no plan, skipped", flush=True)
-        return []
+        return {"side": [], "middle": [], "plan": []}
 
     stations: list[tuple[float, float, float, float]] = []
     for x, inb, out in plan:
-        # THE BASE IS AUTHORED, NOT RAYCAST — 4.7.2 §B, and this one line is the
-        # whole of that correction. `_pad_seat` still runs, because its other
-        # job is to keep the outboard edge off anything that has risen under
-        # it, but its height is discarded: a seat is at a seat's height.
-        # NOTHING TO TRIM AGAINST ANY MORE. `_pad_seat` walked the outboard
-        # edge inboard wherever the surface under it had risen, which is what
-        # the forward liner's climbing cove used to do to it. The deck is one
-        # flat plane and the plinth follows the cushion exactly, so the plan is
-        # the plan.
+        # THE BASE IS AUTHORED, NOT RAYCAST — 4.7.2 §B. A seat is at a seat's
+        # height, and the deck under it is one flat plane, so the plan is the
+        # plan and there is nothing left to trim against.
         if out - inb < 0.045:
             continue
         stations.append((x, inb, out, SPEC.cushion_base_z))
     if len(stations) < 3:
-        print("    forward cushions: no stations, skipped", flush=True)
-        return []
+        return {"side": [], "middle": [], "plan": plan}
 
-    # THREE PANELS, TWO SEAMS. A run down each side, and one across the nose —
-    # which is built as two lofted halves that touch on the centreline forward
-    # of where the plan closes, so they weld into a single connected piece.
+    # THREE PANELS, TWO SEAMS. A run down each side, and one across the nose.
     # The seams are the gap at `pad_knuckle_x`, which is where the drawing puts
     # them and where the sides turn.
-    # THE DIAGONAL. Between `nose_pad_x` and `nose_seam_x` it runs from the
-    # side run's own inner edge out to the wall; the side run's inner edge
-    # follows it up and the run closes on itself there, and the middle panel's
-    # outer edge follows the same line down. One line, read twice, so the two
-    # panels cannot part company along it.
+    #
+    # THE DIAGONAL. Between `nose_pad_x` and `nose_seam_x` it runs from the side
+    # run's own inner edge out to the wall; the side run's inner edge follows it
+    # up and the run closes on itself there, and the middle panel's outer edge
+    # follows the same line down. One line, read twice, so the two panels cannot
+    # part company along it.
     half_seam = SPEC.pad_seam / 2
     xa, xb = SPEC.nose_pad_x, max(SPEC.nose_seam_x, SPEC.nose_pad_x + 0.05)
     at_a = next((r for r in stations if r[0] >= xa), stations[-1])
@@ -1699,43 +2052,59 @@ def build_forward_cushions(hull: Hull) -> list[bpy.types.Object]:
             break
         side.append((x, lo, out, z))
 
-    cushions: list[bpy.types.Object] = []
-    for name, sign in (("forward_cushion_starboard", 1.0),
-                       ("forward_cushion_port", -1.0)):
-        ob = cushion(name, [(x, sign * i, sign * o, z) for x, i, o, z in side],
-                     SPEC.cushion_thickness, SPEC.cushion_radius,
-                     SPEC.cushion_crown)
-        if ob:
-            cushions.append(bevel_object(ob, 0.010, 2, 55.0))
-
-    # ── THE PANEL IN THE MIDDLE ─────────────────────────────────────────
-    # One piece filling the wedge the two side runs leave between them at the
-    # bow, from `nose_pad_x` forward to where they finish. Its outboard edges
-    # are the sides' own inboard edges less half a seam, so the two joints are
-    # the same 16 mm construction line the rest of the upholstery uses and the
-    # three panels cannot drift apart: the sides decide where it ends.
     middle = [(x, min(diagonal(x), out) - half_seam, z)
               for x, _i, out, z in stations
               if x >= xa and min(diagonal(x), out) - half_seam > 0.030]
+
+    return {"side": side, "middle": middle, "plan": plan}
+
+
+def build_forward_cushions(hull: Hull) -> dict[str, bpy.types.Object]:
+    """The three forward cushions — §2, §4, §14, §15.
+
+    ONE MESH PER SIDE. §4 requires each side to read as one continuous
+    upholstered form rather than as separate blocks, so there is no seam
+    anywhere in the fore-and-aft run: the only division in the whole forward
+    architecture is the 16 mm the two cushions leave between them at the bow.
+
+    4.9 — AND EACH OF THEM IS A LID. They were joined into `upholstery_primary`
+    and are now three nodes of their own, for the same reason the driver's
+    squab is: there is a locker under each and something has to be able to turn
+    one of them without turning the other two. Same leather, same role, same
+    channel; a node is simply the only unit a rotation can be applied to.
+    """
+    plans = forward_seat_plans(hull)
+    side, middle = plans["side"], plans["middle"]
+    if len(side) < 3:
+        print("    forward cushions: no plan, skipped", flush=True)
+        return {}
+
+    lids: dict[str, bpy.types.Object] = {}
+    for name, sign in (("starboard", 1.0), ("port", -1.0)):
+        ob = cushion(f"forward_cushion_{name}",
+                     [(x, sign * i, sign * o, z) for x, i, o, z in side],
+                     SPEC.cushion_thickness, SPEC.cushion_radius,
+                     SPEC.cushion_crown)
+        if ob:
+            lids[name] = bevel_object(ob, 0.010, 2, 55.0)
+
     if len(middle) >= 3:
         ob = cushion("forward_cushion_nose",
                      [(x, -y, y, z) for x, y, z in middle],
                      SPEC.cushion_thickness, SPEC.cushion_radius,
                      SPEC.cushion_crown)
         if ob:
-            cushions.append(bevel_object(ob, 0.010, 2, 55.0))
+            lids["nose"] = bevel_object(ob, 0.010, 2, 55.0)
             print(f"    nose panel: x {middle[0][0]:.2f}..{middle[-1][0]:.2f}  "
-                  f"half-width {middle[0][1]:.3f}→{middle[-1][1]:.3f}", flush=True)
+                  f"half-width {middle[0][1]:.3f}\u2192{middle[-1][1]:.3f}", flush=True)
 
-    meet = pad_meeting_x(plan)
     widths = [o - i for _x, i, o, _z in side]
-    print(f"    forward cushions: {len(cushions)} x {len(stations)} stations  "
-          f"x {stations[0][0]:.2f}..{stations[-1][0]:.2f}  "
-          f"inboard {stations[0][1]:.3f}→{stations[-1][1]:.3f}  "
-          f"outboard {stations[0][2]:.3f}→{stations[-1][2]:.3f}  "
-          f"width {min(widths):.3f}..{max(widths):.3f}  "
-          f"meet x {'none' if meet is None else format(meet, '.3f')}", flush=True)
-    return cushions
+    print(f"    forward cushions: {len(lids)} lids x {len(side)} stations  "
+          f"x {side[0][0]:.2f}..{side[-1][0]:.2f}  "
+          f"inboard {side[0][1]:.3f}\u2192{side[-1][1]:.3f}  "
+          f"outboard {side[0][2]:.3f}\u2192{side[-1][2]:.3f}  "
+          f"width {min(widths):.3f}..{max(widths):.3f}", flush=True)
+    return lids
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2367,6 +2736,382 @@ def _platform_half(hull: Hull, t: float) -> float:
     return a + (b - a) * t
 
 
+def build_stern_spoiler(hull: Hull,
+                        skin: list[bpy.types.Object]) -> bpy.types.Object | None:
+    """The raked stern moulding over the boarding platform. §4.9.
+
+    THE ONE PARTIAL ROW IN THE REFERENCE QA, BUILT. See `SPEC.spoiler_tip` for
+    what the plate measures and why this was deferred for five phases.
+
+    IT SITS ON THE PLATFORM AND SHARES ITS PLAN, which is the whole reason it
+    can exist without a single new decision about the stern. `wing()` — the same
+    function `build_platform` uses — gives the platform's inner and outer
+    half-widths at any fraction of the way aft, so the moulding lands exactly on
+    the tread, tapers exactly as the tread tapers, and is cut away for the motor
+    well exactly where the tread is. It cannot foul the drive, because the well
+    it leaves is the well the platform already leaves; and it cannot be fitted
+    without the platform under it, because the configuration ships them
+    together.
+
+    TWO WINGS, NOT ONE SLAB. In profile the plate's wedge is solid and there is
+    no way to tell from a side elevation whether its middle is there. The stern
+    three-quarter settles it: the outboard stands in the middle of that station,
+    so a solid moulding would be a moulding through the engine.
+    """
+    x0 = -2.6266 + 0.050            # buried in the shell, as the platform is
+    x1 = -2.6266 - SPEC.platform_aft
+    z_bot = SPEC.platform_top_z
+    z_root = hull.sheer(-2.6266) - SPEC.spoiler_below_sheer
+    z_tip = z_bot + SPEC.spoiler_tip
+    if z_root <= z_tip + 0.05:
+        print("    spoiler: no rake to build, skipped", flush=True)
+        return None
+
+    def wing(t: float) -> tuple[float, float]:
+        inner = SPEC.platform_well_forward + (
+            SPEC.platform_well_aft - SPEC.platform_well_forward) * t
+        return inner, _platform_half(hull, t)
+
+    # ── THE OUTER FACE IS THE HULL'S OWN WALL, CARRIED AFT ──────────────
+    #
+    # Measured, not modelled: a ray fired outboard just forward of the transom
+    # returns the skin at that height, and the same section is held at every
+    # station — which is what "an extension of the outer wall" means when the
+    # wall in question has tumblehome. Hold a single half-width instead and the
+    # moulding stands proud of the topsides at the bottom and inside them at the
+    # top, with a step at the transom either way.
+    # ── THE WALL, READ OFF THE TRANSOM'S OWN VERTICES ───────────────────
+    #
+    # NOT BY RAY, and the two failed attempts are worth the four lines it takes
+    # to say why. `hull.skin` is the topsides and the sheer band; at this
+    # station the boat's outer surface is neither, it is the STERN MOULDING,
+    # which reaches forward to x −1.81 and covers everything abaft it — so
+    # `outer_y` finds nothing here and the part silently fails to build. And
+    # `inner_y`, fired from the centreline, stops at the FIRST surface it meets,
+    # which in the delivered stern is the moulding's inner wall at |y| 0.49:
+    # the recovered moulding has real thickness at this station and the ray
+    # cannot tell which of its two faces is the boat's edge.
+    #
+    # The vertices can. A 60 mm band either side of the transom plane, bucketed
+    # by height, outermost wins — which is the outer skin by definition and
+    # needs no assumption about how many surfaces are stacked behind it.
+    band: dict[int, float] = {}
+    for ob in skin:
+        for v in ob.data.vertices:
+            p = ob.matrix_world @ v.co
+            if abs(p.x + 2.6266) > 0.060:
+                continue
+            k = int(round(p.z * 40))
+            band[k] = max(band.get(k, 0.0), abs(p.y))
+    if not band:
+        print("    spoiler: no transom band to measure, skipped", flush=True)
+        return None
+    keys = sorted(band)
+
+    def wall(z: float) -> float:
+        """The hull's own half-width at a height, at the transom."""
+        k = z * 40
+        if k <= keys[0]:
+            return band[keys[0]]
+        if k >= keys[-1]:
+            return band[keys[-1]]
+        for a, b in zip(keys, keys[1:]):
+            if a <= k <= b:
+                t = (k - a) / max(b - a, 1e-9)
+                return band[a] + (band[b] - band[a]) * t
+        return band[keys[-1]]
+
+    # ── AND THE TOP IS WHERE THAT WALL MEETS THE PLATFORM'S EDGE ────────
+    #
+    # Not a station anybody chose. Above it the platform's outer edge is already
+    # outboard of the hull, so there is no room between the two faces and the
+    # moulding would have to invert to exist.
+    edge_root = _platform_half(hull, 0.0)
+    z_root = z_tip
+    probe = z_tip
+    while probe < hull.sheer(-2.6266):
+        if wall(probe) - edge_root >= SPEC.spoiler_min_width:
+            z_root = probe
+        probe += 0.005
+    if z_root <= z_tip + 0.05:
+        print("    spoiler: no room between the wall and the platform, skipped",
+              flush=True)
+        return None
+
+    # ── THE EDGE IS A CURVE, NOT A CHAMFER ──────────────────────────────
+    #
+    # The first build ran the moulding's top edge straight from the transom to
+    # the tip, and read as a box mitred at both ends. The line it should follow
+    # is a sweep: out of the corner where the wall meets the platform, down and
+    # aft, landing on the platform's outer aft corner — one curve seen two ways,
+    # the rake in profile and the arc from astern.
+    #
+    # A QUADRATIC BÉZIER, WITH THE CONTROL POINT HIGH. Both ends are fixed by
+    # the boat, so there is nothing to author but the shape between them. The
+    # control point is held at 0.42 of the drop, which keeps the edge up for the
+    # first third and turns it down through the last — the shoulder the sweep
+    # needs. A linear interpolation between the same two ends is the straight
+    # chamfer this replaces.
+    def rake(t: float) -> float:
+        cz = z_root + (z_tip - z_root) * 0.42
+        u = 1.0 - t
+        return u * u * z_root + 2 * u * t * cz + t * t * z_tip
+
+    steps = 14
+    parts: list[bpy.types.Object] = []
+    for side in (1.0, -1.0):
+        rings: list[list[Vector]] = []
+        for i in range(steps + 1):
+            t = i / steps
+            x = x0 + (x1 - x0) * t
+            z_top = rake(t)
+            y_in = _platform_half(hull, t)
+            y_out_top = max(wall(z_top), y_in + 0.001)
+            y_out_bot = max(wall(z_bot), y_in + 0.001)
+            # The top face falls inboard, as every moulding on this boat does —
+            # it is what stops the section reading as a slab with a lid on it.
+            z_in = max(z_bot + 0.012, z_top - 0.028)
+            rings.append([
+                Vector((x, side * y_out_top, z_top)),
+                Vector((x, side * y_out_bot, z_bot)),
+                Vector((x, side * y_in, z_bot)),
+                Vector((x, side * y_in, z_in)),
+            ])
+        if side < 0:
+            rings = [list(reversed(r)) for r in rings]
+        verts, faces = loft(rings, close_ring=True, cap_first=True, cap_last=True)
+        parts.append(weld(mesh_from(
+            f"spoiler_{'stbd' if side > 0 else 'port'}", verts, faces)))
+
+    ob = join("stern_spoiler", parts)
+    if not ob:
+        return None
+    ob = bevel_object(weld(ob), 0.012, 2, 55.0)
+    print(f"    spoiler: 2 swept wings x {x0:.3f}..{x1:.3f}, edge raking "
+          f"z {z_root:.3f}→{z_tip:.3f}; section from the platform's edge "
+          f"{_platform_half(hull, 0.0):.3f}→{_platform_half(hull, 1.0):.3f} out "
+          f"to the wall {wall(z_bot):.3f} at the tread, {wall(z_root):.3f} at "
+          f"the top", flush=True)
+    return ob
+
+
+def build_cool_box(hull: Hull) -> dict[str, bpy.types.Object | None]:
+    """The optional cool box on the sole, forward of the console. §4.9.
+
+    THREE OBJECTS, AND EACH IS A DIFFERENT MATERIAL QUESTION:
+
+        `cool_box`        the moulded shell and its rim, in the console's own
+                          finish — it stands directly in front of the console
+                          and anything else would read as an object dropped in
+                          the cockpit rather than as part of the helm station
+        `cool_box_liner`  the inside, PALE and fixed. This is the whole reason
+                          the part reads as a cool box rather than as another
+                          locker: every locker on this boat is graphite inside
+                          because it is a hole in a moulding, and an insulated
+                          box is white inside because it is lined. One colour
+                          does the work a label would otherwise have to.
+        `cool_box_lid`    hinged on its AFT edge, so it opens toward the bow.
+                          It was the other way round first, on the argument that
+                          the helmsman stands abaft it and should not have to
+                          reach over a raised leaf; the client asked for the
+                          reverse. The leaf now stands up at the console end and
+                          screens the mouth from the helm instead of from the
+                          two forward seats, which is the view the boat is
+                          photographed from. What it costs is 60 mm of forward
+                          shift — see `SPEC.cool_box_x`.
+
+    It has its own floor rather than using the deck, which every other locker
+    here does. A cool box with a hole in the bottom is not a cool box.
+    """
+    x0, x1 = SPEC.cool_box_x
+    half = SPEC.cool_box_half
+    z0, z1 = SPEC.deck_z, SPEC.cool_box_top
+    w = SPEC.cool_box_wall
+    ix0, ix1, ih = x0 + w, x1 - w, half - w
+    floor = z0 + w
+    shell: list[bpy.types.Object] = []
+    liner: list[bpy.types.Object] = []
+
+    def face(bag, name, corners, facing):
+        bag.append(oriented_quad(name, corners, facing))
+
+    # ── the shell ───────────────────────────────────────────────────────
+    for x, facing in ((x0, AFT), (x1, FWD)):
+        face(shell, "cool_side", [
+            Vector((x, -half, z0)), Vector((x, half, z0)),
+            Vector((x, half, z1)), Vector((x, -half, z1)),
+        ], facing)
+    for sign in (1.0, -1.0):
+        face(shell, "cool_side", [
+            Vector((x0, sign * half, z0)), Vector((x1, sign * half, z0)),
+            Vector((x1, sign * half, z1)), Vector((x0, sign * half, z1)),
+        ], Vector((0.0, sign, 0.0)))
+    # The rim: the top, with the mouth cut out of it.
+    for a, b, c, d in (
+        ((x0, -half), (x0, half), (ix0, half), (ix0, -half)),
+        ((ix1, -half), (ix1, half), (x1, half), (x1, -half)),
+        ((ix0, -half), (ix0, -ih), (ix1, -ih), (ix1, -half)),
+        ((ix0, ih), (ix0, half), (ix1, half), (ix1, ih)),
+    ):
+        face(shell, "cool_rim", [Vector((p[0], p[1], z1)) for p in (a, b, c, d)], UP)
+
+    # ── the lining ──────────────────────────────────────────────────────
+    face(liner, "cool_floor", [
+        Vector((ix0, -ih, floor)), Vector((ix1, -ih, floor)),
+        Vector((ix1, ih, floor)), Vector((ix0, ih, floor)),
+    ], UP)
+    for x, facing in ((ix0, FWD), (ix1, AFT)):
+        face(liner, "cool_wall", [
+            Vector((x, -ih, floor)), Vector((x, ih, floor)),
+            Vector((x, ih, z1)), Vector((x, -ih, z1)),
+        ], facing)
+    for sign in (1.0, -1.0):
+        face(liner, "cool_wall", [
+            Vector((ix0, sign * ih, floor)), Vector((ix1, sign * ih, floor)),
+            Vector((ix1, sign * ih, z1)), Vector((ix0, sign * ih, z1)),
+        ], Vector((0.0, -sign, 0.0)))
+
+    # ── the lid ─────────────────────────────────────────────────────────
+    # Sized to the rim's outer edge, so it closes onto moulding all the way
+    # round rather than dropping into the mouth.
+    lid_t = 0.030
+    lid_parts: list[bpy.types.Object] = []
+    for z, facing in ((z1, DOWN), (z1 + lid_t, UP)):
+        face(lid_parts, "cool_lid", [
+            Vector((x0, -half, z)), Vector((x1, -half, z)),
+            Vector((x1, half, z)), Vector((x0, half, z)),
+        ], facing)
+    for x, facing in ((x0, AFT), (x1, FWD)):
+        face(lid_parts, "cool_lid", [
+            Vector((x, -half, z1)), Vector((x, half, z1)),
+            Vector((x, half, z1 + lid_t)), Vector((x, -half, z1 + lid_t)),
+        ], facing)
+    for sign in (1.0, -1.0):
+        face(lid_parts, "cool_lid", [
+            Vector((x0, sign * half, z1)), Vector((x1, sign * half, z1)),
+            Vector((x1, sign * half, z1 + lid_t)), Vector((x0, sign * half, z1 + lid_t)),
+        ], Vector((0.0, sign, 0.0)))
+
+    box = join("cool_box", shell)
+    lin = join("cool_box_liner", liner)
+    lid = join("cool_box_lid", lid_parts)
+    # What the aft hinge needs and what it has. The leaf sweeps its own
+    # thickness back over the hinge line on the way up; anything less than that
+    # behind the box and the open lid is inside the console.
+    sweep = lid_t * math.sin(math.radians(SPEC.seat_lid_open_deg))
+    print(f"    cool box: x {x0:.3f}..{x1:.3f} × ±{half:.3f}, deck {z0:.3f} to "
+          f"{z1:.3f}, {w * 1000:.0f} mm wall, lined floor at {floor:.3f}",
+          flush=True)
+    print(f"    cool box lid opens forward: {(x0 - SPEC.console_x[1]) * 1000:.0f} "
+          f"mm off the console, {sweep * 1000:.0f} mm of that taken by the leaf",
+          flush=True)
+    return {
+        "box": bevel_object(weld(box), 0.010, 2, 50.0) if box else None,
+        "liner": weld(lin) if lin else None,
+        "lid": bevel_object(weld(lid), 0.008, 2, 50.0) if lid else None,
+    }
+
+
+def build_speakers(hull: Hull) -> dict[str, bpy.types.Object | None]:
+    """Cockpit speakers, let into the inner wall. §4.9, at the client's request.
+
+    TWO OBJECTS, NOT ONE, and the split is the whole point of the part: the
+    grille is a moulding and the light ring is a light. They are separate zones
+    so the ring can be lit without the grille glowing, which is what a night
+    configuration needs and what a single emissive material could not give.
+
+    PLACED AGAINST THE WALL THE BOAT ACTUALLY HAS. `interior_edge` returns the
+    capping's own inner half-width at a station — the same number the liner is
+    built to and the deck is cut to — so a speaker lands ON the wall at every
+    station, at any beam, without a coordinate being typed for it. Mounted
+    facing inboard, standing `speaker_proud` off the wall, which is the flange
+    of a flush-mount can.
+    """
+    grilles: list[bpy.types.Object] = []
+    lights: list[bpy.types.Object] = []
+    heights: list[str] = []
+    r = SPEC.speaker_radius
+    r_light_out = r - SPEC.speaker_bezel
+    r_light_in = r_light_out - SPEC.speaker_light_ring
+
+    def ring(name: str, x: float, y: float, z: float, side: float,
+             r0: float, r1: float, depth: float,
+             a0: float = 0.0, a1: float = math.tau, segs: int = 32
+             ) -> bpy.types.Object:
+        """One annulus (or sector) in the athwartships plane, facing inboard."""
+        yy = y - side * depth
+        verts: list[Vector] = []
+        steps = max(2, int(segs * (a1 - a0) / math.tau) + 1)
+        for i in range(steps):
+            a = a0 + (a1 - a0) * i / (steps - 1)
+            c, s2 = math.cos(a), math.sin(a)
+            verts.append(Vector((x + r0 * c, yy, z + r0 * s2)))
+            verts.append(Vector((x + r1 * c, yy, z + r1 * s2)))
+        faces = []
+        for i in range(steps - 1):
+            quad = [2 * i, 2 * i + 1, 2 * i + 3, 2 * i + 2]
+            # Wound to face inboard, which is −side. Derived rather than
+            # assumed: the two sides mirror and a fixed order is right on one.
+            n = ((verts[quad[1]] - verts[quad[0]])
+                 .cross(verts[quad[2]] - verts[quad[0]]))
+            faces.append(quad if n.y * side < 0 else quad[::-1])
+        return mesh_from(name, verts, faces)
+
+    for x in SPEC.speaker_x:
+        edge = interior_edge(hull, x)
+        if edge is None:
+            continue
+        half, top = edge
+        # THE ASKED-FOR HEIGHT, CLAMPED INTO THE WALL THAT IS THERE.
+        #
+        # The coaming falls as it goes aft, so a height that clears the forward
+        # cushions puts the aft pair through the capping. Clamping rather than
+        # skipping is the difference between a boat with two speakers on it and
+        # a boat with four, and 20 mm of moulding either side of the flange is
+        # what a flush can needs to be let into.
+        lo = SPEC.deck_z + 0.020 + r
+        hi = top - 0.020 - r
+        if hi < lo:
+            print(f"    speakers: no wall for one at x {x:.2f}, skipped",
+                  flush=True)
+            continue
+        z = min(max(SPEC.deck_z + SPEC.speaker_above_deck, lo), hi)
+        heights.append(f"x {x:.2f} at z {z:.3f}")
+        for side in (1.0, -1.0):
+            y = side * half
+            tag = f"{'s' if side > 0 else 'p'}{abs(int(x * 100)):03d}"
+            # The bezel: a flange standing proud, and the cone face behind it.
+            grilles.append(ring(f"speaker_bezel_{tag}", x, y, z, side,
+                                r_light_out, r, SPEC.speaker_proud))
+            grilles.append(ring(f"speaker_rim_{tag}", x, y, z, side,
+                                r, r + 0.004, SPEC.speaker_proud * 0.5))
+            grilles.append(ring(f"speaker_cone_{tag}", x, y, z, side,
+                                0.0, r_light_in, SPEC.speaker_proud * 0.35))
+            grilles.append(ring(f"speaker_dome_{tag}", x, y, z, side,
+                                0.0, r * 0.24, SPEC.speaker_proud * 0.55))
+            # The spokes, across the light ring and the cone.
+            for k in range(SPEC.speaker_spokes):
+                a = math.tau * k / SPEC.speaker_spokes
+                grilles.append(ring(f"speaker_spoke_{tag}_{k}", x, y, z, side,
+                                    r * 0.20, r_light_out + 0.002,
+                                    SPEC.speaker_proud * 0.8,
+                                    a - 0.10, a + 0.10, segs=8))
+            # And the ring itself, set behind the bezel so it washes the cone.
+            lights.append(ring(f"speaker_light_{tag}", x, y, z, side,
+                               r_light_in, r_light_out,
+                               SPEC.speaker_proud * 0.45))
+
+    if not grilles:
+        print("    speakers: no station had wall enough, skipped", flush=True)
+        return {"grille": None, "light": None}
+    print(f"    speakers: {len(grilles) // (4 + SPEC.speaker_spokes) // 2} pairs "
+          f"at x {', '.join(format(v, '.2f') for v in SPEC.speaker_x)}, "
+          f"{r * 2000:.0f} mm over the flange, centres {', '.join(heights)}",
+          flush=True)
+    return {"grille": join("speaker_grille", grilles),
+            "light": join("speaker_light", lights)}
+
+
 def build_platform(hull: Hull) -> dict[str, bpy.types.Object | None]:
     """The optional aft boarding platform: frame, then tread. §20–§24, §29.
 
@@ -2683,6 +3428,139 @@ def build_rails(hull: Hull, gunwale=None) -> bpy.types.Object | None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# The driver's seat base
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def bench_half_at(hull: Hull, x: float, top_z: float) -> float:
+    """Half-width of the driver's bench at a station.
+
+    ONE FUNCTION, TWO CALLERS, AND THAT IS THE POINT. The cushion is the
+    locker's lid, so the aperture it covers is this same plan drawn in by
+    `seat_lid_overlap`. Two independent readings of "how wide is the bench"
+    would be a gap around the squab the first time either of them moved.
+    """
+    y_edge = hull.inner_y(x, top_z + 0.05)
+    return min(SPEC.bench_half,
+               (abs(y_edge) - 0.055) if y_edge else SPEC.bench_half)
+
+
+def _station_half(stations: list[tuple[float, float, float]], x: float) -> float:
+    """The deck's own half-width at a station, interpolated off its list."""
+    if x <= stations[0][0]:
+        return stations[0][1]
+    if x >= stations[-1][0]:
+        return stations[-1][1]
+    for a, b in zip(stations, stations[1:]):
+        if a[0] <= x <= b[0]:
+            t = (x - a[0]) / max(b[0] - a[0], 1e-9)
+            return a[1] + (b[1] - a[1]) * t
+    return stations[-1][1]
+
+
+def build_seat_base(hull: Hull, stations: list[tuple[float, float, float]]
+                    ) -> bpy.types.Object | None:
+    """The plinth under the driver's bench, with the locker inside it.
+
+    WHAT WAS THERE BEFORE WAS NOT A BASE. The delivered moulding at this station
+    is a shelf at 0.570 with nothing under it and no face closing its forward
+    end: a ray dropped at x −1.90 finds the shelf and then the hull a metre
+    below. Every phase to 4.8 kept it because the bench stood on it, and the
+    cut `platform_void_x` made at its forward end opened into that cavity from
+    both sides — the two holes beside the seat.
+
+    SO THE SHELF GOES AND THIS REPLACES IT, as a closed moulding:
+
+        TOP         a rim at `platform_z`, running out to the wall's own foot,
+                    solid fore and aft of the aperture and a border either side
+        FRONT       the step down to the deck, closing the forward end
+        LOCKER      four vertical walls from the rim's inner edge to the deck
+        FLOOR       the deck, which now runs aft to the stern moulding
+        AFT         `build_cockpit_floor`'s own end panel, already there
+
+    There is no sixth surface and no cavity left anywhere: the space outboard
+    of the locker walls is bounded by the rim above, the deck below, the wall
+    outboard and the front face forward, and the space inside them is the
+    locker. Lift the lid and what is underneath is a lined box.
+
+    THE APERTURE IS THE CUSHION'S OWN PLAN, inset by `seat_lid_overlap`, so the
+    squab lands on moulding all the way round — see `bench_half_at`.
+    """
+    if not stations:
+        return None
+    x0, x1 = SPEC.seat_base_x
+    ztop, zdeck = SPEC.platform_z, SPEC.deck_z
+    ax0 = SPEC.bench_x[0] + SPEC.seat_lid_overlap
+    ax1 = SPEC.bench_x[1] - SPEC.seat_lid_overlap
+
+    def outer(x: float) -> float:
+        return _station_half(stations, x)
+
+    def inner(x: float) -> float:
+        return max(0.05, bench_half_at(hull, x, ztop) - SPEC.seat_lid_overlap)
+
+    steps = 10
+    span = [ax0 + (ax1 - ax0) * i / steps for i in range(steps + 1)]
+    parts: list[bpy.types.Object] = []
+
+    def panel(name: str, corners: list[Vector], facing: Vector) -> None:
+        parts.append(oriented_quad(name, corners, facing))
+
+    # ── the top ─────────────────────────────────────────────────────────
+    # Two solid ends and two side borders, rather than one loft with the
+    # aperture punched through it: a loft whose middle collapses to nothing
+    # over the solid ends is a row of degenerate quads, and a degenerate quad
+    # is a normal nobody can predict.
+    panel("seat_rim_aft", [
+        Vector((x0, -outer(x0), ztop)), Vector((x0, outer(x0), ztop)),
+        Vector((ax0, outer(ax0), ztop)), Vector((ax0, -outer(ax0), ztop)),
+    ], UP)
+    panel("seat_rim_fwd", [
+        Vector((ax1, -outer(ax1), ztop)), Vector((ax1, outer(ax1), ztop)),
+        Vector((x1, outer(x1), ztop)), Vector((x1, -outer(x1), ztop)),
+    ], UP)
+    # The two side borders, as quads rather than as a loft, so that `panel`
+    # owns their winding too. Ten quads a side welds back into one strip.
+    for sign in (1.0, -1.0):
+        for a, b in zip(span, span[1:]):
+            panel("seat_rim_side", [
+                Vector((a, sign * inner(a), ztop)), Vector((a, sign * outer(a), ztop)),
+                Vector((b, sign * outer(b), ztop)), Vector((b, sign * inner(b), ztop)),
+            ], UP)
+
+    # ── the front, and the four walls of the locker ─────────────────────
+    panel("seat_front", [
+        Vector((x1, -outer(x1), zdeck)), Vector((x1, outer(x1), zdeck)),
+        Vector((x1, outer(x1), ztop)), Vector((x1, -outer(x1), ztop)),
+    ], FWD)
+    for sign in (1.0, -1.0):
+        inward = Vector((0.0, -sign, 0.0))
+        for a, b in zip(span, span[1:]):
+            panel("seat_locker_side", [
+                Vector((a, sign * inner(a), zdeck)), Vector((a, sign * inner(a), ztop)),
+                Vector((b, sign * inner(b), ztop)), Vector((b, sign * inner(b), zdeck)),
+            ], inward)
+    # The locker's own walls face INWARD, into the box: they are what somebody
+    # looking down into it sees.
+    panel("seat_locker_aft", [
+        Vector((ax0, -inner(ax0), zdeck)), Vector((ax0, -inner(ax0), ztop)),
+        Vector((ax0, inner(ax0), ztop)), Vector((ax0, inner(ax0), zdeck)),
+    ], FWD)
+    panel("seat_locker_fwd", [
+        Vector((ax1, inner(ax1), zdeck)), Vector((ax1, inner(ax1), ztop)),
+        Vector((ax1, -inner(ax1), ztop)), Vector((ax1, -inner(ax1), zdeck)),
+    ], AFT)
+
+    base = join("seat_base", parts)
+    if base:
+        base = weld(base)
+    print(f"    seat base: x {x0:.3f}..{x1:.3f}, rim at z {ztop:.3f}, locker "
+          f"{ax0:.3f}..{ax1:.3f} × ±{inner(0.5 * (ax0 + ax1)):.3f} down to the "
+          f"deck at {zdeck:.3f}", flush=True)
+    return base
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Seating
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -2712,10 +3590,6 @@ def build_seating(hull: Hull) -> dict[str, bpy.types.Object]:
     """
     pads: list[bpy.types.Object] = []
 
-    def base_at(x: float, y: float, fallback: float) -> float:
-        z = hull.surface_z(x, abs(y))
-        return z if z is not None else fallback
-
     # ── The forward padded architecture ──────────────────────────────────
     # PHASE 4.7 §1–§18. Two symmetrical side cushions, one mesh each, replacing
     # Phase 4.6's single starboard-to-port run cut into three pieces.
@@ -2724,7 +3598,10 @@ def build_seating(hull: Hull) -> dict[str, bpy.types.Object]:
     # hull's own colour on the side decks with `coaming_inlay` on them and
     # nothing else. The upholstery starts forward of the console, on both
     # sides, and finishes 0.23 m short of where the capping converges.
-    pads.extend(build_forward_cushions(hull))
+    #
+    # 4.9 — AND THEY LEAVE `pads`, all three of them, because each is now the
+    # lid of the locker under it. Nothing about the leather changed.
+    forward = build_forward_cushions(hull)
 
     # ── The driver's bench ───────────────────────────────────────────────
     # ON THE FLAT, AND ONLY ON THE FLAT. The bench's forward end was first
@@ -2732,19 +3609,28 @@ def build_seating(hull: Hull) -> dict[str, bpy.types.Object]:
     # platform — so the cushion ramped 0.20 m down into the cockpit floor over
     # its last two stations. The base height is now taken once, at the aft
     # station, and held: a bench is flat.
+    # AND ITS BASE IS AUTHORED NOW, SO IT IS NOT RAYCAST FOR. Up to 4.8 this
+    # took `base_at`, which dropped a ray and found the delivered platform. That
+    # platform is deleted from 4.9 on — the ray would find the deck 0.20 m lower
+    # and put the seat on the floor. `build_seat_base` puts the rim at
+    # `platform_z` and the squab sits on it, which is one number rather than a
+    # measurement of a thing this file is now responsible for.
     bx0, bx1 = SPEC.bench_x
-    bench_z = base_at(bx0 + 0.06, 0.28, SPEC.platform_z)
+    bench_z = SPEC.platform_z
     bench_stations = []
     for i in range(11):
         x = bx0 + (bx1 - bx0) * i / 10
-        y_edge = hull.inner_y(x, bench_z + 0.05)
-        half = min(SPEC.bench_half,
-                   (abs(y_edge) - 0.055) if y_edge else SPEC.bench_half)
+        half = bench_half_at(hull, x, bench_z)
         bench_stations.append((x, -half, half, bench_z))
     bench = cushion("bench", bench_stations, SPEC.cushion_thickness,
                     SPEC.cushion_radius, SPEC.cushion_crown)
-    if bench:
-        pads.append(bevel_object(bench, 0.010, 2, 55.0))
+    # THE SQUAB IS THE LID AND SO IT LEAVES `pads`. Everything else in here is
+    # joined into one `upholstery_primary` mesh; this one has to be a node of
+    # its own because something rotates it at runtime. It keeps the upholstery's
+    # ROLE — same leather, same finish, same channel — and gains only an origin,
+    # which `pxl_blender` moves to the hinge so the runtime can turn the node
+    # about itself and needs to know nothing about where the seat is.
+    lid = bevel_object(bench, 0.010, 2, 55.0) if bench else None
 
     # ── The backrest ─────────────────────────────────────────────────────
     # A cushion lying on its side: the same section, the same edge radius and
@@ -2793,4 +3679,6 @@ def build_seating(hull: Hull) -> dict[str, bpy.types.Object]:
     # ambiguous band is not enough to build from, so it is left out and listed
     # in the report's remaining mismatches instead of guessed at.
 
-    return {"upholstery": join("upholstery_primary", pads)}
+    lids = {"seat": lid}
+    lids.update(forward)
+    return {"upholstery": join("upholstery_primary", pads), "lids": lids}

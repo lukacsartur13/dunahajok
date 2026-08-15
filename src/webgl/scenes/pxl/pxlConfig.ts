@@ -48,6 +48,8 @@ import {
   PXL_INTERIOR_SECONDARY_FINISHES,
   PXL_METAL_FINISHES,
   PXL_MOTOR_FINISHES,
+  PXL_GLAZING_FINISHES,
+  PXL_SPEAKER_LIGHT_FINISHES,
   PXL_STRUCTURE_FINISHES,
   finishLabel,
   type PxlFinish,
@@ -69,6 +71,7 @@ import {
   type PxlDriveVariant,
   type PxlInteriorSurface,
   type PxlLowerTreatment,
+  type PxlRailTreatment,
 } from "./pxlCatalog";
 import { PXL_ZONES, type PxlChannel, type PxlMaterialRole, type PxlZone } from "./pxlModel";
 
@@ -104,8 +107,40 @@ export interface PxlConfiguration {
     secondary: PxlFinishId;
     /** §A8's material character, applied to both interior surfaces. */
     surface: PxlInteriorSurface;
-    /** Grab rails. Not offered as a control; the reference shows one inlay. */
+    /** The coaming inlay and the bow cleats. Not offered; one inlay. */
     metal: PxlFinishId;
+    /**
+     * The grab rails, as a RELATIONSHIP. §4.9, at the client's instruction.
+     *
+     * Not a `PxlFinishId`, and that is the point: MATCH INTERIOR has no colour
+     * of its own to store — it resolves against `primary` every time it is
+     * read, so the rails keep following the leather when the leather changes.
+     * Storing a resolved finish here would freeze the pair at the moment the
+     * rail control was last touched, and the first interior change after that
+     * would leave the rails behind wearing a colour nobody had chosen.
+     */
+    rails: PxlRailTreatment;
+    /**
+     * The console plexi's tint depth. §4.9.
+     *
+     * On `interior` because the screen is the console's, and the console is
+     * where the reference photographs put it: a viewer choosing it is looking
+     * into the cockpit, not at the topsides.
+     */
+    glazing: PxlFinishId;
+  };
+  /**
+   * §4.9 — COCKPIT AUDIO, and the one field on this configuration that
+   * describes a LIGHT rather than a surface.
+   *
+   * `speakerLight` is a finish because the two states differ only in emissive
+   * intensity, so the switch eases through the same transition as a paint
+   * change. Whether the speakers are FITTED is not here at all: that is mesh
+   * visibility, and it lives in `equipment` with the boarding platform, keyed
+   * on zones — see the note there.
+   */
+  audio: {
+    speakerLight: PxlFinishId;
   };
   propulsion: {
     /**
@@ -182,6 +217,53 @@ const FIELDS: Record<PxlConfigField, FieldAccessor> = {
       if (o.interiorSurface) c.interior.surface = o.interiorSurface;
     },
   },
+  coolBox: {
+    /* Derived from the visible zones, like every equipment field. */
+    read: (c) => {
+      const on = PXL_COOL_BOX_ZONES.every((zone) => c.equipment[zone] === true);
+      return on ? "pxl_cool_fitted" : "pxl_cool_none";
+    },
+    write: (c, o) => {
+      if (!o.meshVisibility) return;
+      for (const [zone, visible] of Object.entries(o.meshVisibility)) {
+        c.equipment[zone as PxlZone] = visible;
+      }
+    },
+  },
+  audio: {
+    /* Derived from the visible zones, exactly as `boardingPlatform` is, and for
+       the reason set out there: an equipment option writes a SET of mesh
+       visibilities and no one of them names the option, so its identity is its
+       id and the read has to answer in the same currency. */
+    read: (c) => {
+      const on = PXL_AUDIO_ZONES.every((zone) => c.equipment[zone] === true);
+      return on ? "pxl_audio_speakers" : "pxl_audio_none";
+    },
+    write: (c, o) => {
+      if (!o.meshVisibility) return;
+      for (const [zone, visible] of Object.entries(o.meshVisibility)) {
+        c.equipment[zone as PxlZone] = visible;
+      }
+    },
+  },
+  speakerLight: {
+    read: (c) => c.audio.speakerLight,
+    write: (c, o) => {
+      if (o.finishId) c.audio.speakerLight = o.finishId;
+    },
+  },
+  glazingTint: {
+    read: (c) => c.interior.glazing,
+    write: (c, o) => {
+      if (o.finishId) c.interior.glazing = o.finishId;
+    },
+  },
+  railTreatment: {
+    read: (c) => c.interior.rails,
+    write: (c, o) => {
+      if (o.railTreatment) c.interior.rails = o.railTreatment;
+    },
+  },
   propulsion: {
     read: (c) => c.propulsion.variant,
     write: (c, o) => {
@@ -227,6 +309,18 @@ const FIELDS: Record<PxlConfigField, FieldAccessor> = {
  */
 const PXL_PLATFORM_ZONES: readonly PxlZone[] = Object.keys(
   PXL_CONTROLS.find((c) => c.field === "boardingPlatform")
+    ?.options.find((o) => o.slug === "on")?.meshVisibility ?? {},
+) as PxlZone[];
+
+/** The zones the cool box owns. Derived the same way, for the same reason. */
+const PXL_COOL_BOX_ZONES: readonly PxlZone[] = Object.keys(
+  PXL_CONTROLS.find((c) => c.field === "coolBox")
+    ?.options.find((o) => o.slug === "on")?.meshVisibility ?? {},
+) as PxlZone[];
+
+/** The zones the audio option owns. Derived the same way, for the same reason. */
+const PXL_AUDIO_ZONES: readonly PxlZone[] = Object.keys(
+  PXL_CONTROLS.find((c) => c.field === "audio")
     ?.options.find((o) => o.slug === "on")?.meshVisibility ?? {},
 ) as PxlZone[];
 
@@ -282,6 +376,7 @@ function optionValue(option: PxlCatalogOption): string | undefined {
     option.finishId ??
     option.lowerTreatment ??
     option.interiorSurface ??
+    option.railTreatment ??
     option.geometryVariant ??
     (option.meshVisibility ? option.id : undefined)
   );
@@ -340,8 +435,11 @@ function buildDefaultConfiguration(): PxlConfiguration {
       secondary: PXL_INTERIOR_SECONDARY_FINISHES[0].id,
       surface: "grained",
       metal: PXL_METAL_FINISHES[0].id,
+      rails: "interior",
+      glazing: PXL_GLAZING_FINISHES[1].id,
     },
     propulsion: { variant: "standard" },
+    audio: { speakerLight: PXL_SPEAKER_LIGHT_FINISHES[0].id },
     equipment: {},
   };
   for (const control of PXL_CONTROLS) {
@@ -353,6 +451,7 @@ function buildDefaultConfiguration(): PxlConfiguration {
 function deepFreeze(config: PxlConfiguration): PxlConfiguration {
   Object.freeze(config.exterior);
   Object.freeze(config.interior);
+  Object.freeze(config.audio);
   Object.freeze(config.propulsion);
   Object.freeze(config.equipment);
   return Object.freeze(config);
@@ -363,6 +462,7 @@ export function cloneConfig(config: PxlConfiguration): PxlConfiguration {
     exterior: { ...config.exterior },
     interior: { ...config.interior },
     propulsion: { ...config.propulsion },
+    audio: { ...config.audio },
     equipment: { ...config.equipment },
   };
 }
@@ -408,6 +508,17 @@ export function finishForChannel(
       return config.interior.secondary;
     case "metal":
       return config.interior.metal;
+    case "glazing":
+      return config.interior.glazing;
+    case "speakerLight":
+      return config.audio.speakerLight;
+    /* §4.9 — RESOLVED, NOT STORED. The rails follow the leather unless they
+       have been set black, and "follow" is evaluated here on every read rather
+       than written into the configuration when the control was last used. */
+    case "railings":
+      return config.interior.rails === "black"
+        ? PXL_STRUCTURE_FINISHES[0].id
+        : config.interior.primary;
     case "motor":
       return PXL_DRIVE_SPECS[config.propulsion.variant].cowlFinishId;
     default:
@@ -455,7 +566,13 @@ export const PXL_CHANNEL_OPTIONS: Record<string, readonly PxlFinish[]> = {
   sternMoulding: PXL_STRUCTURE_FINISHES,
   interiorPrimary: PXL_INTERIOR_FINISHES,
   interiorSecondary: PXL_INTERIOR_SECONDARY_FINISHES,
+  glazing: PXL_GLAZING_FINISHES,
+  speakerLight: PXL_SPEAKER_LIGHT_FINISHES,
   metal: PXL_METAL_FINISHES,
+  /* §4.9 — the rails can end up wearing any interior finish or the structural
+     black, which is the honest range even though the control offers two
+     options rather than a colour list. Same reasoning as `hullLower`. */
+  railings: [...PXL_INTERIOR_FINISHES, ...PXL_STRUCTURE_FINISHES],
   motor: PXL_MOTOR_FINISHES,
 };
 

@@ -55,6 +55,7 @@ export function PxlStage({
   preset,
   interactive = false,
   water = false,
+  night = false,
   arrival = false,
   adaptive = false,
   sizes = "100vw",
@@ -64,8 +65,8 @@ export function PxlStage({
   label,
 }: PxlStageProps) {
   useEffect(() => {
-    setPxlView({ preset, interactive, water, arrival, adaptive });
-  }, [preset, interactive, water, arrival, adaptive]);
+    setPxlView({ preset, interactive, water, arrival, adaptive, night });
+  }, [preset, interactive, water, arrival, adaptive, night]);
 
   const media = PXL_MEDIA[fallback];
 

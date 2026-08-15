@@ -124,6 +124,11 @@ export function PxlProductConfigurator() {
   const finePointer = useFinePointer();
 
   const [view, setView] = useState<PxlCustomerPresetId>("hero_3q");
+  /* §4.9 — night. A way of LOOKING at the boat, so it lives beside the camera
+     rather than in the configuration: it is not in the URL and a shared link
+     opens in daylight. What the rings are set to travels, because that is a
+     specification. */
+  const [night, setNight] = useState(false);
   const [category, setCategory] = useState<PxlCatalogCategory>(
     PXL_AVAILABLE_CATEGORIES[0],
   );
@@ -176,11 +181,16 @@ export function PxlProductConfigurator() {
     return () => observer.disconnect();
   }, []);
 
-  /* The exterior finish, as a hex. The HULL DETAIL swatch needs it to draw
-     FULL BODY COLOUR in the colour it would actually be — see `PxlSwatches`. */
-  const bodyColour = useMemo(
-    () => finish(config.exterior.hullPrimary).base,
-    [config.exterior.hullPrimary],
+  /* What a swatch that FOLLOWS another control should be drawn in, per control.
+     HULL DETAIL's FULL BODY COLOUR follows the exterior; §4.9's MATCH INTERIOR
+     on the rails follows the cockpit. Both would otherwise be a fixed chip
+     that lies about its option — see `PxlSwatches`. */
+  const mirrorColour = useMemo(
+    () => ({
+      lower: finish(config.exterior.hullPrimary).base,
+      rails: finish(config.interior.primary).base,
+    }),
+    [config.exterior.hullPrimary, config.interior.primary],
   );
 
   const summary = useMemo(() => summariseConfiguration(config, "preview"), [config]);
@@ -526,7 +536,9 @@ export function PxlProductConfigurator() {
                   onChange={(option) => choose(control, option)}
                   groupLabel={label}
                   optionLabel={(n) => fill(t.optionLabel, { control: label, name: n })}
-                  bodyColour={bodyColour}
+                  mirrorColour={
+                    mirrorColour[control.id as keyof typeof mirrorColour]
+                  }
                 />
               </section>
             );
@@ -543,6 +555,15 @@ export function PxlProductConfigurator() {
                 viewer has the camera, none of these is selected, and choosing
                 one is how they hand it back. */}
             <div className={styles.views} role="radiogroup" aria-label={t.viewHeading}>
+              <button
+                type="button"
+                aria-pressed={night}
+                className={styles.view}
+                data-on={night || undefined}
+                onClick={() => setNight((on) => !on)}
+              >
+                {t.night}
+              </button>
               {PXL_CONFIGURATOR_VIEW_CONTROLS.map((id) => {
                 const on = id === activeView;
                 return (

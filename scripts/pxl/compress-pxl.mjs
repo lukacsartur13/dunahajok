@@ -118,6 +118,12 @@ const TIGHT = new Set([
   /* Phase 4.3 — the authored upper boat, all of it. */
   "upholstery_primary", "console_body", "console_detail", "windshield",
   "helm_wheel", "rails",
+  /* 4.9 — the driver's squab, which is upholstery that happens to be a lid and
+     takes upholstery's budget for the same reason: it is a 75 mm section with a
+     22 mm edge radius, and the general 4 mm allowance ate the radius and 69% of
+     the triangles at a measured 3.84 mm. The three forward squabs joined it
+     when they became lids too — the general budget took 89% of the side runs. */
+  "seat_lid", "cushion_lid_starboard", "cushion_lid_port", "cushion_lid_nose",
   /* PHASE 4.4. The capping is a 46 mm section on a 5.25 m sweep and the whole
      point of it is that its top surface has width and its edges are chamfered
      — a general-budget collapse would spend the 4 mm it is allowed on exactly
@@ -125,11 +131,25 @@ const TIGHT = new Set([
      platform's teak is laid in 92 mm planks with 8 mm seams between them,
      which is under the general budget by an order of magnitude. */
   "gunwale_capping", "platform_frame", "platform_deck",
-]);
+  /* PHASE 4.7.2 REBUILT THE INTERIOR AND PUT THESE TWO BACK IN REACH OF THE
+     COLLAPSE. The note that used to stand here said the sole and the liner fell
+     under MIN_TRIANGLES and were therefore never touched; that stopped being
+     true when the one-level deck and the wall around it replaced the recovered
+     interior, and the sole came into the collapse at 6,791 triangles.
 
-/* The sole and the liner fall under MIN_TRIANGLES below and are therefore never
-   collapsed at all, which is the right answer for two surfaces already at their
-   irreducible triangle count. */
+     WHAT THAT COST, and it is the reason the two are named here. The deck is
+     one strip of quads spanning the full beam — 1.8 m across and 30 mm apart —
+     and a quadric collapse on a strip that thin in one direction and that long
+     in the other is free to slide a vertex along the strip for almost no
+     measured error. It did: the compressed sole carried a single triangle
+     running the whole 4.65 m from the transom to the bow, 18 mm above the deck
+     and about 100 mm off the centreline, which drew a hairline down the middle
+     of the cockpit floor in every plan and interior view. Nothing was wrong
+     with the model — `PXL.production.glb` has no such face — and nothing was
+     wrong with the 4 mm budget as a number; it was the wrong budget for a
+     surface whose triangles are long. */
+  "cockpit_sole", "interior_hard_liner",
+]);
 
 /**
  * How much the collapse cares about the normal field relative to position.

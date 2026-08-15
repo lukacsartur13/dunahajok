@@ -70,7 +70,37 @@ export interface PxlOrbit {
   dispose(): void;
 }
 
-export function createPxlOrbit(element: HTMLElement, enabled = true): PxlOrbit {
+/**
+ * A tap that was not a drag, and how the two are told apart. PHASE 4.9.
+ *
+ * The canvas is one element and it has to serve two gestures: turning the boat,
+ * which is a drag, and picking something on it, which is a click. Nothing else
+ * distinguishes them at `pointerdown` — the same button on the same pixel
+ * begins both — so the decision is made at `pointerup`, on how far the pointer
+ * actually travelled.
+ *
+ * 6 px, and it is a TOTAL rather than a straight-line distance from the start:
+ * a slow hand that wanders out and comes back has still been dragging, and
+ * measuring the endpoints would call that a click. On touch it also absorbs the
+ * two or three pixels a finger rolls through while it lifts.
+ *
+ * Cancelled and multi-touch gestures are never taps: a pinch is not a click on
+ * whatever happened to be under the first finger.
+ */
+const TAP_SLOP = 6;
+
+export interface PxlOrbitHooks {
+  /** A click on the canvas that was not a drag, in client coordinates. */
+  onTap?: (x: number, y: number) => void;
+  /** The pointer moved with no button down. For a hover affordance. */
+  onHover?: (x: number, y: number) => void;
+}
+
+export function createPxlOrbit(
+  element: HTMLElement,
+  enabled = true,
+  hooks: PxlOrbitHooks = {},
+): PxlOrbit {
   const target = { azimuth: 0, elevation: 0, zoom: 1 };
   const state: PxlOrbitState = { azimuth: 0, elevation: 0, zoom: 1, engaged: false };
 
@@ -87,6 +117,9 @@ export function createPxlOrbit(element: HTMLElement, enabled = true): PxlOrbit {
   /** Distance between the two fingers when the pinch began, in pixels. */
   let pinchStart = 0;
   let pinchZoom = 1;
+  /** How far the live gesture has travelled, and whether it can still be a tap. */
+  let travel = 0;
+  let tappable = false;
 
   const spread = (): number => {
     const [a, b] = [...points.values()];
@@ -95,24 +128,42 @@ export function createPxlOrbit(element: HTMLElement, enabled = true): PxlOrbit {
   };
 
   const onPointerDown = (event: PointerEvent) => {
-    if (!enabled || points.size >= 2) return;
+    if (points.size >= 2) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    /* TRACKED EVEN WHEN THE ORBIT IS OFF, and that is 4.9's one change to this
+       handler. `enabled` is false under reduced motion, where turning the boat
+       by hand is exactly the kind of movement somebody has asked not to have —
+       but opening the seat is not motion, it is a fact about the boat, and the
+       same argument `PxlProductScene` makes about colour applies to it. So the
+       gesture is still measured; what `enabled` now gates is the CAMERA. */
     points.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    state.engaged = true;
+    if (enabled) state.engaged = true;
     element.setPointerCapture(event.pointerId);
     if (points.size === 2) {
       pinchStart = spread();
       pinchZoom = target.zoom;
+      tappable = false;              // a pinch is not a click on anything
+    } else {
+      travel = 0;
+      tappable = true;
     }
   };
 
   const onPointerMove = (event: PointerEvent) => {
     const last = points.get(event.pointerId);
-    if (!last) return;
+    if (!last) {
+      // No button down. The only thing this can be is a hover, and it is the
+      // caller's business whether that means anything.
+      if (enabled && points.size === 0) hooks.onHover?.(event.clientX, event.clientY);
+      return;
+    }
     const dx = event.clientX - last.x;
     const dy = event.clientY - last.y;
     last.x = event.clientX;
     last.y = event.clientY;
+    travel += Math.hypot(dx, dy);
+    if (travel > TAP_SLOP) tappable = false;
+    if (!enabled) return;
 
     if (points.size === 2) {
       // Pinch. Zoom is a *ratio* of the current spread to the starting spread,
@@ -136,6 +187,14 @@ export function createPxlOrbit(element: HTMLElement, enabled = true): PxlOrbit {
   const onPointerUp = (event: PointerEvent) => {
     if (!points.delete(event.pointerId)) return;
     if (points.size === 0) state.engaged = false;
+    /* THE TAP FIRES HERE AND ONLY HERE, after the gesture is over and the
+       distance is known. `pointercancel` routes to this same handler, and a
+       cancelled gesture is never a tap — hence the event type check rather
+       than a shared "it ended somehow" path. */
+    if (tappable && points.size === 0 && event.type === "pointerup") {
+      hooks.onTap?.(event.clientX, event.clientY);
+    }
+    tappable = false;
     // A finger lifting out of a pinch must not resume rotation from a stale
     // position — the remaining finger has moved a long way since it was last
     // treated as a drag.

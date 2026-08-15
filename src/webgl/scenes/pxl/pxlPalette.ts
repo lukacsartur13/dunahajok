@@ -126,6 +126,38 @@ export interface PxlFinish {
    * changing this number at runtime is a scalar write and never a recompile.
    */
   microNormal?: number;
+  /**
+   * THE GLAZING TERMS. §4.9, and present on the three plexi finishes alone.
+   *
+   * A tinted screen is not a coloured one, and the distinction is the whole
+   * reason these are separate fields rather than a darker `base`. `base` is
+   * albedo: it tints what comes OFF the surface as well as what comes through
+   * it, so a grey plexi returns grey sky and reads as a filter laid over the
+   * whole boat — §11's "excessive blue tint", arrived at from the other end.
+   * Attenuation tints only what is transmitted, over a distance measured
+   * through the real 9 mm section. Every plexi finish therefore keeps a white
+   * `base`, and the three differ in how far light gets before it takes the
+   * tint.
+   */
+  transmission?: number;
+  attenuation?: string;
+  attenuationDistance?: number;
+  /**
+   * THE EMISSIVE TERMS. §4.9, and present on the speaker light alone.
+   *
+   * A lit ring is not a bright colour. `base` is albedo — it describes what a
+   * surface does with light arriving at it, and no value of it makes a surface
+   * a source. An LED under a studio key with `base: #4aa3ff` reads as pale blue
+   * plastic, which is what it is. `emissive` is what the surface gives off, and
+   * it is the only term that survives the shadowed side of the boat, which is
+   * the whole point of having lights at all.
+   *
+   * `emissiveIntensity` carries the switch: the unlit finish is the same
+   * colour at zero, so turning them on is a scalar the transition can ease
+   * rather than a material swap that would pop.
+   */
+  emissive?: string;
+  emissiveIntensity?: number;
   /** The reference render this was read from, for traceability. */
   reference?: string;
 }
@@ -644,6 +676,204 @@ export const PXL_DRIVE_FINISHES: readonly PxlFinish[] = [
  */
 export const PXL_EXTERIOR_FINISHES = PXL_HULL_FINISHES;
 
+/**
+ * THE CONSOLE PLEXI, IN THREE DEPTHS. §4.9, at the client's instruction.
+ *
+ * The screen is a transmission material — see `pxlGlazing`, which explains at
+ * length why it is that and not an alpha blend — so what separates these three
+ * is `attenuationDistance`: the distance transmitted light travels before it
+ * has fully taken `attenuationColor`. Over a 9 mm section, a 14 mm distance
+ * lands about two thirds of the way there and a 200 mm one lands nowhere.
+ *
+ * ALL THREE KEEP A WHITE BASE AND THE SAME ROUGHNESS. They are one sheet of
+ * cast acrylic with three tints in it, not three materials: a screen that also
+ * changed its specular character would read as glass, then plastic, then
+ * perspex, which is three products where the yard has one.
+ *
+ * The colour itself stays a cool NEUTRAL rather than a blue in all three, which
+ * is the difference between marine acrylic and "blue sci-fi glass".
+ */
+export const PXL_GLAZING_FINISHES: readonly PxlFinish[] = [
+  {
+    id: "pxl_plexi_clear",
+    slug: "plexi-clear",
+    previewLabel: "Clear",
+    published: false,
+    label: "Untinted plexi",
+    base: "#ffffff",
+    roughness: 0.06,
+    metalness: 0,
+    clearcoat: 0.25,
+    clearcoatRoughness: 0.08,
+    transmission: 0.94,
+    attenuation: "#c9d2d8",
+    /* 0.20 m over a 9 mm section is about a twentieth of the tint: enough to
+       keep the sheet from vanishing at a grazing angle, not enough to read as
+       a colour. */
+    attenuationDistance: 0.2,
+  },
+  {
+    id: "pxl_plexi_light",
+    slug: "plexi-light",
+    previewLabel: "Light tint",
+    published: false,
+    label: "Lightly tinted plexi",
+    base: "#ffffff",
+    roughness: 0.06,
+    metalness: 0,
+    clearcoat: 0.25,
+    clearcoatRoughness: 0.08,
+    transmission: 0.92,
+    /* The delivered screen, unchanged: this is what `createPlexiMaterial` has
+       been building since Phase 4.1, and it stays the default so that adding
+       the control changes nothing about the boat as it ships. */
+    attenuation: "#8d9aa6",
+    attenuationDistance: 0.014,
+  },
+  {
+    id: "pxl_plexi_dark",
+    slug: "plexi-dark",
+    previewLabel: "Dark tint",
+    published: false,
+    label: "Darkly tinted plexi",
+    base: "#ffffff",
+    roughness: 0.06,
+    metalness: 0,
+    clearcoat: 0.25,
+    clearcoatRoughness: 0.08,
+    /* Transmission comes down as well as the distance. Attenuation alone, at
+       the depth this wants, produces a screen you cannot see through and can
+       still see the studio's key straight through the middle of — the tint
+       darkens the transmitted image without reducing how much of it there is. */
+    transmission: 0.82,
+    attenuation: "#4a5158",
+    attenuationDistance: 0.005,
+  },
+];
+
+/**
+ * THE SPEAKER RING, IN SEVEN STATES. §4.9, at the client's request.
+ *
+ * SEVEN FINISHES THAT DIFFER IN TWO NUMBERS, and deliberately so. All carry the
+ * same base, roughness and clearcoat — they are one moulded diffuser, not seven
+ * products — and what moves between them is the emissive colour and its
+ * intensity. That is what lets a change of colour be an eased interpolation
+ * like every other material change on this boat rather than a swap that pops,
+ * and it is why OFF is a finish here rather than a separate boolean: off is the
+ * same ring at zero intensity, so switching it eases too.
+ *
+ * WHY THE INTENSITIES ARE NOT ALL THE SAME. Emissive intensity is a multiplier
+ * on a colour, and the six colours do not carry equal luminance: at a common
+ * 2.2 the red and the violet sit visibly under the white and the green, because
+ * a saturated red is a third of white's luminance before any multiplier touches
+ * it. The numbers below are trimmed so that the six read as one family at one
+ * brightness, which is what a customer comparing them expects and what a single
+ * constant would not have given.
+ *
+ * The colours themselves are the ones a marine LED ring is actually made in,
+ * and the blue is the client's own reference photograph.
+ */
+export const PXL_SPEAKER_LIGHT_FINISHES: readonly PxlFinish[] = [
+  {
+    id: "pxl_ring_off",
+    slug: "off",
+    previewLabel: "Off",
+    published: false,
+    label: "Speaker ring, unlit",
+    base: "#1e2126",
+    roughness: 0.30,
+    metalness: 0,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.1,
+    emissive: "#63b4ff",
+    emissiveIntensity: 0.0,
+  },
+  {
+    id: "pxl_ring_white",
+    slug: "white",
+    previewLabel: "White",
+    published: false,
+    label: "Speaker ring, white",
+    base: "#1e2126",
+    roughness: 0.30,
+    metalness: 0,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.1,
+    emissive: "#ffffff",
+    emissiveIntensity: 2.2,
+  },
+  {
+    id: "pxl_ring_yellow",
+    slug: "yellow",
+    previewLabel: "Yellow",
+    published: false,
+    label: "Speaker ring, amber",
+    base: "#1e2126",
+    roughness: 0.30,
+    metalness: 0,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.1,
+    emissive: "#ffc75a",
+    emissiveIntensity: 2.3,
+  },
+  {
+    id: "pxl_ring_green",
+    slug: "green",
+    previewLabel: "Green",
+    published: false,
+    label: "Speaker ring, green",
+    base: "#1e2126",
+    roughness: 0.30,
+    metalness: 0,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.1,
+    emissive: "#5cff9d",
+    emissiveIntensity: 2.2,
+  },
+  {
+    id: "pxl_ring_purple",
+    slug: "purple",
+    previewLabel: "Purple",
+    published: false,
+    label: "Speaker ring, violet",
+    base: "#1e2126",
+    roughness: 0.30,
+    metalness: 0,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.1,
+    emissive: "#b276ff",
+    emissiveIntensity: 2.5,
+  },
+  {
+    id: "pxl_ring_blue",
+    slug: "blue",
+    previewLabel: "Blue",
+    published: false,
+    label: "Speaker ring, blue",
+    base: "#1e2126",
+    roughness: 0.30,
+    metalness: 0,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.1,
+    emissive: "#63b4ff",
+    emissiveIntensity: 2.4,
+  },
+  {
+    id: "pxl_ring_red",
+    slug: "red",
+    previewLabel: "Red",
+    published: false,
+    label: "Speaker ring, red",
+    base: "#1e2126",
+    roughness: 0.30,
+    metalness: 0,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.1,
+    emissive: "#ff5a5a",
+    emissiveIntensity: 2.5,
+  },
+];
+
 const ALL = [
   ...PXL_HULL_FINISHES,
   ...PXL_STRUCTURE_FINISHES,
@@ -651,6 +881,8 @@ const ALL = [
   ...PXL_INTERIOR_FINISHES,
   ...PXL_INTERIOR_SECONDARY_FINISHES,
   ...PXL_METAL_FINISHES,
+  ...PXL_GLAZING_FINISHES,
+  ...PXL_SPEAKER_LIGHT_FINISHES,
   ...PXL_MOTOR_FINISHES,
   ...PXL_DRIVE_FINISHES,
 ];

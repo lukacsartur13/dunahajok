@@ -45,15 +45,17 @@ interface PxlSwatchesProps {
   /** Accessible name for one option. */
   optionLabel: (name: string) => string;
   /**
-   * The exterior finish currently selected, as a hex.
+   * The colour an option that FOLLOWS another control should be drawn in.
    *
-   * Only the HULL DETAIL control uses it, and it is passed rather than read
-   * from the store because a swatch that showed "the body colour" would
-   * otherwise have to know what a configuration is. FULL BODY COLOUR's lower
-   * band is genuinely the exterior's colour, so the control shows the exterior's
-   * colour — a fixed grey there would be a swatch that lies about the option.
+   * Two controls have one: HULL DETAIL's FULL BODY COLOUR, whose lower band is
+   * genuinely the exterior's colour, and §4.9's MATCH INTERIOR on the rails,
+   * which is genuinely the interior's. Passed rather than read from the store,
+   * because a swatch that resolved a configuration would have to know what one
+   * is — and it is per control, because the two follow different things.
+   *
+   * A fixed chip in either place would be a swatch that lies about its option.
    */
-  bodyColour?: string;
+  mirrorColour?: string;
 }
 
 export function PxlSwatches({
@@ -62,7 +64,7 @@ export function PxlSwatches({
   onChange,
   groupLabel,
   optionLabel,
-  bodyColour,
+  mirrorColour,
 }: PxlSwatchesProps) {
   const group = useRef<HTMLDivElement>(null);
   const index = Math.max(0, options.findIndex((o) => o.id === value));
@@ -139,7 +141,7 @@ export function PxlSwatches({
             data-cursor-solid=""
             onClick={() => onChange(option)}
           >
-            <Sample option={option} bodyColour={bodyColour} />
+            <Sample option={option} mirrorColour={mirrorColour} />
             {/* Hover and focus name it; the group's own line names it always. */}
             <span className={styles.swatchName} aria-hidden="true">
               {name}
@@ -176,10 +178,10 @@ export function PxlSwatches({
  */
 function Sample({
   option,
-  bodyColour,
+  mirrorColour,
 }: {
   option: PxlCatalogOption;
-  bodyColour?: string;
+  mirrorColour?: string;
 }) {
   const swatch = option.swatch;
 
@@ -193,8 +195,18 @@ function Sample({
     );
   }
 
+  if (swatch.kind === "follows") {
+    return (
+      <span
+        className={styles.sample}
+        style={{ "--finish": mirrorColour ?? "#8d9095" } as CSSProperties}
+        aria-hidden="true"
+      />
+    );
+  }
+
   if (swatch.kind === "waterline") {
-    const upper = bodyColour ?? "#8d9095";
+    const upper = mirrorColour ?? "#8d9095";
     const lower = swatch.lower ?? upper;
     return (
       <span

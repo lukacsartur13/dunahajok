@@ -132,7 +132,18 @@ function components(tris) {
   return out;
 }
 
-const upholstery = meshes.get("upholstery_primary") ?? [];
+/* THE UPHOLSTERY IS FIVE MESHES FROM 4.9, NOT ONE, and the check is the same
+   check. Four of the cushions became lids over the lockers under them, so they
+   are nodes of their own now — but what §19 asks is a question about SHAPE, not
+   about export topology: is the forward padding three separate upholstered
+   elements, or one sweep that crosses the boat? Walking the union answers that
+   the same way it always did, and it still catches a piece that has come apart
+   inside itself, which the node split does not make impossible. */
+const UPHOLSTERY_ZONES = [
+  "upholstery_primary", "seat_lid",
+  "cushion_lid_starboard", "cushion_lid_port", "cushion_lid_nose",
+];
+const upholstery = UPHOLSTERY_ZONES.flatMap((zone) => meshes.get(zone) ?? []);
 const forward = [];
 const aft = [];
 for (const t of upholstery) {
@@ -232,7 +243,7 @@ const CLAY_FLOOR = [0.115, 0.118, 0.122];
 function scene(clay = false) {
   const out = [];
   for (const [name, tris] of meshes) {
-    if (name === "upholstery_primary") continue;
+    if (UPHOLSTERY_ZONES.includes(name)) continue;
     /* The optional equipment is not part of the boat as configured by default,
        and a cockpit cover over the cushions would defeat the whole picture. */
     if (name.startsWith("accessory_") || name.startsWith("platform_")

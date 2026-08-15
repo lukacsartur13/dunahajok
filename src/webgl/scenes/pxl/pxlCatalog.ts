@@ -49,7 +49,9 @@
  */
 
 import {
+  PXL_GLAZING_FINISHES,
   PXL_HULL_FINISHES,
+  PXL_SPEAKER_LIGHT_FINISHES,
   PXL_INTERIOR_FINISHES,
   PXL_INTERIOR_SECONDARY_FINISHES,
   type PxlFinish,
@@ -97,6 +99,16 @@ export type PxlConfigField =
   | "interiorFinish"
   | "interiorSecondaryFinish"
   | "interiorSurface"
+  /** PHASE 4.9. How the grab rails are finished — see `PxlRailTreatment`. */
+  | "railTreatment"
+  /** PHASE 4.9. How dark the console plexi is. A finish, so it needs no type. */
+  | "glazingTint"
+  /** PHASE 4.9. Whether the cockpit speakers are fitted. */
+  | "audio"
+  /** PHASE 4.9. Whether the cool box forward of the console is fitted. */
+  | "coolBox"
+  /** PHASE 4.9. Whether their rings are lit. A finish, so it needs no type. */
+  | "speakerLight"
   | "propulsion"
   /** PHASE 4.4 §24, §26. Whether the aft boarding platform is fitted. */
   | "boardingPlatform";
@@ -106,6 +118,31 @@ export type PxlDriveVariant = "compact" | "standard" | "large" | "electric";
 
 /** How the lower hull is treated. §A4. */
 export type PxlLowerTreatment = "dark" | "body";
+
+/**
+ * How the grab rails are finished. NEW IN 4.9, at the client's instruction.
+ *
+ * NOT A COLOUR LIST, AND THAT IS THE WHOLE DESIGN. The rails were asked to
+ * "match the interior finishes", which is a relationship rather than a set of
+ * swatches: whatever leather the cockpit is trimmed in, the rails follow it,
+ * and they keep following it when the interior changes. A parallel list of rail
+ * colours would have gone stale the first time the interior gained one, and it
+ * would have let somebody configure cognac rails on a graphite interior — a
+ * combination nobody chose, assembled out of two controls that did not know
+ * about each other.
+ *
+ * `black` is the one exception the relationship needs, because a dark rail on a
+ * pale interior is a real specification rather than a mismatch.
+ *
+ * It reaches the rails through the `railings` channel and not through
+ * `interiorPrimary` — see `pxlModel`. §15's list of surfaces the interior
+ * colour must not touch names the rails explicitly, and that list is a fact
+ * about the CHANNEL. Keeping the rails on their own channel means the rule
+ * still holds by construction, the tests that assert it keep passing unchanged,
+ * and the day somebody wants rails that do not follow the leather it is one
+ * resolver line rather than an unpicking.
+ */
+export type PxlRailTreatment = "interior" | "black";
 
 /** §A8's material character. Two, and only where it can be shown credibly. */
 export type PxlInteriorSurface = "smooth" | "grained";
@@ -142,7 +179,17 @@ export type PxlOptionSwatch =
    * `pxlPropulsion` at module load rather than typed in, so the control cannot
    * drift from the boat.
    */
-  | { kind: "scale"; magnitude: number; electric: boolean };
+  | { kind: "scale"; magnitude: number; electric: boolean }
+  /**
+   * WHATEVER ANOTHER CONTROL IS SET TO. §4.9, for MATCH INTERIOR on the rails.
+   *
+   * Drawn in a colour the UI resolves against the live configuration, because
+   * the option genuinely has no colour of its own — that is the whole meaning
+   * of it. A fixed cognac chip would be a swatch that lies the moment somebody
+   * chooses a graphite interior, which is the same failure `waterline` exists
+   * to avoid one control along.
+   */
+  | { kind: "follows" };
 
 /* ── The option ────────────────────────────────────────────────────────────*/
 
@@ -184,6 +231,8 @@ export interface PxlCatalogOption {
   lowerTreatment?: PxlLowerTreatment;
   /** INTERIOR: the surface character this option asks the materials for. */
   interiorSurface?: PxlInteriorSurface;
+  /** INTERIOR: whether the grab rails follow the leather or go black. §4.9. */
+  railTreatment?: PxlRailTreatment;
   /** PROPULSION: which proxy drive `pxlPropulsion` builds. §A14. */
   geometryVariant?: PxlDriveVariant;
   /**
@@ -447,6 +496,78 @@ const INTERIOR_SURFACE_OPTIONS: readonly PxlCatalogOption[] = [
       "no interior specification has been supplied",
   },
 ];
+
+/**
+ * THE GRAB RAILS. §4.9.
+ *
+ * Two options, and the swatch tells the difference honestly: MATCH INTERIOR has
+ * no colour of its own to show, so it is drawn as the interior's own — the UI
+ * resolves `lower: null` against the live configuration, the same mechanism
+ * HULL DETAIL already uses for FULL BODY COLOUR. A fixed cognac chip would have
+ * been a lie the moment somebody chose a graphite interior.
+ */
+const RAIL_OPTIONS: readonly PxlCatalogOption[] = [
+  {
+    id: "pxl_rails_interior",
+    category: "interior",
+    slug: "interior",
+    previewLabel: "Match interior",
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: 0,
+    swatch: { kind: "follows" },
+    railTreatment: "interior",
+    note:
+      "a relationship rather than a colour: the rails follow the interior " +
+      "primary finish, which is itself provisional",
+  },
+  {
+    id: "pxl_rails_black",
+    category: "interior",
+    slug: "black",
+    previewLabel: "Satin black",
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: 1,
+    swatch: { kind: "colour", value: "#17191c" },
+    railTreatment: "black",
+    note:
+      "the structural black already on the boat, applied to the rails; no " +
+      "hardware specification has been supplied",
+  },
+];
+
+/**
+ * THE CONSOLE PLEXI, IN THREE DEPTHS. §4.9, at the client's instruction.
+ *
+ * Ordinary finish options, because that is what they are: `PXL_GLAZING_FINISHES`
+ * carries three plexi entries and each of these selects one. What makes the
+ * screen special lives in the palette, not here — see the note on
+ * `PxlFinish.transmission` for why a tinted screen is not a coloured one.
+ *
+ * The swatches are the ATTENUATION colours rather than the finishes' own base,
+ * which is white on all three. A row of three white chips would be honest about
+ * the albedo and useless about the choice.
+ */
+const GLAZING_OPTIONS: readonly PxlCatalogOption[] = PXL_GLAZING_FINISHES.map(
+  (glass: PxlFinish, index: number): PxlCatalogOption => ({
+    id: `pxl_glazing_${glass.slug.replace("plexi-", "")}`,
+    category: "interior" as const,
+    slug: glass.slug.replace("plexi-", ""),
+    previewLabel: glass.previewLabel,
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: index,
+    swatch: { kind: "colour" as const, value: glass.attenuation ?? "#ffffff" },
+    finishId: glass.id,
+    note:
+      "a tint depth on one sheet of cast acrylic; no glazing specification " +
+      "has been supplied and the section is the authored 9 mm",
+  }),
+);
 
 /* ── Propulsion ────────────────────────────────────────────────────────────*/
 
@@ -1036,7 +1157,136 @@ const PROPULSION_OPTIONS: readonly PxlCatalogOption[] = [
 const PLATFORM_ZONES: Readonly<Partial<Record<PxlZone, boolean>>> = {
   platform_frame: true,
   platform_deck: true,
+  /* §4.9 — THE SPOILER SHIPS WITH THE PLATFORM, at the client's instruction,
+     and the geometry agrees with the instruction: `build_stern_spoiler` lands
+     the moulding ON the tread and shares the platform's own plan, so a boat
+     with the spoiler and no platform would have it resting on nothing. One
+     option, three meshes. */
+  stern_spoiler: true,
 };
+
+/**
+ * COCKPIT AUDIO. §4.9, at the client's request, and at the four stations the
+ * client marked: a pair in the side liner forward of the console and a pair aft.
+ *
+ * Both meshes together, because a grille without its ring is half a speaker and
+ * a ring without its grille is a hole with a light in it.
+ */
+const AUDIO_ZONES: Readonly<Partial<Record<PxlZone, boolean>>> = {
+  speaker_grille: true,
+  speaker_light: true,
+};
+
+/**
+ * THE COOL BOX. §4.9, at the client's request: an extra, opening like the
+ * seats, working as a cool box.
+ *
+ * All three meshes together — a shell without its lining is a box that is not
+ * insulated and a lid without its box is a lid on the floor.
+ */
+const COOL_BOX_ZONES: Readonly<Partial<Record<PxlZone, boolean>>> = {
+  cool_box: true,
+  cool_box_liner: true,
+  cool_box_lid: true,
+};
+
+const COOL_BOX_OPTIONS: readonly PxlCatalogOption[] = [
+  {
+    id: "pxl_cool_none",
+    category: "equipment",
+    slug: "none",
+    previewLabel: "Not fitted",
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: 0,
+    swatch: { kind: "colour", value: "#2b2c2e" },
+    meshVisibility: { cool_box: false, cool_box_liner: false, cool_box_lid: false },
+    note:
+      "no cool box appears in any delivered drawing; the size is chosen to " +
+      "stand on the sole forward of the console without blocking the view " +
+      "from the helm, and no capacity is claimed",
+  },
+  {
+    id: "pxl_cool_fitted",
+    category: "equipment",
+    slug: "on",
+    previewLabel: "Cool Box",
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: 1,
+    swatch: { kind: "colour", value: "#bdc0c2" },
+    meshVisibility: COOL_BOX_ZONES,
+    note:
+      "an insulated locker forward of the console, lid hinged forward so it " +
+      "opens toward the helm; no volume, temperature or power is implied",
+  },
+];
+
+const AUDIO_OPTIONS: readonly PxlCatalogOption[] = [
+  {
+    id: "pxl_audio_none",
+    category: "equipment",
+    slug: "none",
+    previewLabel: "Not fitted",
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: 0,
+    swatch: { kind: "colour", value: "#2b2c2e" },
+    meshVisibility: { speaker_grille: false, speaker_light: false },
+    note:
+      "no audio appears in any delivered drawing; the installation is the " +
+      "client's, and the size is a 6.5 in marine coaxial chosen to fit the " +
+      "liner wall rather than specified by anybody",
+  },
+  {
+    id: "pxl_audio_speakers",
+    category: "equipment",
+    slug: "on",
+    previewLabel: "Cockpit Speakers",
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: 1,
+    swatch: { kind: "colour", value: "#63b4ff" },
+    meshVisibility: AUDIO_ZONES,
+    note:
+      "four 6.5 in coaxials with lit rings, flush in the cockpit's inner " +
+      "wall; no brand, model, power or price is implied and none may be",
+  },
+];
+
+/**
+ * THE RINGS, LIT OR NOT. §4.9.
+ *
+ * A SEPARATE CONTROL FROM THE SPEAKERS THEMSELVES, and it is separate because
+ * the client asked for it to be: the lights are wanted as their own switch so a
+ * night configuration can reach them without also deciding whether the boat has
+ * audio at all. It does nothing when the speakers are not fitted, which is
+ * correct rather than convenient — it describes a ring, and a ring that is not
+ * on the boat has no state to describe.
+ */
+const SPEAKER_LIGHT_OPTIONS: readonly PxlCatalogOption[] =
+  PXL_SPEAKER_LIGHT_FINISHES.map((ring: PxlFinish, index: number): PxlCatalogOption => ({
+    id: `pxl_light_${ring.slug}`,
+    category: "equipment" as const,
+    slug: ring.slug,
+    previewLabel: ring.previewLabel,
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: index,
+    swatch: {
+      kind: "colour" as const,
+      value: (ring.emissiveIntensity ?? 0) > 0 ? (ring.emissive ?? "#63b4ff") : "#1e2126",
+    },
+    finishId: ring.id,
+    note:
+      "a lighting state rather than a product; the colour is read off the " +
+      "client's reference photograph and no fixture has been specified",
+  }));
 
 const EQUIPMENT_OPTIONS: readonly PxlCatalogOption[] = [
   {
@@ -1049,7 +1299,7 @@ const EQUIPMENT_OPTIONS: readonly PxlCatalogOption[] = [
     provisional: true,
     sortOrder: 0,
     swatch: { kind: "colour", value: "#2b2c2e" },
-    meshVisibility: { platform_frame: false, platform_deck: false },
+    meshVisibility: { platform_frame: false, platform_deck: false, stern_spoiler: false },
     note:
       "the boat as the July side plate draws it, which is the delivered " +
       "profile and therefore the delivered configuration",
@@ -1058,7 +1308,7 @@ const EQUIPMENT_OPTIONS: readonly PxlCatalogOption[] = [
     id: "pxl_platform_teak",
     category: "equipment",
     slug: "on",
-    previewLabel: "Aft Boarding Platform",
+    previewLabel: "Aft Platform and Spoiler",
     approvedLabel: null,
     published: false,
     provisional: true,
@@ -1068,9 +1318,9 @@ const EQUIPMENT_OPTIONS: readonly PxlCatalogOption[] = [
     swatch: { kind: "colour", value: "#b0753f" },
     meshVisibility: PLATFORM_ZONES,
     note:
-      "drawn in the August views sheet and absent from the July side plate; " +
-      "the yard has confirmed neither that it is an option nor that it is " +
-      "standard, and its construction here is measured from one drawing",
+      "the platform is drawn in the August views sheet and absent from the " +
+      "July side plate; the spoiler is the reverse. The yard has confirmed " +
+      "neither as option or standard, and each is measured from one drawing",
   },
 ];
 
@@ -1153,6 +1403,22 @@ export const PXL_CATEGORIES: readonly PxlCatalogCategory[] = [
         options: INTERIOR_SURFACE_OPTIONS,
         defaultOptionId: "pxl_surface_grained",
       },
+      {
+        id: "glazing",
+        param: "glazing",
+        field: "glazingTint",
+        labelKey: "glazingTint",
+        options: GLAZING_OPTIONS,
+        defaultOptionId: "pxl_glazing_light",
+      },
+      {
+        id: "rails",
+        param: "rails",
+        field: "railTreatment",
+        labelKey: "railTreatment",
+        options: RAIL_OPTIONS,
+        defaultOptionId: "pxl_rails_interior",
+      },
     ],
   },
   {
@@ -1197,6 +1463,30 @@ export const PXL_CATEGORIES: readonly PxlCatalogCategory[] = [
         labelKey: "boardingPlatform",
         options: EQUIPMENT_OPTIONS,
         defaultOptionId: "pxl_platform_none",
+      },
+      {
+        id: "cool",
+        param: "cool",
+        field: "coolBox",
+        labelKey: "coolBox",
+        options: COOL_BOX_OPTIONS,
+        defaultOptionId: "pxl_cool_none",
+      },
+      {
+        id: "audio",
+        param: "audio",
+        field: "audio",
+        labelKey: "audio",
+        options: AUDIO_OPTIONS,
+        defaultOptionId: "pxl_audio_none",
+      },
+      {
+        id: "ring",
+        param: "ring",
+        field: "speakerLight",
+        labelKey: "speakerLight",
+        options: SPEAKER_LIGHT_OPTIONS,
+        defaultOptionId: "pxl_light_off",
       },
     ],
   },

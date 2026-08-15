@@ -88,6 +88,34 @@ export type PxlZone =
    * crown. See `scripts/pxl/pxl_upper.py`.
    */
   | "upholstery_primary"
+  /**
+   * THE DRIVER'S SQUAB, SEPARATED IN PHASE 4.9 — and separated for a reason
+   * that has nothing to do with materials.
+   *
+   * It is the same leather as `upholstery_primary`, on the same channel, in the
+   * same role, and the two are authored from one section with one set of
+   * numbers. What it is not is part of the same MESH: the seat base under it has
+   * an aperture and this is the lid over it, so something has to be able to turn
+   * it about its hinge without turning the bow cushions with it. A node is the
+   * only unit three can rotate, so it is a node.
+   *
+   * Its origin is the hinge, put there by `pxl_blender.py` — nothing at runtime
+   * knows where the seat is.
+   */
+  | "seat_lid"
+  /**
+   * The three forward squabs, separated in 4.9 for the same reason and by the
+   * same means. Each is the lid of the locker `locker_box` builds under it.
+   *
+   * The two side runs are the interesting case. Their hinge is the outboard
+   * edge, which over two metres sweeps 560 mm inboard — so it is parallel to
+   * neither of the boat's own axes, and `pxl_blender.hinge_on` rotates each
+   * node onto its own hinge line rather than trying to describe one in boat
+   * coordinates. See `pxlLids`, which as a result contains no coordinates.
+   */
+  | "cushion_lid_starboard"
+  | "cushion_lid_port"
+  | "cushion_lid_nose"
   /** Authored in Phase 4.2 — see `pxl_blender.py`. */
   | "coaming_inlay"
   | "bow_fitting"
@@ -131,7 +159,58 @@ export type PxlZone =
    * the asset has to change when somebody switches it on.
    */
   | "platform_frame"
-  | "platform_deck";
+  | "platform_deck"
+  /**
+   * THE RAKED STERN MOULDING, AUTHORED IN 4.9 — and the last row of
+   * PXL_REFERENCE_QA.md's table to come off PARTIAL.
+   *
+   * The July side plate draws 774 mm of moulding abaft the sheer that the
+   * delivered STL does not have. It was logged rather than built for five
+   * phases, because §29 forbids papering over a geometry difference with
+   * invented geometry and the two reference sheets disagree about this station:
+   * the side plate has the wedge, the August stern three-quarter has a plain
+   * transom with a teak platform.
+   *
+   * The client's answer is what resolves it — the wedge is an OPTION, and it
+   * arrives with the platform. That is not a compromise between the two
+   * drawings, it is what each of them is a drawing of.
+   *
+   * `visibleByDefault: false`, and the equipment option turns it on with the
+   * platform's own two zones.
+   */
+  | "stern_spoiler"
+  /**
+   * COCKPIT AUDIO, AUTHORED IN 4.9 — and two zones for one component.
+   *
+   * `speaker_grille` is the moulded can and its bezel; `speaker_light` is the
+   * LED ring inside it. They are separate because they do different things: a
+   * night configuration lights the ring, and a grille that glowed with it would
+   * be a speaker made of light rather than a lit speaker.
+   *
+   * Both `visibleByDefault: false`. The AUDIO option turns both on; the LIGHTS
+   * control drives the ring's emissive alone and does nothing when the speakers
+   * are not fitted, which is correct rather than convenient — the switch
+   * describes the ring, and a ring that is not on the boat has no state.
+   */
+  | "speaker_grille"
+  | "speaker_light"
+  /**
+   * THE COOL BOX, AUTHORED IN 4.9 — an extra on the sole forward of the console.
+   *
+   * Three zones for one part, and each is a different material question. The
+   * shell and the lid wear the console's own dark, because the box stands
+   * directly in front of the console and the two are one helm station. The
+   * LINING is white and fixed to no channel, and that single colour is what
+   * makes the part read as insulated rather than as one more locker: every
+   * other locker on this boat is graphite inside because it is a hole in a
+   * moulding, and a cool box is white inside because it is lined.
+   *
+   * `cool_box_lid` is on the same hinge mechanism as the four seats — see
+   * `pxlLids` — and opens aft, toward the helm.
+   */
+  | "cool_box"
+  | "cool_box_liner"
+  | "cool_box_lid";
 
 /**
  * The channels a configurator can drive.
@@ -175,7 +254,14 @@ export type PxlChannel =
    * hull interior shell, console, rails, windshield — is satisfied by
    * construction rather than by care: every one of those is a different zone
    * with a different channel, and `zonesForChannel("interiorPrimary")` returns
-   * exactly one name. The configurator tests assert that.
+   * only upholstery. The configurator tests assert that.
+   *
+   * TWO ZONES FROM 4.9, NOT ONE, and the change is a mesh split rather than a
+   * widening: `seat_lid` is the driver's squab, cut out of `upholstery_primary`
+   * so it can be hinged. It is the same leather in the same role, and the list
+   * above is untouched by it. §4.9's rail control does NOT arrive here either,
+   * for the same reason — it has `railings`, so "the interior colour must not
+   * reach the rails" remains true of this channel however the rails are set.
    */
   | "interiorPrimary"
   /**
@@ -202,6 +288,28 @@ export type PxlChannel =
   | "sole"
   | "glazing"
   | "metal"
+  /**
+   * THE GRAB RAILS, GIVEN THEIR OWN CHANNEL IN 4.9.
+   *
+   * They were on `metal` with the coaming inlay and the bow cleats, which was
+   * right while all three were one cognac nobody could change. The client has
+   * asked for the rails to follow the interior, and the other two have not
+   * moved — so they are no longer one thing and no longer one channel.
+   *
+   * What it resolves to is a RELATIONSHIP, not a stored colour: MATCH INTERIOR
+   * hands back whatever `interiorPrimary` currently holds, SATIN BLACK hands
+   * back the structural black. See `finishForChannel` and `PxlRailTreatment`.
+   */
+  | "railings"
+  /**
+   * THE SPEAKER RING'S LIGHT. §4.9.
+   *
+   * A channel rather than a boolean because what it resolves to is a FINISH:
+   * `pxl_speaker_dark` and `pxl_speaker_lit` differ only in emissive intensity,
+   * so switching them eases through the same transition every other material
+   * change on this boat uses instead of snapping on a frame.
+   */
+  | "speakerLight"
   | "motor";
 
 /**
@@ -406,13 +514,17 @@ export const PXL_ZONES: readonly PxlZoneSpec[] = [
   { id: "interior_hard_liner", label: "Cockpit liner and foredeck", role: "INTERIOR_SHELL", channel: "hullPrimary", finish: "paint", visibleByDefault: true },
   { id: "cockpit_sole", label: "Cockpit sole and platform faces", role: "SOLE", channel: "sole", finish: "moulding", visibleByDefault: true },
   { id: "upholstery_primary", label: "Cockpit upholstery", role: "UPHOLSTERY", channel: "interiorPrimary", finish: "soft", visibleByDefault: true },
+  { id: "seat_lid", label: "Driver's seat lid", role: "UPHOLSTERY", channel: "interiorPrimary", finish: "soft", visibleByDefault: true },
+  { id: "cushion_lid_starboard", label: "Starboard cushion lid", role: "UPHOLSTERY", channel: "interiorPrimary", finish: "soft", visibleByDefault: true },
+  { id: "cushion_lid_port", label: "Port cushion lid", role: "UPHOLSTERY", channel: "interiorPrimary", finish: "soft", visibleByDefault: true },
+  { id: "cushion_lid_nose", label: "Bow cushion lid", role: "UPHOLSTERY", channel: "interiorPrimary", finish: "soft", visibleByDefault: true },
   { id: "coaming_inlay", label: "Coaming inlay", role: "HARDWARE", channel: "metal", finish: "metal", visibleByDefault: true },
   { id: "bow_fitting", label: "Bow deck cleats", role: "HARDWARE", channel: "metal", finish: "metal", visibleByDefault: true },
   { id: "console_body", label: "Helm console panel", role: "CONSOLE", channel: "interiorSecondary", finish: "paint", visibleByDefault: true },
   { id: "console_detail", label: "Console shell and screen surround", role: "CONSOLE_SHELL", channel: null, finish: "structure", visibleByDefault: true },
   { id: "windshield", label: "Windscreen", role: "GLAZING", channel: "glazing", finish: "glass", visibleByDefault: true },
   { id: "helm_wheel", label: "Steering wheel", role: "HELM", channel: null, finish: "moulding", visibleByDefault: true },
-  { id: "rails", label: "Grab rails", role: "HARDWARE", channel: "metal", finish: "metal", visibleByDefault: true },
+  { id: "rails", label: "Grab rails", role: "HARDWARE", channel: "railings", finish: "metal", visibleByDefault: true },
   /**
    * THE DELIVERED OUTBOARD, AND WHY IT IS HIDDEN BY DEFAULT FROM PHASE FOUR ON.
    *
@@ -449,6 +561,12 @@ export const PXL_ZONES: readonly PxlZoneSpec[] = [
    */
   { id: "platform_frame", label: "Boarding platform frame", role: "PLATFORM_FRAME", channel: null, finish: "structure", visibleByDefault: false },
   { id: "platform_deck", label: "Boarding platform teak", role: "PLATFORM_DECK", channel: null, finish: "wood", visibleByDefault: false },
+  { id: "stern_spoiler", label: "Stern spoiler", role: "STERN_MOULDING", channel: "sternMoulding", finish: "structure", visibleByDefault: false },
+  { id: "speaker_grille", label: "Cockpit speakers", role: "HARDWARE", channel: null, finish: "moulding", visibleByDefault: false },
+  { id: "speaker_light", label: "Speaker ring light", role: "HARDWARE", channel: "speakerLight", finish: "moulding", visibleByDefault: false },
+  { id: "cool_box", label: "Cool box", role: "CONSOLE_SHELL", channel: "interiorSecondary", finish: "structure", visibleByDefault: false },
+  { id: "cool_box_lid", label: "Cool box lid", role: "CONSOLE_SHELL", channel: "interiorSecondary", finish: "structure", visibleByDefault: false },
+  { id: "cool_box_liner", label: "Cool box lining", role: "CONSOLE_SHELL", channel: null, finish: "moulding", visibleByDefault: false },
 ] as const;
 
 export const PXL_ZONE_BY_ID = new Map(PXL_ZONES.map((z) => [z.id, z]));

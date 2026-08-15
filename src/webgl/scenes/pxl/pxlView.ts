@@ -29,6 +29,16 @@ export interface PxlViewState {
   arrival: boolean;
   /** §17: let the backdrop answer the hull's luminance. Configurator only. */
   adaptive: boolean;
+  /**
+   * §4.9 — NIGHT. The boat falls to a silhouette and its own lights take over.
+   *
+   * HERE AND NOT IN `PxlConfiguration`, and the line is the same one the seat
+   * lids are on: a finish is what somebody would order, and night is how they
+   * are looking at it. It is not serialised, so a shared link opens in daylight
+   * — the COLOUR of the rings travels in the URL, because that is a
+   * specification, and whether the room is dark does not.
+   */
+  night: boolean;
 }
 
 const DEFAULT: PxlViewState = {
@@ -37,6 +47,7 @@ const DEFAULT: PxlViewState = {
   water: false,
   arrival: false,
   adaptive: false,
+  night: false,
 };
 
 let state: PxlViewState = DEFAULT;
@@ -48,7 +59,8 @@ export function setPxlView(patch: Partial<PxlViewState>): void {
       next.interactive === state.interactive &&
       next.water === state.water &&
       next.arrival === state.arrival &&
-      next.adaptive === state.adaptive) {
+      next.adaptive === state.adaptive &&
+      next.night === state.night) {
     return;
   }
   state = next;
