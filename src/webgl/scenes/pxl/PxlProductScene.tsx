@@ -83,6 +83,14 @@ import {
   tickLids,
   toggleLid,
 } from "./pxlLids";
+import {
+  applyStow,
+  createStowState,
+  primeStow,
+  tickStow,
+  PXL_STOW_ZONES,
+  toggleStow,
+} from "./pxlStow";
 import { createStudioEnvironment } from "./pxlLighting";
 import { measureFraming, pxlTelemetry } from "./pxlTelemetry";
 import { registerPxlQa } from "./pxlQa";
@@ -199,6 +207,8 @@ export function PxlProductScene({
   const orbit = useRef<PxlOrbit | null>(null);
   /** §4.9 — the four seat lids, and whether the pointer is over one. */
   const lids = useRef(createLidStates());
+  /* §4.10.9 — whether the bimini is struck. A view state, like the lids. */
+  const stow = useRef(createStowState());
   const hovering = useRef(false);
   /** §4.9 — the night transition, and the four lights it turns up. */
   const nightState = useRef(createNightState());
@@ -281,6 +291,10 @@ export function PxlProductScene({
       model.current = handle.root;
       // §4.9 — the seats' own zero, taken once, before anything can move one.
       primeLids(lids.current, (zone) => handle.zones.get(zone)?.mesh ?? null);
+      /* §4.10.9 — where the bimini gathers, read off the boot. Same moment and
+         the same reason as the lids: once, at a known point, rather than the
+         first time something happens to need it. */
+      primeStow(stow.current, (zone) => handle.zones.get(zone) ?? null);
       // …and a real light at each speaker ring, read off the rings themselves.
       primeNightLights(nightState.current, handle.root,
                        handle.zones.get("speaker_light")?.mesh ?? null);
@@ -380,8 +394,11 @@ export function PxlProductScene({
               -(((y - rect.top) / rect.height) * 2 - 1));
       picker.setFromCamera(ndc, camera);
 
+      /* Everything a click can reach: the lids, and — §4.10.9 — whichever half
+         of the bimini is currently drawn. `visible` is the filter for both, so
+         an unfitted bimini and a stowed canopy are simply not candidates. */
       const byMesh = new Map<Object3D, PxlZone>();
-      for (const zone of PXL_LID_ZONES) {
+      for (const zone of [...PXL_LID_ZONES, ...PXL_STOW_ZONES, "bimini_frame" as PxlZone]) {
         const mesh = lidMesh(zone);
         if (mesh?.visible) byMesh.set(mesh, zone);
       }
@@ -418,12 +435,23 @@ export function PxlProductScene({
       onTap: (x, y) => {
         const zone = aim(x, y);
         if (!zone) return;
+        /* §4.10.9 — the bimini is struck rather than opened. Any of its three
+           meshes is the same gesture about the same object: a viewer who caught
+           a tube instead of the cloth has not asked for something else. */
+        if (zone === "bimini_canopy" || zone === "bimini_boot"
+            || zone === "bimini_frame") {
+          toggleStow(stow.current);
+          /* No version bump: `applyStow` runs every frame, after whatever the
+             configuration last wrote, so one invalidation is the whole cost. */
+          invalidateStageScene(id);
+          return;
+        }
         /* Reduced motion gets the locker, not the swing: what is under the
            seat is information about the boat, and withholding it would be the
            same mistake as withholding a colour change. */
         if (reducedMotion) {
           const state = lids.current.get(zone);
-          settleLid(lids.current, zone, lidMesh(zone), !state?.open);
+          settleLid(lids.current, zone, lidMesh, !state?.open);
         } else {
           toggleLid(lids.current, zone);
         }
@@ -551,6 +579,17 @@ export function PxlProductScene({
       applyConfiguration(vessel.current, pxlStore.configuration, first || reducedMotion);
       appliedVersion.current = pxlStore.version;
       dirty = true;
+    }
+
+    /* 1a′. §4.10.9 — THE BIMINI GATHERS, and it is written after the
+            configuration because `applyConfiguration` owns `visible` and has
+            just rewritten every zone's. Eased on its own scalar, so a click
+            halfway down simply reverses. See `pxlStow`. */
+    if (tickStow(stow.current, delta)) dirty = true;
+    if (vessel.current) {
+      applyStow(stow.current,
+                (zone) => vessel.current?.zones.get(zone) ?? null,
+                pxlStore.configuration.equipment.bimini_frame === true);
     }
 
     /* 1b. Finish transitions. §9 — the paint changes, nothing else does: no

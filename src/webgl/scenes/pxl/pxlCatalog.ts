@@ -109,6 +109,8 @@ export type PxlConfigField =
   | "coolBox"
   /** PHASE 4.9. Whether their rings are lit. A finish, so it needs no type. */
   | "speakerLight"
+  /** PHASE 4.10. Whether the bimini over the helm is fitted. */
+  | "bimini"
   | "propulsion"
   /** PHASE 4.4 §24, §26. Whether the aft boarding platform is fitted. */
   | "boardingPlatform";
@@ -1219,8 +1221,67 @@ const COOL_BOX_OPTIONS: readonly PxlCatalogOption[] = [
     swatch: { kind: "colour", value: "#bdc0c2" },
     meshVisibility: COOL_BOX_ZONES,
     note:
-      "an insulated locker forward of the console, lid hinged forward so it " +
-      "opens toward the helm; no volume, temperature or power is implied",
+      "an insulated locker on the sole forward of the console, lid hinged on " +
+      "its aft edge so it opens toward the bow; no volume, temperature or " +
+      "power is implied",
+  },
+];
+
+/**
+ * THE BIMINI. §4.10, to the client's reference photograph.
+ *
+ * Both meshes together and never one of them: a frame without its canvas is a
+ * roll bar and a canvas without its frame is a rug in the air.
+ */
+const BIMINI_ZONES: Readonly<Partial<Record<PxlZone, boolean>>> = {
+  bimini_canopy: true,
+  bimini_frame: true,
+  bimini_aft: true,
+  bimini_fwd: true,
+  bimini_mid: true,
+  bimini_brace: true,
+  bimini_strap: true,
+  /* Fitted means DEPLOYED. The boot is the other state of the same cloth and
+     is switched by striking the top, not by ordering it — see `pxlStow`. */
+  bimini_boot: false,
+};
+
+const BIMINI_OPTIONS: readonly PxlCatalogOption[] = [
+  {
+    id: "pxl_bimini_none",
+    category: "equipment",
+    slug: "none",
+    previewLabel: "Not fitted",
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: 0,
+    swatch: { kind: "colour", value: "#2b2c2e" },
+    meshVisibility: {
+      bimini_canopy: false, bimini_frame: false, bimini_boot: false,
+      bimini_aft: false, bimini_fwd: false, bimini_mid: false,
+      bimini_brace: false, bimini_strap: false,
+    },
+    note:
+      "no bimini appears in any delivered drawing; the geometry is built to " +
+      "the client's reference photograph of a three-bow top, and neither the " +
+      "supplier nor the fabric is specified by anybody",
+  },
+  {
+    id: "pxl_bimini_fitted",
+    category: "equipment",
+    slug: "on",
+    previewLabel: "Bimini Top",
+    approvedLabel: null,
+    published: false,
+    provisional: true,
+    sortOrder: 1,
+    swatch: { kind: "colour", value: "#17181a" },
+    meshVisibility: BIMINI_ZONES,
+    note:
+      "a three-bow bimini over the helm, feet on the gunwale capping, canopy " +
+      "1.31 m above the sole at the crown; it is drawn deployed and does not " +
+      "fold, and no air draft is claimed",
   },
 ];
 
@@ -1463,6 +1524,14 @@ export const PXL_CATEGORIES: readonly PxlCatalogCategory[] = [
         labelKey: "boardingPlatform",
         options: EQUIPMENT_OPTIONS,
         defaultOptionId: "pxl_platform_none",
+      },
+      {
+        id: "bimini",
+        param: "bimini",
+        field: "bimini",
+        labelKey: "bimini",
+        options: BIMINI_OPTIONS,
+        defaultOptionId: "pxl_bimini_none",
       },
       {
         id: "cool",

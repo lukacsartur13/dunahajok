@@ -217,6 +217,19 @@ const FIELDS: Record<PxlConfigField, FieldAccessor> = {
       if (o.interiorSurface) c.interior.surface = o.interiorSurface;
     },
   },
+  bimini: {
+    /* Derived from the visible zones, like every equipment field. */
+    read: (c) => {
+      const on = PXL_BIMINI_ZONES.every((zone) => c.equipment[zone] === true);
+      return on ? "pxl_bimini_fitted" : "pxl_bimini_none";
+    },
+    write: (c, o) => {
+      if (!o.meshVisibility) return;
+      for (const [zone, visible] of Object.entries(o.meshVisibility)) {
+        c.equipment[zone as PxlZone] = visible;
+      }
+    },
+  },
   coolBox: {
     /* Derived from the visible zones, like every equipment field. */
     read: (c) => {
@@ -323,6 +336,21 @@ const PXL_AUDIO_ZONES: readonly PxlZone[] = Object.keys(
   PXL_CONTROLS.find((c) => c.field === "audio")
     ?.options.find((o) => o.slug === "on")?.meshVisibility ?? {},
 ) as PxlZone[];
+
+/**
+ * The zones the bimini owns — the ones being FITTED turns on.
+ *
+ * Filtered on the value, which the three above do not have to be: the bimini is
+ * the first option whose "on" state declares a mesh OFF. `bimini_boot` is the
+ * struck top, and a fitted bimini is a deployed one, so the option switches the
+ * boot off and `pxlStow` decides afterwards which half is drawn. Reading the
+ * key list alone would ask whether the boot is visible before calling the
+ * bimini fitted, and the answer would be no every time it was up.
+ */
+const PXL_BIMINI_ZONES: readonly PxlZone[] = Object.entries(
+  PXL_CONTROLS.find((c) => c.field === "bimini")
+    ?.options.find((o) => o.slug === "on")?.meshVisibility ?? {},
+).filter(([, visible]) => visible === true).map(([zone]) => zone) as PxlZone[];
 
 function writeField(
   config: PxlConfiguration,

@@ -55,17 +55,59 @@ import type { PxlZone } from "./pxlModel";
  */
 export const PXL_LID_OPEN = MathUtils.degToRad(78);
 
-/** Every zone that is a lid. Order is display order in nothing; it is a set. */
-export const PXL_LID_ZONES: readonly PxlZone[] = [
-  "seat_lid",
-  "cushion_lid_starboard",
-  "cushion_lid_port",
-  "cushion_lid_nose",
+/**
+ * How far the bimini swings when it is struck. §4.10.8.
+ *
+ * 55°, and it is not a seat's 78. The top pivots on its forward deck fittings
+ * and lies AFT over the cockpit; the angle is the one that brings the canopy
+ * from standing to roughly level with the gunwale, which is where a folded
+ * bimini rests. Past about 65 it would be through the sole.
+ */
+export const PXL_BIMINI_FOLD = MathUtils.degToRad(55);
+
+/**
+ * WHAT MOVES TOGETHER, AND HOW FAR.
+ *
+ * Every entry is one thing a person can click, whether or not that thing is one
+ * mesh. The seats are one mesh apiece; the bimini is TWO — canvas and tube —
+ * and they are separate zones because they are separate materials, not because
+ * they are separate objects in the world. `pxl_blender` puts both on the SAME
+ * hinge line, so moving them together is a matter of turning both by the same
+ * angle and there is no second hinge to keep in step.
+ *
+ * The angle is per group for the same reason: a squab and a boat's top are not
+ * the same kind of hinge and never wanted the same number.
+ */
+const LID_GROUPS: readonly { zones: readonly PxlZone[]; angle: number }[] = [
+  { zones: ["seat_lid"], angle: PXL_LID_OPEN },
+  { zones: ["cushion_lid_starboard"], angle: PXL_LID_OPEN },
+  { zones: ["cushion_lid_port"], angle: PXL_LID_OPEN },
+  { zones: ["cushion_lid_nose"], angle: PXL_LID_OPEN },
   /* §4.9 — the cool box's lid. Not a seat, and on the list all the same: what
-     `PXL_LID_ZONES` is is "every node that hinges", and the client asked for
-     this one to open the same way the seats do. */
-  "cool_box_lid",
+     this list is is "every node that hinges", and the client asked for this one
+     to open the same way the seats do. */
+  { zones: ["cool_box_lid"], angle: PXL_LID_OPEN },
+  /* §4.10.8 — THE BIMINI IS NOT HERE, AND THE MEASUREMENT IS WHY.
+     `pxl_blender` puts its canvas and its frame on a real hinge line at the
+     forward deck fittings, and turning them through it does not fold the top:
+     the assembly is 1.9 m long and only 0.83 m above that line, so it is
+     already lying nearly aft, and 55° about it takes the canvas from y 1.68 to
+     y −0.81 — through the sole and out of the bottom of the boat. No angle
+     about any single line works, because a bimini does not fold about a line.
+     It COLLAPSES: three bows stack on each other and the cloth gathers, which
+     is an articulated motion a rigid canopy cannot make.
+     The hinge stays in the export because it costs nothing and the stowed
+     build will want it. See PXL_REFERENCE_QA.md §10. */
 ];
+
+/** Every zone that hinges. Order is display order in nothing; it is a set. */
+export const PXL_LID_ZONES: readonly PxlZone[] = LID_GROUPS.flatMap(
+  (group) => group.zones,
+);
+
+const GROUP_OF = new Map<PxlZone, (typeof LID_GROUPS)[number]>(
+  LID_GROUPS.flatMap((group) => group.zones.map((zone) => [zone, group] as const)),
+);
 
 /** Seconds for a lid to travel most of the way. */
 const SETTLE = 0.34;
@@ -94,11 +136,22 @@ export function anyLidOpen(states: PxlLidStates): boolean {
   return false;
 }
 
-/** Ask a lid to open or shut. Returns false if the zone is not a lid. */
+/**
+ * Ask a lid to open or shut. Returns false if the zone is not a lid.
+ *
+ * THE WHOLE GROUP MOVES, not the mesh that was hit. Clicking the bimini's
+ * canvas and clicking its frame are the same gesture about the same object, and
+ * a viewer who caught a tube instead of the cloth has not asked for something
+ * different.
+ */
 export function toggleLid(states: PxlLidStates, zone: PxlZone): boolean {
-  const state = states.get(zone);
-  if (!state) return false;
-  state.open = !state.open;
+  const group = GROUP_OF.get(zone);
+  if (!group) return false;
+  const open = !states.get(zone)!.open;
+  for (const member of group.zones) {
+    const state = states.get(member);
+    if (state) state.open = open;
+  }
   return true;
 }
 
@@ -148,7 +201,7 @@ export function tickLids(
 ): boolean {
   let moving = false;
   for (const [zone, state] of states) {
-    const target = state.open ? PXL_LID_OPEN : 0;
+    const target = state.open ? (GROUP_OF.get(zone)?.angle ?? PXL_LID_OPEN) : 0;
     const lid = node(zone);
     if (Math.abs(state.angle - target) < EPSILON) {
       if (state.angle !== target) {
@@ -164,16 +217,27 @@ export function tickLids(
   return moving;
 }
 
-/** Put a lid where it belongs with no animation. For reduced motion. */
+/**
+ * Put a lid where it belongs with no animation. For reduced motion.
+ *
+ * Takes the node LOOKUP rather than one node, because what settles is the
+ * group: striking the bimini has to land its canvas and its frame in the same
+ * place whichever of the two the viewer happened to hit.
+ */
 export function settleLid(
   states: PxlLidStates,
   zone: PxlZone,
-  lid: Object3D | null,
+  node: (zone: PxlZone) => Object3D | null,
   open: boolean,
 ): void {
-  const state = states.get(zone);
-  if (!state) return;
-  state.open = open;
-  state.angle = open ? PXL_LID_OPEN : 0;
-  if (lid) place(lid, state);
+  const group = GROUP_OF.get(zone);
+  if (!group) return;
+  for (const member of group.zones) {
+    const state = states.get(member);
+    if (!state) continue;
+    state.open = open;
+    state.angle = open ? group.angle : 0;
+    const lid = node(member);
+    if (lid) place(lid, state);
+  }
 }

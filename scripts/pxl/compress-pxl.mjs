@@ -149,6 +149,15 @@ const TIGHT = new Set([
      wrong with the 4 mm budget as a number; it was the wrong budget for a
      surface whose triangles are long. */
   "cockpit_sole", "interior_hard_liner",
+  /* PHASE 4.10 — the bimini, for both of this list's reasons at once. The
+     canopy is the same trap as the sole: a 1.55 × 1.52 m sheet 10 mm thick, so
+     a collapse can slide a vertex a long way across it for almost no measured
+     error and hand back a canvas with a crease in it. The frame is 25 mm tube,
+     which is smaller than the general budget's own tolerance. */
+  "bimini_canopy", "bimini_frame",
+  /* And the boot, which is a 150 mm sleeve: the general budget took 41% of it
+     at a measured 3.91 mm, which on a section that size is the taper. */
+  "bimini_boot",
 ]);
 
 /**

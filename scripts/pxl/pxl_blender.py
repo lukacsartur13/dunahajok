@@ -139,6 +139,27 @@ SPEAKER_LIGHT = "speaker_light"
 COOL_BOX = "cool_box"
 COOL_BOX_LINER = "cool_box_liner"
 COOL_BOX_LID = "cool_box_lid"
+#: NEW IN 4.10. The optional bimini over the helm. Two zones, because there are
+#: two materials: canvas and tube. The frame takes the grab rails' channel — it
+#: is the same tube on the same boat — and the canvas takes none, because black
+#: is what the client's reference shows and nothing configures it yet.
+BIMINI_CANOPY = "bimini_canopy"
+#: NEW IN 4.10.18. The frame is FIVE nodes, not one, because the fold is a rigid
+#: rotation per member and three's unit of rigid motion is a node: what turns
+#: aft, what turns forward, the middle bow that only rises, the brace between
+#: them, and the deck fittings, which are bolted down and never move.
+BIMINI_FRAME = "bimini_frame"
+BIMINI_AFT = "bimini_aft"
+BIMINI_FWD = "bimini_fwd"
+BIMINI_MID = "bimini_mid"
+BIMINI_BRACE = "bimini_brace"
+#: NEW IN 4.10.22. The after straps, as their own node: they unhook the moment
+#: the top is struck, and a mesh cannot hide half of itself.
+BIMINI_STRAP = "bimini_strap"
+#: NEW IN 4.10.9. The struck top, gathered into its cover boot. A zone of its
+#: own because it is the OTHER state of the canvas, not the same object moved:
+#: cloth collapses and a mesh does not.
+BIMINI_BOOT = "bimini_boot"
 
 #: NEW IN 4.4. A LABEL WITH NO OBJECT BEHIND IT. Faces routed here are dropped
 #: on the floor by `split_by_zone`; it is how §2's deletion is expressed inside
@@ -192,7 +213,10 @@ GROUPS: list[tuple[str, list[str]]] = [
     ("PROPULSION", [MOTOR, MOTOR_TRIM]),
     ("OPTIONAL", [ACCESSORY_COVER, PLATFORM_FRAME, PLATFORM_DECK, STERN_SPOILER,
                   SPEAKER_GRILLE, SPEAKER_LIGHT,
-                  COOL_BOX, COOL_BOX_LINER, COOL_BOX_LID]),
+                  COOL_BOX, COOL_BOX_LINER, COOL_BOX_LID,
+                  BIMINI_CANOPY, BIMINI_FRAME, BIMINI_BOOT,
+                  BIMINI_AFT, BIMINI_FWD, BIMINI_MID, BIMINI_BRACE,
+                  BIMINI_STRAP]),
 ]
 
 # ── Measured constants (unchanged from Phase 4.2 unless noted) ──────────────
@@ -385,6 +409,29 @@ MATERIALS: dict[str, dict] = {
     # rather than as one more graphite locker. Matte: a cool box liner is a
     # moulded polymer, not a gelcoat.
     COOL_BOX_LINER: dict(base=(0.742, 0.755, 0.760), rough=0.72, metal=0.0),
+    # §4.10 — the bimini. Canvas first: acrylic duck, black, and ROUGH. The one
+    # way to draw fabric wrong here is to let it take a highlight; at 0.90 it
+    # returns the sky as a wash and nothing as a reflection, which is what the
+    # client's reference shows and what separates it from a moulded hardtop.
+    BIMINI_CANOPY: dict(base=(0.014, 0.014, 0.016), rough=0.90, metal=0.0),
+    # And the frame is the grab rails' tube, to the decimal, because it is the
+    # grab rails' tube. The runtime binds both to `railings`, so choosing a rail
+    # finish moves them together — which is the reason they share a delivery
+    # colour rather than a coincidence that has to be maintained.
+    BIMINI_FRAME: dict(base=(0.412, 0.145, 0.036), rough=0.38, metal=0.0),
+    # The four moving frame nodes are the same tube as the fittings they stand
+    # on, to the decimal. They are separate nodes because they MOVE separately,
+    # not because they are different metal.
+    BIMINI_AFT: dict(base=(0.412, 0.145, 0.036), rough=0.38, metal=0.0),
+    BIMINI_FWD: dict(base=(0.412, 0.145, 0.036), rough=0.38, metal=0.0),
+    BIMINI_MID: dict(base=(0.412, 0.145, 0.036), rough=0.38, metal=0.0),
+    BIMINI_BRACE: dict(base=(0.412, 0.145, 0.036), rough=0.38, metal=0.0),
+    # The boot is the same cloth as the canopy, to the decimal — it IS the
+    # canopy, rolled — and a second black here would read as a different
+    # material the moment both are seen in one session.
+    BIMINI_BOOT: dict(base=(0.014, 0.014, 0.016), rough=0.90, metal=0.0),
+    # Webbing: the canopy's own cloth.
+    BIMINI_STRAP: dict(base=(0.014, 0.014, 0.016), rough=0.90, metal=0.0),
 }
 
 
@@ -1355,6 +1402,41 @@ def main() -> int:
         rails.name = RAILS
         log(f"rails    {len(rails.data.polygons):,}f swept tube, "
             f"{U.SPEC.rail_diameter * 1000:.0f} mm, both pairs, on the capping")
+
+    # §4.10 — THE BIMINI, BUILT HERE for the same reason the rails are: its feet
+    # are placed by raycast against the capping, and the capping is a live
+    # object at this point in the run and a dead reference after the joins.
+    bimini = U.build_bimini(hull, gunwale=gunwale)
+    for key, name in (("canopy", BIMINI_CANOPY), ("frame", BIMINI_FRAME),
+                      ("boot", BIMINI_BOOT), ("aft", BIMINI_AFT),
+                      ("fwd", BIMINI_FWD), ("mid", BIMINI_MID),
+                      ("brace", BIMINI_BRACE), ("strap", BIMINI_STRAP)):
+        if bimini[key]:
+            bimini[key].name = bimini[key].data.name = name
+    if bimini["canopy"]:
+        log(f"bimini   {len(bimini['canopy'].data.polygons):,}f of canvas over "
+            f"{len(bimini['frame'].data.polygons) if bimini['frame'] else 0:,}f "
+            f"of frame — three bows, two struts a side on one fitting, an "
+            f"after brace, strapped at both ends, over the helm")
+    # §4.10.18 — THE TWO TURNING NODES GO ON THE FITTING THEY STAND ON.
+    #
+    # Both struts a side already come down to it, so it is the line they and the
+    # bow they carry rotate about. `hinge_on` puts each node's origin on it and
+    # points local X along it; the runtime turns a node through an angle and
+    # holds no coordinate, which is the contract the seat lids are on.
+    #
+    # The MIDDLE bow, the brace, the feet and the canvas are left unrotated. The
+    # middle bow only rises, the brace is solved from the two ends it joins, the
+    # feet are bolted down, and the canvas is swapped for the boot.
+    if bimini["hinge"]:
+        point, axis = bimini["hinge"]
+        for key, sign in (("aft", 1.0), ("fwd", -1.0)):
+            if bimini[key]:
+                hinge_on(bimini[key], point, axis * sign)
+        bpy.context.view_layer.update()
+        log(f"bimini   hinged at ({point.x:.2f}, {point.z:.2f}) — aft and "
+            f"forward turn, the middle bow rides, the feet stay")
+
 
     # ── §3 · THE COCKPIT FLOOR, CONTINUED ───────────────────────────────
     # First of the authored interior parts, because everything else in the

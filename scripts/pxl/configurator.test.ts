@@ -289,12 +289,13 @@ group("catalogue", () => {
      and is real geometry with a real switch; and the ring light is a separate
      control because the client asked for it separately, so that a night
      configuration can reach the lights without also deciding whether the boat
-     has speakers; and the cool box is an extra the client asked for by name.
+     has speakers; the cool box is an extra the client asked for by name; and
+     the bimini is another, built to a reference photograph the client sent.
      Nothing here is padding. */
   eq(
     PXL_CATEGORY_BY_ID.get("equipment")!.controls.length,
-    4,
-    "§25: EQUIPMENT carries four real options and no padding",
+    5,
+    "§25: EQUIPMENT carries five real options and no padding",
   );
   eq(
     PXL_AVAILABLE_CATEGORIES.length,
@@ -1305,8 +1306,8 @@ group("summary", () => {
     lines.map((l) => l.category),
     ["exterior", "hull_detail", "interior", "interior", "interior", "interior",
      "interior", "propulsion", "equipment", "equipment", "equipment",
-     "equipment"],
-    "grouped by category, with INTERIOR contributing five and EQUIPMENT four",
+     "equipment", "equipment"],
+    "grouped by category, with INTERIOR contributing five and EQUIPMENT five",
   );
   eq(lines[0].value, "Sage Green", "and prints the working name on a preview surface");
   eq(lines[0].slug, "sage", "and carries the stable token");
@@ -1769,7 +1770,7 @@ group("material roles", () => {
      which are two zones because a grille is a moulding and a ring is a light,
      and the cool box, which is three because a shell, a lining and a lid are
      three different material questions. */
-  eq(PXL_ZONES.length, 30, "thirty zones, one per mesh in the GLB");
+  eq(PXL_ZONES.length, 38, "thirty-eight zones, one per mesh in the GLB");
 
   const zoneIds = PXL_ZONES.map((z) => z.id);
   eq(new Set(zoneIds).size, zoneIds.length, "zone ids are unique");
@@ -1810,7 +1811,17 @@ group("material roles", () => {
     !zonesForChannel("interiorPrimary").includes("rails" as PxlZone),
     "§15: the interior channel still cannot reach the rails",
   );
-  eq(zonesForChannel("railings"), ["rails"], "the rail control reaches the rails alone");
+  /* §4.10 — AND THE BIMINI'S FRAME, WHICH IS THE INTENDED BEHAVIOUR. It is the
+     grab rails' tube on the same boat, so a rail finish moves both. What the
+     channel must still never reach is a painted moulding or the canvas, and the
+     assertion is written as the full membership rather than a `contains` so
+     that a third zone arriving here has to be argued for. */
+  eq(
+    zonesForChannel("railings"),
+    ["rails", "bimini_frame", "bimini_aft", "bimini_fwd", "bimini_mid",
+     "bimini_brace"],
+    "the rail control reaches the rails and every tube of the bimini's frame",
+  );
   eq(zonesForRole("SOLE"), ["cockpit_sole"], "the sole is its own zone");
   eq(
     zonesForRole("INTERIOR_SHELL"),

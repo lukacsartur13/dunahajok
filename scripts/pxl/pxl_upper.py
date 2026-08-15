@@ -766,6 +766,157 @@ class Spec:
     #: is 30 mm rather than the 12 mm a moulding would need. It is also what
     #: makes the rim wide enough to read as a lid seat rather than as a lip.
     cool_box_wall: float = 0.030
+
+    # ── The bimini ─────────────────────────────────────────────────────  4.10
+    #
+    # A three-bow bimini over the helm, to the client's reference photograph: a
+    # black canopy on a tubular frame, front and rear bows carrying legs down to
+    # the gunwale, the middle bow held in the canvas.
+    #
+    # THE STATIONS ARE THE HELM'S, NOT THE COCKPIT'S. A bimini shades the person
+    # steering. The aft bow stands over the back of the driver's bench
+    # (`seat_base_x` ends at -1.700) and the forward bow clears the console's
+    # crest at -0.980 — so the canopy covers the helm station and its seat, and
+    # stops short of the forward cushions rather than roofing the whole boat,
+    # which is what the reference draws and what the option is for.
+    #: §4.10.11 SPREAD THESE TO 2.60 m AND §4.10.12 PUT THEM BACK. The client
+    #: asked for roughly twice the opening, looked at 2.86 m of canvas over a
+    #: 5.29 m boat, and asked for the original size — which is this one, and is
+    #: the figure every revision since 4.10 has been judged against.
+    bimini_bow_x: tuple[float, float, float] = (-2.080, -1.310, -0.540)
+    #: How far each leg's foot stands outboard — in station, not in beam — of
+    #: the bow it hangs off. 200 mm under a 900 mm rise is the rake the
+    #: reference has.
+    bimini_leg_rake: float = 0.440
+    #: How thick the struts are against the legs. A support strut is the lighter
+    #: tube on every bimini that has one, and drawing both at 25 mm makes the
+    #: frame read as four legs rather than as two legs braced.
+    bimini_strut_scale: float = 0.86
+    #: The after straps. §4.10.7, restored in §4.10.11 at the client's word: the
+    #: after leg is cut where it crosses its strut, the short piece up to the
+    #: canvas stays, and webbing takes the rest of the run down to the same deck
+    #: fitting.
+    #:
+    #: That is what a bimini is. The forward pair is rigid because it holds the
+    #: top up; the after end is STAYED, because what the back of a bimini has to
+    #: resist is lifting, and a strap does that with nothing standing under it.
+    #: 28 x 4 mm is a marine webbing section.
+    bimini_strap_width: float = 0.028
+    bimini_strap_thick: float = 0.004
+    #: Where on the canvas's after edge each strap is made fast, as a
+    #: half-width. Inboard of the corner, because a strap pulled from the very
+    #: corner drags the cloth into a point. Clamped to the canopy it is on.
+    bimini_strap_inboard: float = 0.615
+    #: THREE SLEEVES, ONE PER BOW, at the client's word: the cloth rolls onto all
+    #: three tubes and not onto one. Which is also what happens — a struck top
+    #: gathers onto every bow it is sewn to, and the three end up side by side
+    #: once `pxlStow` has drawn the tops together.
+    #:
+    #: 50 mm at the crown and 40% of that at the ends. Thinner than a single
+    #: bundle would be, because the same 1.7 × 1.4 m of acrylic is divided by
+    #: three, and the taper is what the zip on a cover boot closes down to.
+    bimini_boot_radius: float = 0.072
+    #: How far the rolled top dips between the bows it hangs on. §4.10.20.
+    #:
+    #: A struck bimini is cloth over three tubes, not a moulding: it is pinched
+    #: where a bow holds it up and slack in the two spans between. 35 mm is
+    #: enough to read as hanging at the distance the boat is looked at and small
+    #: enough that the bundle stays one object rather than three sausages.
+    bimini_boot_sag: float = 0.030
+    #: How far either side of a bow the cloth is still held up by it, as a
+    #: fraction of the half-length. A cosine puts the two dips exactly halfway
+    #: and there is no moving them; three narrow bumps do not — at 0.30 the
+    #: cloth is pinched close to each tube and the slack spans run between.
+    #:
+    #: 0.43 rather than 0.30: wide bumps overlap, so the profile stops being
+    #: three humps with notches between and becomes ONE ARCH with two soft
+    #: hollows in it — which is what a top rolled over three bows looks like,
+    #: and what the client meant by rounding like the bows' own arc.
+    bimini_boot_grip: float = 0.430
+    #: How much lower the bundle's two ENDS run than its middle. §4.10.21.
+    #:
+    #: The three bows do not fold to one level. The middle one rides up on the
+    #: brace and the end pair arrives below it, so a bundle with a level axis
+    #: leaves the middle tube proud of the cloth on top and the other two proud
+    #: underneath — which is exactly what the client saw. The axis therefore
+    #: falls as u², level over the middle bow and 100 mm down at each end, and
+    #: the two slack spans are cut into that curve rather than into a flat line.
+    bimini_boot_ends: float = 0.150
+    #: Where the bundle's axis sits against the middle bow's own crown.
+    #: NEGATIVE is above it. The cloth is wrapped ROUND the tube rather than
+    #: laid on it, so the axis wants to be near the tube's own centreline; the
+    #: last 58 mm up is the client's eye and not a derivation.
+    bimini_boot_drop: float = -0.058
+    #: Half its length along the boat, and it is NOT derived from the bow
+    #: stations any more. The bows swing in on their hinges rather than being
+    #: squeezed together, so what the boot has to cover is where they ARRIVE:
+    #: 154 mm either side of the middle one at `pxlStow`'s swing. 280 mm takes
+    #: that with a hand either end, and it is short enough that the sleeve stays
+    #: a bundle instead of folding in half when the frame does.
+    bimini_boot_half: float = 0.280
+    #: How far along the boat, INTO the canopy, the leg's head sits from the bow
+    #: its strut hangs off. §4.10.3–6, and it took four passes to land on.
+    #:
+    #: While both tubes hung off the bow's own end they left it as one point and
+    #: descended as one silhouette — a single line from every angle a person
+    #: looks at the boat from. §4.10.4 pulled the leg's head INBOARD, which
+    #: separated them and also dragged the head in over the cockpit; the client
+    #: kept the distance and rejected the direction. §4.10.5 moved it along the
+    #: boat instead, both heads toward the stem, which put the forward one
+    #: outside its own canvas. This is the arrangement that survives: each head
+    #: moves toward the MIDDLE of the canopy, so both are deep under the cloth,
+    #: the two legs lean away from each other, and the frame is symmetric
+    #: fore-and-aft as the reference photograph's is.
+    #:
+    #: 250 mm at the client's word — 150 read as a nudge rather than a stance.
+    #: The heads then sit 1.04 m apart, straddling the middle bow, and each leg
+    #: covers 450 mm of station between its head and its foot.
+    bimini_leg_offset: float = 0.250
+    #: How far inside the canvas's own edge every bow arc is pulled. §4.10.4 —
+    #: "the canopy should cover all of it". Measured to the tube's CENTRELINE,
+    #: so it has to exceed the tube's radius for the cloth to cover the tube
+    #: rather than bisect it; 22 mm leaves 9 mm of canvas outboard of the metal.
+    bimini_tuck: float = 0.022
+    #: How far inboard of the capping's INNER edge the feet sit.
+    #:
+    #: Not measured from the outer edge, which is where the rails are: at these
+    #: stations the capping is 118–150 mm wide, the rail's centreline is 52 mm
+    #: in from the outer edge, and a foot placed by the same datum would be
+    #: inside the rail tube. Measured from the inner edge the two can never
+    #: collide however the capping's width is revised — see the clearance the
+    #: build prints.
+    bimini_inboard: float = 0.030
+    #: How much narrower the canopy is than the line its feet stand on, so the
+    #: legs rake outboard on the way down rather than dropping plumb.
+    #:
+    #: 75 mm, which is where it started. It went to 135 for a phase, when the
+    #: canopy was 1.52 m wide against 1.53 m long and read as square in plan;
+    #: the length has since grown to 1.69, so the plan is no longer square at
+    #: either figure, and the client asked for the old size back. At 75 the
+    #: canopy is 1.52 m across, which is 130 mm more shade over the helm.
+    bimini_taper: float = 0.075
+    #: Headroom: canopy underside above the sole at the crown. 1.31 m is a 40 in
+    #: bimini once the gunwale's own height is taken off, which is the middle of
+    #: the three sizes anybody actually sells.
+    bimini_clear: float = 1.310
+    #: Rise of the arc from its outboard edge to the crown.
+    bimini_crown: float = 0.155
+    #: How far the MIDDLE bow stands above the end pair. §4.10.13.
+    #:
+    #: The canopy was flat along the boat — three bows at one height, so the
+    #: cloth between them was a plane and read as a board. 90 mm of arch gives
+    #: it a fore-and-aft camber, which is what a canvas top pulled over three
+    #: hoops actually has, and it is also where the struck top gathers: the end
+    #: bows swing in UNDER it and the bundle sits on the high point.
+    bimini_arch: float = 0.090
+    #: Tube and canvas.
+    bimini_tube: float = 0.025
+    bimini_canvas: float = 0.010
+    #: How far the canvas runs past the end bows, and how far it falls doing it.
+    #: This is the soft rolled edge the reference has; a canopy cut flush at its
+    #: end bow reads as a board.
+    bimini_overhang: float = 0.075
+    bimini_roll: float = 0.045
     #: Half-width at the transom and at the aft edge. The platform follows the
     #: transom's own taper rather than being a rectangle stuck on the back.
     platform_half: tuple[float, float] = (0.905, 0.845)
@@ -3009,6 +3160,419 @@ def build_cool_box(hull: Hull) -> dict[str, bpy.types.Object | None]:
         "box": bevel_object(weld(box), 0.010, 2, 50.0) if box else None,
         "liner": weld(lin) if lin else None,
         "lid": bevel_object(weld(lid), 0.008, 2, 50.0) if lid else None,
+    }
+
+
+def build_bimini(hull: Hull, gunwale=None) -> dict[str, bpy.types.Object | None]:
+    """A three-bow bimini over the helm. §4.10, to the client's reference.
+
+    TWO OBJECTS, BECAUSE THERE ARE TWO MATERIALS AND ONLY TWO. The canopy is
+    canvas and the frame is tube; the feet are part of the frame because they
+    are the same metal, and a third zone for six 24 mm pads would be a draw
+    call spent on nothing.
+
+    ── WHAT DECIDES WHERE IT STANDS ───────────────────────────────────────────
+
+    The feet, and they are MEASURED. `gunwale_plan` gives the capping's inner
+    and outer half-widths at a station and `_gunwale_top` raycasts its top
+    surface, so a foot lands on the moulding the boat actually has, at whatever
+    beam and whatever sheer height that station turns out to have. Nothing here
+    knows the boat's dimensions.
+
+    Everything else hangs off that. The canopy's half-width is the narrowest
+    foot line less `bimini_taper`, so the legs always rake outboard on the way
+    down and the canvas can never overhang the topsides; the crown's height is
+    the one authored number in the part, because headroom is a headroom and not
+    a proportion of anything.
+
+    ── FOUR TUBES A SIDE, ON THREE FITTINGS ──────────────────────────────────
+
+    Each END bow drops a pair: a STRUT off the bow's own tip, falling inboard to
+    a fitting at the middle bow's station, and a LEG whose head is
+    `bimini_leg_offset` INTO the canopy from that bow at the same half-width,
+    raking `bimini_leg_rake` the other way to a fitting of its own. The two
+    tubes are separated fore-and-aft and cross on the way down — §4.10.6.
+
+    NEITHER END HAS A LEG. §4.10.7 replaced the after one with webbing and
+    §4.10.14 did the same forward, so what reaches the deck is the STRUTS —
+    two a side, meeting at one fitting amidships — and what holds the top down
+    is a strap at each end. The tube that is left at each end runs inboard along
+    the top to the middle bow, tying the three hoops into one frame.
+
+        EVERY ARC STAYS UNDER THE CANVAS, `bimini_tuck` inside its edge, measured so
+    that the cloth covers the tube and not just its centreline.
+
+    THAT IS §4.10.2 AND IT IS THE SECOND ANSWER TO THE SAME QUESTION. §4.10.1
+    had the strut the other way up, high amidships and seated on the leg's foot;
+    the client asked for the tube to be turned over, and this is that. The
+    version before both gave every tube a pad of its own, four a side, which is
+    the one arrangement none of the references show.
+
+    Both struts land at the SAME station, so the centre fitting takes two tubes
+    and is drawn wider for it. Three fittings a side, six in all.
+
+    THE MIDDLE BOW STILL REACHES NO DECK. It braces the ends and is itself
+    carried in the canvas, which is what a three-bow bimini does; running it
+    down to the sole would put ten posts in the cockpit and is neither the
+    reference nor anything anybody builds.
+    """
+    def mount(x: float) -> tuple[float, float] | None:
+        """The (half-width, height) a foot stands at, off the real capping."""
+        plan = gunwale_plan(hull, x)
+        if plan is None:
+            return None
+        outer, inner = plan
+        y = inner + SPEC.bimini_inboard
+        z = _gunwale_top(gunwale, x, y)
+        if z is None:
+            z = hull.sheer(x) - SPEC.gunwale_fall * 0.5
+        return y, z
+
+    # WHERE EACH TUBE LANDS. `{bow: its leg's foot station}` so a leg can never
+    # be attached to a bow it does not belong to, plus one station amidships
+    # that both struts come down to.
+    legs = {SPEC.bimini_bow_x[0]: SPEC.bimini_bow_x[0] - SPEC.bimini_leg_rake,
+            SPEC.bimini_bow_x[2]: SPEC.bimini_bow_x[2] + SPEC.bimini_leg_rake}
+    strut_x = SPEC.bimini_bow_x[1]
+    feet = [(x, mount(x)) for x in (*legs.values(), strut_x)]
+    bow_mounts = [mount(x) for x in SPEC.bimini_bow_x]
+    if any(m is None for _, m in feet) or any(m is None for m in bow_mounts):
+        return {"canopy": None, "strap": None, "frame": None, "aft": None,
+                "fwd": None, "mid": None, "brace": None, "brace_ref": None,
+                "hinge": None, "boot": None}
+
+    # THE CANOPY'S WIDTH IS THE BOWS' BUSINESS, NOT THE STRAPS'. It used to be
+    # the narrowest of the FOOT lines, which tied the cloth's beam to wherever
+    # the straps happened to be made fast — carry those further out toward the
+    # ends, where the boat is narrower, and the canvas got narrower with them
+    # for no reason at all. The bows are what the cloth is stretched over.
+    half = min(m[0] for m in bow_mounts) - SPEC.bimini_taper
+    crown_z = SPEC.deck_z + SPEC.bimini_clear
+    edge_z = crown_z - SPEC.bimini_crown
+
+    def arc(x: float, y_half: float, z_edge: float, drop: float = 0.0,
+            n: int = 17) -> list[Vector]:
+        """One section across the boat: flat-crowned, falling to its edges.
+
+        A parabola rather than a circular arc. The two are within 3 mm of each
+        other over this span, and the parabola is the one whose crown is level —
+        a circular arc of the same rise has a visibly pointed centreline when
+        the canvas catches the sky.
+        """
+        pts: list[Vector] = []
+        for i in range(n):
+            u = -1.0 + 2.0 * i / (n - 1)
+            pts.append(Vector((x, u * y_half,
+                               z_edge + SPEC.bimini_crown * (1.0 - u * u) - drop)))
+        return pts
+
+    # ── the canvas ──────────────────────────────────────────────────────
+    #
+    # Five stations: the three bows, and a rolled edge past each end one.
+    #
+    # §4.10.5 briefly needed a sixth, because that revision put the forward
+    # leg's head AHEAD of its bow, out where the cloth had already started to
+    # roll. §4.10.6 turned that head around — both heads now move INTO the
+    # canopy — so the extra station has gone with the problem it existed for.
+    x_aft, _, x_fwd = SPEC.bimini_bow_x
+    plan = [
+        (x_aft - SPEC.bimini_overhang, half - 0.020, SPEC.bimini_roll),
+        (x_aft, half, 0.0),
+        # Negative drop is a RISE: the middle station stands `bimini_arch` above
+        # the end pair, so the cloth cambers along the boat instead of lying
+        # flat between three bows at one height.
+        (SPEC.bimini_bow_x[1], half, -SPEC.bimini_arch),
+        (x_fwd, half, 0.0),
+        (x_fwd + SPEC.bimini_overhang, half - 0.020, SPEC.bimini_roll),
+    ]
+    rings: list[list[Vector]] = []
+    for x, y_half, drop in plan:
+        top = arc(x, y_half, edge_z, drop)
+        low = [Vector((p.x, p.y, p.z - SPEC.bimini_canvas)) for p in reversed(top)]
+        rings.append(top + low)
+    verts, faces = loft(rings, close_ring=True)
+    canopy = weld(mesh_from("bimini_canopy", verts, faces))
+
+    # ── the frame ───────────────────────────────────────────────────────
+    #
+    # WHERE THE TWO TUBES LEAVE THE BOW, and it is the whole of §4.10.4.
+    #
+    # The STRUT takes the bow's own tip — the outboard end of the arc. The LEG
+    # takes a point `bimini_leg_offset` INBOARD of it. So the outer tube arrives
+    # inboard of the inner one, which is what the client asked for and is also
+    # the honest arrangement: the leg is the tube that has to clear the coaming
+    # on its way down, and the strut is the one that wants to be at the widest
+    # part of the arc where the canvas is pulled tight.
+    #
+    # AND EVERY BOW STAYS UNDER THE CANVAS. §4.10.3 had the end bows widened
+    # past the canopy so their tips stood proud of it; the client's word is that
+    # the canopy is to cover all of it, so every arc is now pulled `bimini_tuck`
+    # inside the canvas's own edge — far enough that the TUBE's outer surface is
+    # under the cloth, not just its centreline.
+    r = SPEC.bimini_tube / 2
+    bow_z = edge_z - SPEC.bimini_canvas - r
+    tip = half - r - SPEC.bimini_tuck
+
+    def canvas_under(x: float, y: float) -> Vector:
+        """A point on the canvas's UNDERSIDE at the rolled edge station."""
+        y_half = half - 0.020
+        u = y / y_half
+        return Vector((x, y, edge_z + SPEC.bimini_crown * (1.0 - u * u)
+                       - SPEC.bimini_roll - SPEC.bimini_canvas))
+
+    # ONE LIST PER MOVING MEMBER. §4.10.18 — the fold is now a rigid rotation
+    # per member, and three's unit of rigid motion is a NODE. So the frame is
+    # exported as five objects rather than one: what turns aft, what turns
+    # forward, what only rises, the brace between them, and what is bolted down.
+    aft_parts: list[bpy.types.Object] = []
+    fwd_parts: list[bpy.types.Object] = []
+    mid_parts: list[bpy.types.Object] = []
+    brace_parts: list[bpy.types.Object] = []
+    foot_parts: list[bpy.types.Object] = []
+    straps: list[tuple[Vector, Vector]] = []
+    ends: dict[float, list[Vector]] = {}
+    for x in SPEC.bimini_bow_x:
+        # The middle bow carries the arch. The end pair does not: their tips are
+        # where the legs and struts hang, and raising those would lift the whole
+        # frame rather than camber the cloth over it.
+        path = arc(x, tip, bow_z,
+                   -SPEC.bimini_arch if x == SPEC.bimini_bow_x[1] else 0.0,
+                   n=21)
+        bag = (aft_parts if x == SPEC.bimini_bow_x[0]
+               else fwd_parts if x == SPEC.bimini_bow_x[2] else mid_parts)
+        bag.append(tube("bimini_bow", path, r, segments=8))
+        ends[x] = [path[0], path[-1]]
+
+    stood_at = dict(feet)
+    for x_bow, x_foot in legs.items():
+        for end in ends[x_bow]:
+            side = 1.0 if end.y > 0 else -1.0
+            # Where the LEG's head is: `bimini_leg_offset` along the boat from
+            # the bow its strut hangs off, at the same half-width and the same
+            # height. §4.10.5–6.
+            #
+            # INWARD, and the direction is derived rather than written down: it
+            # is the opposite of the way that bow's own foot is raked, so the
+            # aft leg's head goes forward and the forward leg's head goes aft,
+            # and neither can be got wrong by editing `bimini_bow_x`. Each leg
+            # therefore leans away from the middle of the canopy and its head
+            # is well inside the cloth, which is why the canvas needs no station
+            # of its own any more.
+            inward = -1.0 if x_foot > x_bow else 1.0
+            hang = Vector((x_bow + inward * SPEC.bimini_leg_offset,
+                           side * tip, bow_z))
+            y_foot, z_foot = stood_at[x_foot]
+            foot = Vector((x_foot, side * y_foot, z_foot))
+            s_y, s_z = stood_at[strut_x]
+            s_base = Vector((strut_x, side * s_y, s_z - 0.025))
+            # §4.10.14 — NEITHER END HAS A LEG ANY MORE. Both are stayed with
+            # webbing, at the client's word: what holds the top UP is the pair
+            # of struts, which meet at one deck fitting a side, and what holds
+            # it DOWN is a strap fore and aft.
+            #
+            # §4.10.15 — AND ONLY THE AFTER END KEEPS A SHORT TUBE. It runs
+            # from the MIDDLE BOW'S TIP down to the MIDDLE OF THE AFTER STRUT:
+            # a short brace, and it stays short. §4.10.17 tried anchoring it at
+            # the strut's foot instead, because the foot is the one point on
+            # that tube which provably does not move — and that turned the brace
+            # into a second full-length rod, which is not what it is.
+            #
+            # The forward one is gone — the client's word, and there is nothing
+            # for it to brace: the forward strut is already stayed by the strap
+            # at its own end.
+            if x_bow == SPEC.bimini_bow_x[0]:
+                mid_tip = next(p for p in ends[SPEC.bimini_bow_x[1]]
+                               if (p.y > 0) == (side > 0))
+                brace_parts.append(tube("bimini_stub",
+                                        [mid_tip, (s_base + end) * 0.5],
+                                        r, segments=8))
+            straps.append((canvas_under(
+                               x_bow - inward * SPEC.bimini_overhang,
+                               side * min(SPEC.bimini_strap_inboard,
+                                          half - 0.045)),
+                           Vector((foot.x, foot.y, foot.z + 0.014))))
+            # The deck fitting: a short pad the strap is made fast to.
+            foot_parts.append(tube("bimini_foot",
+                                   [Vector((foot.x, foot.y, foot.z - 0.010)),
+                                    Vector((foot.x, foot.y, foot.z + 0.022))],
+                                   r * 1.9, segments=10))
+            # THE STRUT LEAVES THE SAME BOW AND FALLS THE OTHER WAY.
+            # §4.10.2, at the client's word — the tube is turned over: it was
+            # high amidships and low outboard, and it is now high outboard and
+            # low amidships. So each end of the frame is a Λ seen from abeam.
+            #
+            # It keeps the bow's own TIP, and the leg is the one moved inboard
+            # — §4.10.4. What both revisions are after is the same thing: two
+            # tubes that read as two from every angle rather than as one.
+            #
+            # BOTH STRUTS COME DOWN TO THE SAME STATION, and it is the middle
+            # bow's. That is not a saving — it is the one place amidships that
+            # is already a datum for this part, so the fitting cannot drift out
+            # of step with the bow it braces, and it is the arrangement a
+            # bimini with a centre eye strap actually has.
+            (aft_parts if x_bow == SPEC.bimini_bow_x[0] else fwd_parts).append(
+                tube("bimini_strut", [s_base, end],
+                     r * SPEC.bimini_strut_scale, segments=8))
+
+    # The centre fitting, once a side rather than once a strut, and wider than
+    # the others because it takes two tubes instead of one.
+    s_y, s_z = stood_at[strut_x]
+    for side in (1.0, -1.0):
+        foot_parts.append(tube("bimini_foot",
+                               [Vector((strut_x, side * s_y, s_z - 0.010)),
+                                Vector((strut_x, side * s_y, s_z + 0.022))],
+                               r * 2.4, segments=12))
+
+    frame = join("bimini_frame", foot_parts)
+    aft = join("bimini_aft", aft_parts)
+    fwd = join("bimini_fwd", fwd_parts)
+    mid = join("bimini_mid", mid_parts)
+    brace = join("bimini_brace", brace_parts)
+
+    # ── the after straps ────────────────────────────────────────────────
+    #
+    # FLAT WEBBING, AND THEY JOIN THE CANVAS RATHER THAN THE FRAME. A strap is
+    # cloth; putting it in `bimini_frame` would give it the rails' finish and
+    # let a rail colour repaint it. Being in the canopy's own mesh also means
+    # they unhook by themselves when the top is struck — `pxlStow` drops the
+    # canvas, and the straps go with it.
+    #
+    # The section is a rectangle rather than a circle, and its FACE is turned
+    # athwartships so the width reads from abeam.
+    bands: list[bpy.types.Object] = []
+    hw, ht = SPEC.bimini_strap_width / 2, SPEC.bimini_strap_thick / 2
+    for a, b in straps:
+        run = (b - a)
+        if run.length < 1e-6:
+            continue
+        run.normalize()
+        across = Vector((0.0, 1.0, 0.0))
+        wide = run.cross(across)
+        if wide.length < 1e-6:
+            wide = Vector((1.0, 0.0, 0.0))
+        wide.normalize()
+        rings = [[q + wide * hw + across * ht, q + wide * hw - across * ht,
+                  q - wide * hw - across * ht, q - wide * hw + across * ht]
+                 for q in (a, b)]
+        verts, faces = loft(rings, close_ring=True)
+        bands.append(mesh_from("bimini_strap", verts, faces))
+    # A ZONE OF THEIR OWN, not part of the canvas. §4.10.22 — the client asks
+    # that they go the moment the top is struck, and a mesh cannot hide half of
+    # itself: what unhooks first has to be its own node.
+    strap = join("bimini_strap", bands) if bands else None
+
+    rail_gap = min(abs(m[0] - (gunwale_plan(hull, x)[0] - SPEC.rail_inboard))
+                   for x, m in feet)
+    print(f"    bimini: bows at {SPEC.bimini_bow_x}, feet at "
+          f"{[round(x, 3) for x in sorted(x for x, _ in feet)]}, half-width "
+          f"{half:.3f}, crown {crown_z:.3f} "
+          f"({SPEC.bimini_clear * 1000:.0f} mm over the sole)", flush=True)
+    print(f"    bimini: {len(feet) * 2} deck fittings, z "
+          f"{min(m[1] for _, m in feet):.3f}..{max(m[1] for _, m in feet):.3f}, "
+          f"{rail_gap * 1000:.0f} mm from the rail's centreline "
+          f"(needs {(SPEC.rail_diameter / 2 + r) * 1000:.0f})", flush=True)
+
+    # ── the boot ────────────────────────────────────────────────────────
+    #
+    # ONE SLEEVE OVER ALL THREE BOWS, at the client's word — not one each. Its
+    # section is an ELLIPSE, 560 mm along the boat and 170 mm deep — long in
+    # the direction the three bows are strung out along and SHALLOW across it,
+    # because a rolled top is a flat bundle and a round one reads as a pod. The
+    # envelope the three bows occupy once `pxlStow` has swung the end pair in on
+    # their hinges: 154 mm either side of the middle bow and 207 mm below its
+    # crown. It sits at the middle bow's station and does not lean with the
+    # frame — a sleeve that leaned would fold in half, which is what a
+    # bow-span-long one did.
+    #
+    # Built here rather than derived at runtime because it is geometry, and
+    # hidden until the top is struck.
+    boot_path = arc(SPEC.bimini_bow_x[1], tip * 0.94, bow_z,
+                    -SPEC.bimini_arch + SPEC.bimini_boot_drop, n=21)
+    boot_span = SPEC.bimini_boot_half
+    boot_rings: list[list[Vector]] = []
+    fore = Vector((1.0, 0.0, 0.0))
+    for i, p in enumerate(boot_path):
+        prev = boot_path[max(0, i - 1)]
+        nxt = boot_path[min(len(boot_path) - 1, i + 1)]
+        run = (nxt - prev)
+        run.normalize()
+        # The other cross-section axis: perpendicular to the arc AND to the
+        # boat's length, which is the arc's own normal. Taken this way rather
+        # than from `frame_along` so that the long axis of the section is the
+        # boat's X by construction and not by which way the transport happened
+        # to twist.
+        other = run.cross(fore)
+        if other.length < 1e-6:
+            other = Vector((0.0, 0.0, 1.0))
+        other.normalize()
+        # NO TAPER ALONG THE ARC — a rolled top is the same bundle all the way
+        # across — but it DOES hang. `u` is where a point sits along the boat,
+        # −1 at the after bow, 0 at the middle, +1 at the forward one, and
+        # `crest` is 1 at each of those three and 0 halfway between. So the
+        # section is carried down by `bimini_boot_sag` in the two spans where
+        # nothing is holding it up, which is what cloth over three tubes does.
+        long_r, deep_r = boot_span, SPEC.bimini_boot_radius
+        # THIRTY-TWO POINTS, NOT SIXTEEN. The two dips fall at u = ±0.5, and at
+        # sixteen the ring's samples step straight over them — 0.383 to 0.707 —
+        # so the scallops were averaged away and the bundle read as one long
+        # sag instead of two.
+        ring = []
+        for k in range(32):
+            th = math.tau * k / 32
+            u = math.cos(th)
+            # One bump per bow rather than a cosine: a cosine's minima are
+            # locked halfway between its maxima, and the client asked for the
+            # two dips further apart than that puts them.
+            w = SPEC.bimini_boot_grip
+            crest = max(max(0.0, 1.0 - ((u - c) / w) ** 2)
+                        for c in (-1.0, 0.0, 1.0))
+            sag = (SPEC.bimini_boot_sag * (1.0 - crest)
+                   + SPEC.bimini_boot_ends * u * u)
+            # PLUS, NOT MINUS. `other` is the arc's own normal and on this bow
+            # it points DOWN, so subtracting the sag lifted the ends instead of
+            # dropping them — the bundle came out a saddle with its two ends
+            # curled up and the rods hanging out beneath. The sign is not a
+            # taste; it is which way the swept frame happened to turn.
+            ring.append(p + fore * (long_r * u)
+                        + other * (deep_r * math.sin(th) + sag))
+        boot_rings.append(ring)
+    verts, faces = loft(boot_rings, close_ring=True)
+    boot = weld(mesh_from("bimini_boot", verts, faces))
+
+    # ── the hinges ──────────────────────────────────────────────────────
+    #
+    # §4.10.18 — EVERY MEMBER TURNS ABOUT THE FITTING IT STANDS ON, and the
+    # fitting is the same one for both ends: both struts a side already come
+    # down to it. `hinge_on` re-origins each object onto that line and points
+    # its local X along it, so the runtime turns a node through an angle and
+    # holds no coordinate — the contract the four seat lids are on.
+    #
+    # The MIDDLE bow has no fitting. It is carried by the canvas and driven up
+    # by the brace, so it only rises: the runtime slides it, and the brace's own
+    # transform is solved from the two ends it joins.
+    axis = Vector((0.0, -1.0, 0.0))
+    hinge_pt = Vector((strut_x, 0.0, stood_at[strut_x][1]))
+    brace_ref = None
+    if brace:
+        pts = [brace.matrix_world @ v.co for v in brace.data.vertices]
+        brace_ref = (min(pts, key=lambda q: q.z).copy(),
+                     max(pts, key=lambda q: q.z).copy())
+    # `hinge_on` belongs to `pxl_blender`, which owns the export; the line is
+    # measured here and applied there.
+    print(f"    bimini: five frame nodes — aft and forward hinged at x "
+          f"{strut_x:.3f}, z {stood_at[strut_x][1]:.3f}; the middle bow rides, "
+          f"the feet are bolted", flush=True)
+    return {
+        "canopy": canopy,
+        "strap": strap,
+        "frame": weld(frame) if frame else None,
+        "aft": weld(aft) if aft else None,
+        "fwd": weld(fwd) if fwd else None,
+        "mid": weld(mid) if mid else None,
+        "brace": weld(brace) if brace else None,
+        "brace_ref": brace_ref,
+        "hinge": (hinge_pt, axis),
+        "boot": boot,
     }
 
 

@@ -392,3 +392,49 @@ worth keeping in mind for the rest of this list.
    has points only at the corners and arcs, so there is a 0.20 m stretch with no
    vertices. It shades and reads correctly and would not survive a camera much
    closer than `detail`. Twenty minutes, whenever Blender is next open.
+10. **The bimini has no drawing at all.** §4.10 built it from a supplier's
+    product photograph the client sent, and then through six revisions against
+    his marked-up screenshots. A three-bow top, black canvas on tube, three deck
+    fittings a side.
+
+    *The rig.* Each end bow drops a strut off its own tip, falling inboard to a
+    fitting at the middle bow's station, and a rigid leg whose head is 250 mm
+    into the canopy from that bow, raking 200 mm the other way to a fitting of
+    its own. Both ends the same. §4.10.7 briefly replaced the after leg with
+    webbing, on the argument that a bimini is stayed aft rather than stood on;
+    it left the canopy's after corner with nothing under it and the client asked
+    for the symmetric pair back.
+
+    *What is measured.* All six fittings are raycast onto the capping the boat
+    actually has, 30 mm inboard of its inner edge, which keeps them 34 mm clear
+    of the grab rails' centreline. Every arc sits 22 mm inside the canvas's
+    edge, measured to the tube's centreline so the cloth covers the tube and not
+    just its axis; on the built model the frame spans ±0.674 against the
+    canvas's ±0.697 and x −2.092…−0.528 against the canvas's −2.155…−0.465, so
+    no metal reaches past the cloth in any direction.
+
+    *Struck.* Clicking any part of it swings the tubes in on their feet, eased
+    over about a second, and `bimini_boot` — one sleeve over all three bows —
+    comes up as the canvas goes.
+
+    It is a ROTATION, per vertex: each one keeps its height above the deck as a
+    radius and travels on a circle about the point below it, by an angle ramped
+    across the boat so the after members swing forward, the forward members aft
+    and the middle bow not at all. The feet do not move — below deck level the
+    vertex is inside the fitting and is left alone. At 38° the end bows' heads
+    come 601 mm along the boat and fall 207 mm, arriving 154 mm either side of
+    the middle one.
+
+    Two versions preceded it. A rigid HINGE on the whole assembly does not fold
+    it, it swings it: 55° about the forward fittings put the canvas at y −0.81,
+    through the sole and out of the bottom. A horizontal GATHER folds it but
+    shortens every tube — the heads stayed at one level, which is what the
+    client saw and objected to. What none of the three can do is bring the three
+    heads to one point: rigid tubes on fixed feet, swung equally, stay their own
+    length apart.
+
+    *What is chosen.* 1.31 m of headroom over the sole, a 1.69 × 1.51 m canopy,
+    25 mm tube, a 50 mm sleeve depth. §4.10.11 spread the bows to 2.60 m at the
+    client's word — roughly twice the opening — and §4.10.12 put them back to
+    this, which is the size every revision has been judged against. No air draft is claimed, and nothing about
+    the fabric, the supplier or the fitting is specified by anybody.

@@ -206,11 +206,58 @@ export type PxlZone =
    * moulding, and a cool box is white inside because it is lined.
    *
    * `cool_box_lid` is on the same hinge mechanism as the four seats — see
-   * `pxlLids` — and opens aft, toward the helm.
+   * `pxlLids` — and opens forward, toward the bow.
    */
   | "cool_box"
   | "cool_box_liner"
-  | "cool_box_lid";
+  | "cool_box_lid"
+  /**
+   * THE BIMINI, AUTHORED IN 4.10 — a three-bow top over the helm.
+   *
+   * Two zones, and the split is the same one the platform makes: canvas is not
+   * tube. The CANOPY takes no channel — black is what the client's reference
+   * shows, and a fabric that could be repainted by an exterior sweep would be
+   * the `platform_deck` mistake with a different material. The FRAME takes
+   * `railings`, because it is the grab rails' tube on the same boat: choosing a
+   * rail finish moves both, which is the intended behaviour rather than an
+   * accident of them sharing a delivery colour.
+   */
+  | "bimini_canopy"
+  /**
+   * THE FRAME, AS FIVE NODES. §4.10.18.
+   *
+   * `bimini_frame` is what is bolted down — the six deck fittings — and it
+   * never moves. The other four are the members that do: `bimini_aft` and
+   * `bimini_fwd` are each an end bow with the two struts that carry it, turning
+   * about the one fitting amidships they both stand on; `bimini_mid` is the
+   * middle bow, which has no fitting and only rises; `bimini_brace` is the tube
+   * between them, whose transform is solved from the two ends it joins.
+   *
+   * They are five nodes and not one mesh because the fold is a RIGID rotation
+   * per member and three's unit of rigid motion is a node. One mesh forced a
+   * per-vertex rule, and no per-vertex rule keeps a straight tube straight: the
+   * struts measurably shortened from 1.23 m to 0.79.
+   *
+   * All four carry the grab rails' finish, exactly as `bimini_frame` does.
+   */
+  | "bimini_frame"
+  | "bimini_aft"
+  | "bimini_fwd"
+  | "bimini_mid"
+  | "bimini_brace"
+  /** The after straps. Their own zone so they can unhook on the first frame. */
+  | "bimini_strap"
+  /**
+   * THE STRUCK TOP. §4.10.9.
+   *
+   * The same cloth as `bimini_canopy` and a different object, because canvas
+   * COLLAPSES and a mesh cannot. A rigid canopy on a hinge does not fold — it
+   * swings, and measured on this boat 55° about the forward fittings put it at
+   * y −0.81, through the sole and out of the bottom. So the stowed state is a
+   * gathered sleeve round the middle bow, shown while the canopy and its straps
+   * are hidden. It is not equipment of its own: it is the bimini, struck.
+   */
+  | "bimini_boot";
 
 /**
  * The channels a configurator can drive.
@@ -478,7 +525,17 @@ export type PxlMaterialRole =
    * is what makes that true by construction — `applyConfiguration` skips a zone
    * whose channel is null — rather than true by care.
    */
-  | "PLATFORM_DECK";
+  | "PLATFORM_DECK"
+  /**
+   * The bimini's canvas. §4.10.
+   *
+   * NOT `COVER`, though both are fabric and both are optional. The cockpit
+   * cover is something laid over the boat when nobody is aboard; this is
+   * structure that stands while the boat is being used, and the day either one
+   * becomes configurable it must not drag the other along with it. Takes no
+   * channel, for the reason `PLATFORM_DECK` takes none.
+   */
+  | "CANOPY";
 
 export interface PxlZoneSpec {
   /** glTF node and material name. Must match the exporter exactly. */
@@ -567,6 +624,14 @@ export const PXL_ZONES: readonly PxlZoneSpec[] = [
   { id: "cool_box", label: "Cool box", role: "CONSOLE_SHELL", channel: "interiorSecondary", finish: "structure", visibleByDefault: false },
   { id: "cool_box_lid", label: "Cool box lid", role: "CONSOLE_SHELL", channel: "interiorSecondary", finish: "structure", visibleByDefault: false },
   { id: "cool_box_liner", label: "Cool box lining", role: "CONSOLE_SHELL", channel: null, finish: "moulding", visibleByDefault: false },
+  { id: "bimini_canopy", label: "Bimini canvas", role: "CANOPY", channel: null, finish: "soft", visibleByDefault: false },
+  { id: "bimini_frame", label: "Bimini deck fittings", role: "HARDWARE", channel: "railings", finish: "metal", visibleByDefault: false },
+  { id: "bimini_aft", label: "Bimini after bow and struts", role: "HARDWARE", channel: "railings", finish: "metal", visibleByDefault: false },
+  { id: "bimini_fwd", label: "Bimini forward bow and struts", role: "HARDWARE", channel: "railings", finish: "metal", visibleByDefault: false },
+  { id: "bimini_mid", label: "Bimini middle bow", role: "HARDWARE", channel: "railings", finish: "metal", visibleByDefault: false },
+  { id: "bimini_brace", label: "Bimini after brace", role: "HARDWARE", channel: "railings", finish: "metal", visibleByDefault: false },
+  { id: "bimini_strap", label: "Bimini after straps", role: "CANOPY", channel: null, finish: "soft", visibleByDefault: false },
+  { id: "bimini_boot", label: "Bimini cover boot", role: "CANOPY", channel: null, finish: "soft", visibleByDefault: false },
 ] as const;
 
 export const PXL_ZONE_BY_ID = new Map(PXL_ZONES.map((z) => [z.id, z]));
