@@ -775,7 +775,7 @@
 
 /* ── The bottom bar ─────────────────────────────────────────────────────── */
 
-/* The walk on the left, the decision on the right, and the whole width of the
+/* The decision on the left, the walk on the right, and the whole width of the
    frame between them. It spans under the panel rather than stopping at it: the
    bar is about the configuration as a whole and the panel is about one section
    of it, so a bar that ended where the panel began would read as belonging to
@@ -820,6 +820,10 @@
   pointer-events: auto;
 }
 
+/* THE GROUP THAT GIVES WAY. `.actions` never shrinks — a CTA squeezed off an
+   edge is a CTA that does not exist — so when a language runs long it is the
+   move buttons that compress, and they can: the section names in them are
+   repeated in the navigator at the top of the frame. */
 .move {
   display: flex;
   align-items: center;
@@ -850,6 +854,30 @@
 .next:hover {
   border-color: var(--signal);
   background: rgba(241, 240, 235, 0.12);
+}
+
+/* THE BAR'S OWN CONTROLS GET A GROUND, and the swap is what made it matter.
+   The bar spans the full width and paints over the panel, so anything in its
+   inline-end half sits on top of a card. That was invisible while the corner
+   held the filled CTA — a solid block over a card reads as a solid block. Two
+   outlined buttons over a swatch row read as a mess, because the swatches show
+   through them.
+
+   The same fill and blur the cards use, so the buttons read as the bar's
+   rather than as a card's. Scoped to `.bar`: the panel's own ghosts sit on the
+   page's ground and want nothing behind them. */
+.bar .ghost,
+.bar .next {
+  background: rgba(10, 14, 15, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.bar .ghost:hover:not(:disabled) {
+  background: rgba(10, 14, 15, 0.9);
+}
+
+.bar .next:hover {
+  background: rgba(241, 240, 235, 0.14);
 }
 
 .actions {
@@ -1297,9 +1325,10 @@
     grid-template-columns: repeat(auto-fill, minmax(4.25rem, 1fr));
   }
 
-  /* Two rows in the bar: the walk above, the decision below and full width.
-     A CTA squeezed into a corner beside two move buttons is a CTA nobody
-     presses on a phone. */
+  /* Two rows in the bar, in the order the desktop bar reads left to right:
+     the decision above, the walk below. Both full width — a CTA squeezed into
+     a corner beside two move buttons is a CTA nobody presses on a phone, and
+     the move buttons in the bottom row is the walk in the thumb's own reach. */
   .bar {
     flex-direction: column;
     align-items: stretch;

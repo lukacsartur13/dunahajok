@@ -756,12 +756,32 @@ export function PxlProductConfigurator() {
       </aside>
 
       {/* ── THE BOTTOM BAR ─────────────────────────────────────────────────
-          The walk on the left, the decision on the right. The two move
-          buttons are the flow's own controls and the CTA is what the flow is
-          for, so they never share an edge — a "next" that sits beside
-          "request this configuration" is a next somebody will press by
-          mistake once.                                                      */}
+          THE DECISION ON THE LEFT, THE WALK ON THE RIGHT — the two groups
+          swapped sides, and the reason they can is that the reason they were
+          apart is unchanged: the move buttons are the flow's own controls and
+          the CTA is what the flow is for, so they never share an edge. A
+          "next" sitting beside "request this configuration" is a next
+          somebody presses by mistake once.
+
+          BACK STILL COMES BEFORE NEXT inside its group, and that is the one
+          thing not mirrored. Forward belongs at the edge you are travelling
+          toward; a bar reading "next, back" left to right asks the eye to run
+          the walk backwards.                                                */}
       <div className={styles.bar} ref={bar} data-ready={arrived || undefined}>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={openRequest}
+            data-cursor-solid=""
+          >
+            {t.cta}
+          </button>
+          <button type="button" className={styles.ghost} onClick={share} data-cursor-solid="">
+            {t.share}
+          </button>
+        </div>
+
         <div className={styles.move}>
           {/* Rendered rather than disabled at the ends. A permanently greyed
               control at step one is a control that has to be read and
@@ -790,20 +810,6 @@ export function PxlProductConfigurator() {
               })}
             </button>
           ) : null}
-        </div>
-
-        <div className={styles.actions}>
-          <button type="button" className={styles.ghost} onClick={share} data-cursor-solid="">
-            {t.share}
-          </button>
-          <button
-            type="button"
-            className={styles.primary}
-            onClick={openRequest}
-            data-cursor-solid=""
-          >
-            {t.cta}
-          </button>
         </div>
       </div>
 
