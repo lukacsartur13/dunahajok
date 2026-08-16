@@ -56,8 +56,17 @@
  * is worth making once and then dropping; showing the part a decision is about
  * is worth doing every time the decision comes round again.
  *
- * The viewer can always take it back — every chip in the view card clears the
- * subject, and a drag rides on top of whatever composition is held.
+ * THERE IS NO VIEW RAIL ANY MORE, and the camera is why it could go. Five
+ * named compositions were worth offering when the alternative was standing
+ * wherever the last section left you; now every control names its own shot and
+ * the walk puts the camera on the thing being decided. What is left for a
+ * viewer to want is a closer look from their own angle, and a drag already
+ * gives them that — riding on top of whatever composition is held, until the
+ * next subject move folds it in and starts from there.
+ *
+ * NIGHT SURVIVED THE RAIL IT LIVED IN, because it is not a camera. It moved to
+ * the one control whose result cannot be judged in daylight and appears only
+ * when that control has something lit to show. See `lit`.
  */
 
 import Link from "next/link";
@@ -76,15 +85,16 @@ import {
 } from "@/webgl/scenes/pxl/pxlCatalog";
 import {
   PXL_AVAILABLE_CATEGORIES,
+  PXL_AVAILABLE_CONTROLS,
   optionLabel,
   selectedOption,
   summariseConfiguration,
+  zoneVisible,
 } from "@/webgl/scenes/pxl/pxlConfig";
 import { finish } from "@/webgl/scenes/pxl/pxlPalette";
 import {
-  PXL_CONFIGURATOR_VIEW_CONTROLS,
+  PXL_DEFAULT_PRESET,
   PXL_SUBJECT_SHOTS,
-  type PxlCustomerPresetId,
 } from "@/webgl/scenes/pxl/pxlPresets";
 import { requestPxlSnapshot, snapshotFilename } from "@/webgl/scenes/pxl/pxlSnapshot";
 import {
@@ -103,6 +113,15 @@ import { PxlSwatches } from "./PxlSwatches";
 import { consumePxlEntry, markPxlHintSeen, pxlHintSeen } from "./pxlEntry";
 import styles from "./PxlProductConfigurator.module.css";
 
+/**
+ * The control that decides whether there is anything to see after dark.
+ *
+ * Found by `labelKey` rather than by index or id, because that is the key the
+ * copy table and the subject shots are already on — three places agreeing on
+ * one name beats three places agreeing on three.
+ */
+const RING = PXL_AVAILABLE_CONTROLS.find((c) => c.labelKey === "speakerLight") ?? null;
+
 /** How long a confirmation stays up. Long enough to read, short enough to ignore. */
 const FEEDBACK_MS = 2400;
 /** The arrival caption's life. Brief, then the controls are the page. */
@@ -110,16 +129,6 @@ const ARRIVAL_MS = 1600;
 
 type Feedback = { key: string; text: string } | null;
 
-/**
- * Whether the viewer has taken the camera.
- *
- * Polled rather than subscribed, and deliberately so: the flag lives in
- * `pxlTelemetry`, which the render loop writes sixty times a second, and a
- * subscription would drag React into the frame budget to answer a question whose
- * answer changes about twice a minute. Four samples a second is imperceptible on
- * a view chip, and `setState` with an unchanged boolean is a no-op, so a still
- * boat costs nothing at all.
- */
 /**
  * The composition a section opens on: its first control's, if that control has
  * one authored.
@@ -138,22 +147,12 @@ function firstShot(category: PxlCatalogCategory): string | null {
   return null;
 }
 
-function useOrbited(): boolean {
-  const [orbited, setOrbited] = useState(false);
-  useEffect(() => {
-    const id = window.setInterval(() => setOrbited(pxlTelemetry.orbited), 250);
-    return () => window.clearInterval(id);
-  }, []);
-  return orbited;
-}
-
 export function PxlProductConfigurator() {
   const t = pxlStrings(SITE.locale);
   const config = usePxlConfiguration();
   const reducedMotion = useReducedMotion();
   const finePointer = useFinePointer();
 
-  const [view, setView] = useState<PxlCustomerPresetId>("hero_3q");
   /* §4.9 — night. A way of LOOKING at the boat, so it lives beside the camera
      rather than in the configuration: it is not in the URL and a shared link
      opens in daylight. What the rings are set to travels, because that is a
@@ -196,7 +195,6 @@ export function PxlProductConfigurator() {
   /** Null until tried. False once a capture has definitively failed. */
   const [snapshotOk, setSnapshotOk] = useState<boolean | null>(null);
   const [snapshotBusy, setSnapshotBusy] = useState(false);
-  const orbited = useOrbited();
   const feedbackTimer = useRef<number | null>(null);
   const shell = useRef<HTMLDivElement>(null);
   const rail = useRef<HTMLDivElement>(null);
@@ -259,6 +257,33 @@ export function PxlProductConfigurator() {
     }),
     [config.exterior.hullPrimary, config.interior.primary],
   );
+
+  /**
+   * WHETHER THERE ARE LIGHTS ON THIS BOAT, and therefore whether night is on
+   * offer at all.
+   *
+   * BOTH HALVES, because either one alone is a lie. A ring colour with no
+   * speakers fitted lights nothing — `pxl_audio_none` hides `speaker_light`,
+   * so the finish is applied to a mesh that is not drawn. Speakers with the
+   * ring OFF are four grilles. Only the pair puts something on the boat that
+   * the dark is worth seeing.
+   *
+   * Read off the configuration rather than tracked alongside it: `zoneVisible`
+   * is the same function the scene asks, so the switch cannot disagree with
+   * what is actually drawn.
+   */
+  const lit =
+    RING !== null &&
+    zoneVisible(config, "speaker_light") &&
+    selectedOption(config, RING).slug !== "off";
+
+  /* NIGHT CANNOT OUTLIVE THE LIGHTS. Its switch lives under the ring control
+     and disappears with it, so a night that stayed on after the speakers came
+     off would be a dark boat with nothing on screen to turn the lights back
+     up — the interface having taken something away and kept the consequence. */
+  useEffect(() => {
+    if (!lit) setNight(false);
+  }, [lit]);
 
   const summary = useMemo(() => summariseConfiguration(config, "preview"), [config]);
 
@@ -409,15 +434,6 @@ export function PxlProductConfigurator() {
     [],
   );
 
-  /* Choosing a view is how the composition is taken back off the interface.
-     The subject clears, and `PxlProductScene` returns to the preset — which is
-     the same transition, in the other direction. */
-  const chooseView = useCallback((id: PxlCustomerPresetId) => {
-    setView(id);
-    setSubject(null);
-    track({ name: "pxl_camera_change", preset: id, source: "control" });
-  }, []);
-
   const share = useCallback(async () => {
     const link = currentPxlPermalink();
     try {
@@ -494,7 +510,6 @@ export function PxlProductConfigurator() {
     markPxlHintSeen();
   }, [hint]);
 
-  const activeView: PxlCustomerPresetId = orbited && view !== "free" ? "free" : view;
   const interactive = !reducedMotion;
 
   /* The still that stands in until the GLB resolves, and permanently on a
@@ -527,7 +542,7 @@ export function PxlProductConfigurator() {
             which is exactly why nobody caught it: the feature worked
             everywhere it was being tested. */}
         <PxlStage
-          preset={activeView}
+          preset={PXL_DEFAULT_PRESET}
           shot={subject}
           night={night}
           interactive={interactive}
@@ -669,61 +684,29 @@ export function PxlProductConfigurator() {
                 <p className={styles.cardCount}>
                   {fill(t.optionCount, { count: String(control.options.length) })}
                 </p>
+                {/* UNDER THE LIGHTS, AND ONLY WHEN THERE ARE LIGHTS.
+                    Night is not a specification and never has been — it does
+                    not travel in the URL and a shared link opens in daylight —
+                    so it does not get a card of its own. It belongs to the one
+                    control whose result cannot be judged in daylight, and it
+                    appears the moment that control has something to show. */}
+                {control.labelKey === "speakerLight" && lit ? (
+                  <label className={styles.night}>
+                    <input
+                      type="checkbox"
+                      className={styles.nightInput}
+                      checked={night}
+                      onChange={() => setNight((on) => !on)}
+                    />
+                    <span className={styles.nightTrack} aria-hidden="true">
+                      <span className={styles.nightKnob} />
+                    </span>
+                    <span className={styles.nightLabel}>{t.night}</span>
+                  </label>
+                ) : null}
               </section>
             );
           })}
-
-          {/* The camera belongs to the viewer rather than to the boat, so it
-              sits below the section it is being used to look at, marked off
-              as a different kind of control rather than mixed in with them. */}
-          <section className={`${styles.card} ${styles.viewCard}`}>
-            <p className={styles.cardLabel}>{t.viewHeading}</p>
-            {/* WHAT THE CAMERA IS SHOWING, which while a subject holds it is a
-                part of the boat rather than one of the five named views. The
-                control's own label is already the right words for it, so this
-                needs no copy of its own — and none of the chips reads as
-                selected, which is true: pressing one is how you take the
-                composition back. */}
-            <p className={styles.cardValue}>
-              {subject
-                ? (t.controls[subject] ?? t.views[activeView])
-                : t.views[activeView]}
-            </p>
-            {/* The five authored compositions. FREE is a state the camera
-                reaches, not an instruction anybody would give, so it is named
-                in the line above and never offered as a button — while the
-                viewer has the camera, none of these is selected, and choosing
-                one is how they hand it back. */}
-            <div className={styles.views} role="radiogroup" aria-label={t.viewHeading}>
-              <button
-                type="button"
-                aria-pressed={night}
-                className={styles.view}
-                data-on={night || undefined}
-                data-cursor-solid=""
-                onClick={() => setNight((on) => !on)}
-              >
-                {t.night}
-              </button>
-              {PXL_CONFIGURATOR_VIEW_CONTROLS.map((id) => {
-                const on = !subject && id === activeView;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    className={styles.view}
-                    data-on={on || undefined}
-                    data-cursor-solid=""
-                    onClick={() => chooseView(id)}
-                  >
-                    {t.views[id]}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
 
           <div className={styles.panelFoot}>
             {/* Marked once, beside the controls rather than in a footnote
@@ -826,7 +809,7 @@ export function PxlProductConfigurator() {
         {summary
           .map((line) => `${t.controls[line.labelKey] ?? line.control}: ${line.value ?? line.slug}`)
           .join(". ")}
-        . {t.viewHeading}: {t.views[activeView]}.
+        {subject ? `. ${t.viewHeading}: ${t.controls[subject] ?? subject}` : ""}.
       </p>
       <p className={styles.srOnly} role="status" aria-live="polite">
         {feedback?.text ?? ""}
