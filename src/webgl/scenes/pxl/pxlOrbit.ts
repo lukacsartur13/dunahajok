@@ -176,8 +176,23 @@ export function createPxlOrbit(
       return;
     }
 
-    target.azimuth += dx * YAW_PER_PX;
-    target.elevation -= dy * PITCH_PER_PX;
+    /* THE BOAT FOLLOWS THE HAND, AND BOTH AXES ARE NEGATED TO SAY SO.
+     *
+     * The signs used to be the other way round, which is the convention a 3D
+     * viewport uses: the pointer drives the CAMERA, so the object appears to
+     * travel opposite the drag. That is right for a tool, where the operator is
+     * thinking about where they are standing, and wrong here. This is a product
+     * on a turntable, and what a person reaches for is the boat: drag right and
+     * the near topsides should come right, drag down and the deck should tip
+     * down toward you and show its top.
+     *
+     * So `dx` turns the camera the other way and `dy` raises it rather than
+     * dropping it — one sign each, in one place, because both halves of the
+     * gesture have to agree. Inverting only the horizontal is worse than
+     * inverting neither: the hand would be pushing the object one way and the
+     * camera the other inside a single diagonal drag. */
+    target.azimuth -= dx * YAW_PER_PX;
+    target.elevation += dy * PITCH_PER_PX;
     // Clamping the *target* rather than the eased value is what makes the
     // limits feel like the end of the object rather than a wall the camera
     // bounces off: past the limit the drag simply stops having an effect.
@@ -235,6 +250,44 @@ export function createPxlOrbit(
     },
     apply(camera: PxlCameraState) {
       camera.azimuth += state.azimuth;
+      /* §4.12 — THE BOAT SPINS ABOUT ITS OWN AXIS, NOT ABOUT WHATEVER IS
+         BEING LOOKED AT.
+       *
+       * `applyPxlCamera` places the eye on a sphere around `target` and looks
+       * at it, so adding an azimuth offset and stopping there orbits the
+       * camera around the TARGET. That was invisible while every composition
+       * targeted a point near amidships. It stopped being invisible the moment
+       * the subject shots started aiming at the console, the cool box and the
+       * windscreen: dragging then swung the whole hull around the console, and
+       * the stern travelled across the frame like a boom.
+       *
+       * A turntable rotates the object about its own vertical axis. Doing that
+       * with a camera means rotating the eye AND the point it is looking at
+       * about that axis together — a rigid rotation of the whole scene, after
+       * which the subject is still exactly where it was in frame and the boat
+       * has turned underneath it. So the target's own offset from the axis is
+       * rotated by the same angle the eye just travelled.
+       *
+       * THE AXIS IS x = 0, z = 0, and it is not a guess: `PXL_MODEL`'s origin
+       * is amidships on the waterline, which is why every authored target in
+       * `pxlPresets` is a small offset from zero rather than a position. A
+       * rotation about the vertical needs no y, so the height of the target
+       * comes through untouched — dragging left and right cannot raise or drop
+       * the boat.
+       *
+       * ELEVATION IS DELIBERATELY NOT TREATED THE SAME WAY. Dragging up and
+       * down raises and lowers the eye around what is being looked at, which
+       * is what a viewer means by it. Rotating the target with it would pitch
+       * the boat bow-over-stern, and nothing on a river does that. */
+      if (state.azimuth !== 0) {
+        const a = MathUtils.degToRad(state.azimuth);
+        const sin = Math.sin(a);
+        const cos = Math.cos(a);
+        const x = camera.target[0];
+        const z = camera.target[2];
+        camera.target[0] = x * cos + z * sin;
+        camera.target[2] = z * cos - x * sin;
+      }
       camera.elevation = MathUtils.clamp(
         camera.elevation + state.elevation,
         PXL_ORBIT_LIMITS.minElevation,

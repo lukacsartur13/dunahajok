@@ -21,6 +21,23 @@ import { PXL_DEFAULT_PRESET, type PxlPresetId } from "./pxlCamera";
 
 export interface PxlViewState {
   preset: PxlPresetId;
+  /**
+   * §4.12 — THE SUBJECT THE CAMERA IS SHOWING, or null for the preset.
+   *
+   * A key into `PXL_SUBJECT_SHOTS`, which is a control's `labelKey`. It sits
+   * beside `preset` rather than replacing it because the two answer different
+   * questions and both stay true: `preset` is the view the VIEWER last chose
+   * and is what the rail highlights; `shot` is where the INTERFACE has taken
+   * the camera to explain the decision on screen. Clearing it hands the
+   * composition back to the preset, which is exactly what pressing a view chip
+   * should do.
+   *
+   * A string rather than a state object, for the reason `preset` is one: the
+   * equality check below is what stops a re-render per frame, and comparing
+   * two authored compositions field by field to discover they are the same
+   * shot would be work done sixty times a second to learn nothing.
+   */
+  shot: string | null;
   /** Whether the viewer may turn the boat. */
   interactive: boolean;
   /** Studio (false) or the Phase Two river (true). */
@@ -43,6 +60,7 @@ export interface PxlViewState {
 
 const DEFAULT: PxlViewState = {
   preset: PXL_DEFAULT_PRESET,
+  shot: null,
   interactive: false,
   water: false,
   arrival: false,
@@ -56,6 +74,7 @@ const listeners = new Set<() => void>();
 export function setPxlView(patch: Partial<PxlViewState>): void {
   const next = { ...state, ...patch };
   if (next.preset === state.preset &&
+      next.shot === state.shot &&
       next.interactive === state.interactive &&
       next.water === state.water &&
       next.arrival === state.arrival &&

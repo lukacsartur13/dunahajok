@@ -33,8 +33,14 @@ export {
   PXL_ORBIT_LIMITS,
   PXL_PRESETS,
   PXL_PRESET_BY_ID,
+  PXL_SUBJECT_SHOTS,
 } from "./pxlPresets";
-export type { PxlCameraState, PxlPreset, PxlPresetId } from "./pxlPresets";
+export type {
+  PxlCameraState,
+  PxlPreset,
+  PxlPresetId,
+  PxlSubjectShot,
+} from "./pxlPresets";
 
 const between = gsap.parseEase("glide");
 
@@ -49,7 +55,14 @@ function mix(a: number, b: number, t: number): number {
  * a tablet in the middle of the range gets a composition that belongs to it and
  * a window being dragged across the breakpoint does not jump.
  */
-export function resolvePreset(preset: PxlPreset, width: number): PxlCameraState {
+export function resolvePreset(
+  /* A COMPOSITION, not necessarily a preset. Structural rather than nominal so
+     that `PXL_SUBJECT_SHOTS` — which has the same two authored ends and no id
+     or label, because it is not a place a person can ask to be put — resolves
+     through the same viewport blend as the product presets do. */
+  preset: Pick<PxlPreset, "desktop" | "mobile">,
+  width: number,
+): PxlCameraState {
   const raw = MathUtils.clamp((width - MOBILE_MAX) / (DESKTOP_MIN - MOBILE_MAX), 0, 1);
   const t = between(raw);
   const m = { ...preset.desktop, ...preset.mobile };

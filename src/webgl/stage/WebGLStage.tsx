@@ -236,6 +236,7 @@ export function WebGLStage() {
                 quality={quality}
                 reducedMotion={reducedMotion}
                 preset={pxlView.preset}
+                shot={pxlView.shot}
                 interactive={pxlView.interactive}
                 water={pxlView.water}
                 arrival={pxlView.arrival}

@@ -39,6 +39,8 @@ import {
   type PerspectiveCamera,
 } from "three";
 import { setSceneActive } from "@/components/scene/SceneSlot";
+import { pxlStrings } from "@/content/pxlStrings";
+import { SITE } from "@/content/site";
 import type { QualityProfile } from "@/webgl/stage/quality";
 import { invalidateStageScene } from "@/webgl/stage/sceneRegistry";
 import { stage } from "@/webgl/stage/stageState";
@@ -67,6 +69,7 @@ import { pxlStore } from "./pxlStore";
 import {
   PXL_DEFAULT_PRESET,
   PXL_PRESET_BY_ID,
+  PXL_SUBJECT_SHOTS,
   applyPxlCamera,
   blendStates,
   presetDuration,
@@ -98,6 +101,24 @@ import { registerPxlQa } from "./pxlQa";
 /** Frames drawn before the scene takes the slot from its static fallback. */
 const WARMUP_FRAMES = 3;
 
+/**
+ * §4.10.9 — the three meshes a click strikes the bimini by.
+ *
+ * Named once because two places ask the same question about them and the two
+ * must not be able to disagree: `onTap` decides whether to strike or to hinge,
+ * and `hintFor` decides whether the cursor says "stow" or "open". The day a
+ * fourth bimini mesh becomes clickable, a label that silently kept saying
+ * "open" over it would be the harder half of that bug to find.
+ */
+const STOWABLE = new Set<PxlZone>(["bimini_canopy", "bimini_boot", "bimini_frame"]);
+
+/**
+ * The cursor's own words. `SITE.locale` is a build-time constant — the site is
+ * not yet multilingual at runtime — so this is resolved once rather than
+ * threaded through the scene's props.
+ */
+const copy = pxlStrings(SITE.locale);
+
 export type PxlSceneStatus = "loading" | "ready" | "failed";
 
 interface PxlProductSceneProps {
@@ -105,6 +126,15 @@ interface PxlProductSceneProps {
   reducedMotion: boolean;
   /** Which authored composition to hold. Changing it animates the move. */
   preset?: PxlPresetId;
+  /**
+   * §4.12 — the SUBJECT the camera has been sent to, or null for the preset.
+   *
+   * A key into `PXL_SUBJECT_SHOTS`. It takes precedence over `preset` while it
+   * is set, and it travels through exactly the same transition machinery — a
+   * subject move and a view change are the same event to everything below
+   * here, which is why neither needed a second code path.
+   */
+  shot?: string | null;
   /** Let the viewer turn the boat. Off in editorial contexts. */
   interactive?: boolean;
   /**
@@ -187,6 +217,7 @@ export function PxlProductScene({
   quality,
   reducedMotion,
   preset = PXL_DEFAULT_PRESET,
+  shot = null,
   interactive = false,
   water = false,
   arrival = false,
@@ -209,7 +240,17 @@ export function PxlProductScene({
   const lids = useRef(createLidStates());
   /* §4.10.9 — whether the bimini is struck. A view state, like the lids. */
   const stow = useRef(createStowState());
-  const hovering = useRef(false);
+  /**
+   * §4.9 — WHAT THE CURSOR IS CURRENTLY SAYING, or null when it is over
+   * nothing that answers a click.
+   *
+   * A string rather than the boolean it used to be, and that is the whole of
+   * what makes the label cheap: the hover handler runs on every pointer move,
+   * and comparing the hint it just computed against the one already on the
+   * element is what stops it writing an attribute sixty times a second when
+   * the pointer is wandering around inside the same seat.
+   */
+  const hovering = useRef<string | null>(null);
   /** §4.9 — the night transition, and the four lights it turns up. */
   const nightState = useRef(createNightState());
 
@@ -221,6 +262,8 @@ export function PxlProductScene({
   /** Seconds the move in progress is scheduled to take. See `presetDuration`. */
   const transitionSeconds = useRef(1);
   const activePreset = useRef<PxlPresetId>(preset);
+  /** The subject the camera is composing toward, or null for `activePreset`. */
+  const activeShot = useRef<string | null>(null);
   /**
    * FREE mode's frozen composition.
    *
@@ -431,6 +474,31 @@ export function PxlProductScene({
       return null;
     };
 
+    /**
+     * What a click on this zone would do, in words.
+     *
+     * Read from the LIVE state rather than from the zone alone, because the
+     * same seat is two different offers depending on whether it is already
+     * open. `stowed` and `open` are the same flags `onTap` is about to flip,
+     * so the label cannot drift from the behaviour: there is one source for
+     * both.
+     */
+    const hintFor = (zone: PxlZone): string => {
+      if (STOWABLE.has(zone)) {
+        return stow.current.stowed ? copy.raiseHint : copy.stowHint;
+      }
+      return lids.current.get(zone)?.open ? copy.closeHint : copy.openHint;
+    };
+
+    /** Put a hint on the slot, or take the last one off. Idempotent. */
+    const applyHint = (hint: string | null) => {
+      if (hint === hovering.current) return;
+      hovering.current = hint;
+      element.style.cursor = hint ? "pointer" : "";
+      if (hint) element.setAttribute("data-cursor", hint);
+      else element.removeAttribute("data-cursor");
+    };
+
     const handle = createPxlOrbit(element, !reducedMotion, {
       onTap: (x, y) => {
         const zone = aim(x, y);
@@ -438,12 +506,12 @@ export function PxlProductScene({
         /* §4.10.9 — the bimini is struck rather than opened. Any of its three
            meshes is the same gesture about the same object: a viewer who caught
            a tube instead of the cloth has not asked for something else. */
-        if (zone === "bimini_canopy" || zone === "bimini_boot"
-            || zone === "bimini_frame") {
+        if (STOWABLE.has(zone)) {
           toggleStow(stow.current);
           /* No version bump: `applyStow` runs every frame, after whatever the
              configuration last wrote, so one invalidation is the whole cost. */
           invalidateStageScene(id);
+          applyHint(hintFor(zone));
           return;
         }
         /* Reduced motion gets the locker, not the swing: what is under the
@@ -456,22 +524,45 @@ export function PxlProductScene({
           toggleLid(lids.current, zone);
         }
         invalidateStageScene(id);
+        /* THE OFFER CHANGES THE MOMENT IT IS TAKEN, and the pointer is still
+           sitting on the seat. Without this the label goes on saying "open"
+           over a locker that is now open, until the hand happens to move. */
+        applyHint(hintFor(zone));
       },
-      /* The affordance. Without it the seats are a secret: nothing else on this
-         canvas responds to a click, so there is no reason for anybody to try
-         one. A cursor change is the whole hint. */
+      /* THE AFFORDANCE, AND IT IS NOW WORDS AS WELL AS A CURSOR.
+       *
+       * Without one the seats are a secret: nothing else on this canvas
+       * responds to a click, so there is no reason for anybody to try one. A
+       * pointer cursor said *something is here*; it did not say what, and a
+       * hairline ring over a leather squab is easy to read as the ordinary
+       * drag cursor the rest of the stage carries.
+       *
+       * THE LABEL IS THE SITE'S OWN CURSOR, NOT A TOOLTIP OF OUR OWN.
+       * `CustomCursor` already renders whatever `data-cursor` the innermost
+       * ancestor of the pointer's target carries, so the whole feature is
+       * putting the right string on the slot and taking it off again. That
+       * buys three things a bespoke tooltip would each have had to earn: it
+       * inherits the ring's easing and blend mode, it is already suppressed on
+       * touch and under reduced motion, and it NESTS — the preview
+       * configurator sets `data-cursor={t.dragHint}` on the frame around this
+       * slot, so "Drag to explore" comes back by itself the moment the pointer
+       * leaves the seat.
+       *
+       * ORDERING IS WHY IT IS SAFE TO WRITE THE ATTRIBUTE HERE. This listener
+       * is on the slot and `CustomCursor`'s is on `window`, so for one
+       * `pointermove` this runs first and the cursor reads the value in the
+       * same event — no frame where the ring is open over the old label. */
       onHover: (x, y) => {
-        const over = aim(x, y) !== null;
-        if (over === hovering.current) return;
-        hovering.current = over;
-        element.style.cursor = over ? "pointer" : "";
+        const zone = aim(x, y);
+        applyHint(zone ? hintFor(zone) : null);
       },
     });
     orbit.current = handle;
     return () => {
       handle.dispose();
       element.style.cursor = "";
-      hovering.current = false;
+      element.removeAttribute("data-cursor");
+      hovering.current = null;
       orbit.current = null;
     };
   }, [interactive, reducedMotion, id, camera]);
@@ -481,10 +572,18 @@ export function PxlProductScene({
      preset mid-transition, or after the viewer has turned the boat, resolves
      smoothly instead of snapping back to the last authored composition.     */
   useEffect(() => {
-    if (preset === activePreset.current) return;
+    /* An unknown key is not an error and not a camera move: it is a control
+       nobody has authored a composition for yet, and the honest response is to
+       leave the camera where the section put it. */
+    const next = shot && PXL_SUBJECT_SHOTS[shot] ? shot : null;
+    if (preset === activePreset.current && next === activeShot.current) return;
     const spec = PXL_PRESET_BY_ID.get(preset);
 
-    if (spec?.derived) {
+    /* FREE only applies when nothing has been sent to a subject. A derived
+       preset means "hold whatever is on screen", and a subject shot is an
+       instruction to move — the instruction wins, and FREE resumes the moment
+       the subject is cleared. */
+    if (!next && spec?.derived) {
       // Entering FREE. Nothing moves: the composition becomes whatever is on
       // screen, including the viewer's own orbit, which is then folded into the
       // frozen state so the orbit offsets can be zeroed without the camera
@@ -502,6 +601,7 @@ export function PxlProductScene({
       frozen.current = held;
       Object.assign(from.current, held);
       activePreset.current = preset;
+      activeShot.current = null;
       transition.current = 1;
       invalidateStageScene(id);
       return;
@@ -516,9 +616,10 @@ export function PxlProductScene({
     orbit.current?.apply(from.current);
     orbit.current?.reset();
     activePreset.current = preset;
+    activeShot.current = next;
     transition.current = reducedMotion ? 1 : 0;
     invalidateStageScene(id);
-  }, [preset, reducedMotion, id]);
+  }, [preset, shot, reducedMotion, id]);
 
   /* ── Claim the slot once there is something worth showing ───────────────
      Until then the static PXL render underneath is the design, and if the
@@ -629,8 +730,11 @@ export function PxlProductScene({
       scene.environmentIntensity = nightEnvironment(nightState.current);
     }
 
-    /* 2. Camera. */
-    const spec = PXL_PRESET_BY_ID.get(activePreset.current);
+    /* 2. Camera. The subject, when the interface has sent the camera to one;
+          the viewer's own preset otherwise. */
+    const spec = activeShot.current
+      ? PXL_SUBJECT_SHOTS[activeShot.current]
+      : PXL_PRESET_BY_ID.get(activePreset.current);
     if (!spec) return;
     if (frozen.current) {
       Object.assign(to.current, frozen.current);

@@ -968,74 +968,249 @@ def build_coaming_inlay(cap, sheer):
 
 
 def build_bow_fitting(hull, decks, sheer):
-    """The flush bow deck cleat, mirrored. Phase 4.2 §G8, re-seated in 4.4 §12.
+    """Two open-base horn cleats, one per side, on the forward side decks.
 
-    PHASE 4.4. The ray used to be aimed at a range of guessed half-beams and
-    accepted a hit 0.03–0.16 m below the sheer, which is what the liner's bow
-    panel measured. It is gone (§2), and the surface the reference actually
-    puts these cleats on is the capping — whose top is 5–11 mm below the sheer,
-    inside the old rule's dead band.
+    PHASE 4.11 §1 — THE SHAPE. What stood here was a FLUSH cleat: a 190 × 72 mm
+    plate with a 44 mm slot and two 12 mm bars laid over it, seven boxes and 168
+    triangles. It is a real fitting, and it is the one a builder specifies when
+    the deck has to stay walkable — but drawn at configurator scale it is a
+    rounded rectangle lying on the capping, which is to say it draws as nothing
+    at all. Both cleats together were 0.5% of the model's triangles and 0% of
+    what anyone could see.
 
-    So the placement is now derived rather than searched: the cleat is centred
-    across the capping's own width at the station Phase 4.2 measured, and the
-    height comes from a ray fired at that exact point. A cleat cannot land half
-    over the edge, and cannot fail to be placed because the search grid missed
-    a 0.16 m wide moulding.
+    The fitting the client supplied a photograph of is the other kind, and the
+    common one on a boat this size: an OPEN-BASE HORN CLEAT. A round bar
+    tapering to two rounded horns, held clear of the deck on two legs that
+    splay outboard and flare into oval pads. The whole of what makes it
+    recognisable is the gap under the bar — it is a SILHOUETTE rather than a
+    surface, so it survives both the 1.2 mm collapse `compress-pxl.mjs` gives
+    it and being drawn forty pixels long.
+
+    NO BOLT HOLES, and that is a decision rather than an omission. The
+    reference shows a countersink in each pad; at 12 mm across on a 5.25 m boat
+    that is under two pixels in any view the configurator offers, and modelling
+    it would cost a boolean and a hundred triangles to render as one darker
+    pixel. The horns are the fitting.
+
+    PHASE 4.11 §2 — THE STATION. `SPEC.rail_bow_x` starts the pulpit at x 2.215.
+    The old cleat was centred at x 2.150 and is 190 mm long, so 35 mm of it lay
+    forward of the rail's own after foot and the two fittings drew as one
+    cluttered object at the very place the bow three-quarter looks. It now sits
+    at x 2.045, which stops the forward horn 75 mm short of the rail: the
+    forward side deck, before the railing starts on the nose.
+
+    AND THE LINE THE RAIL RUNS. Athwartships the old rule centred the cleat
+    across the capping's whole width — 250 mm of moulding at this station, so
+    the fitting sat 130 mm in from the edge, which is the middle of the deck
+    rather than the side of it. It now takes the rail's own datum,
+    `outer − rail_inboard`, carried 20 mm further inboard so a pad keeps 50 mm
+    of moulding outboard of it, and is clamped inside the capping's plan so no
+    later change to that plan can hang a foot over the sheer.
+
+    AND IT LIES ALONG THE SHEER, not along the boat. The capping's outer edge
+    is drawing in hard here — it loses 45 mm of half-beam over the 190 mm the
+    cleat is long — so a fitting built on x alone stands visibly askew to the
+    moulding it is bolted to, and askew to the pulpit that carries on from it.
+    `sheer_along` reads the direction off the RAIL'S OWN LINE, the curve
+    `_rail_path` walks, so the cleat and the rail leave the deck on one line
+    rather than on two that nearly agree.
+
+    THE CHORD RATHER THAN THE TANGENT, and the half-length is the point of it:
+    a cleat is a straight object bolted to a curve, so what it should be
+    parallel to is the curve across its own 190 mm. Read that way both horns
+    finish the same distance off the edge; read as a derivative at one station
+    the after horn drifts outboard.
+
+    A RAY PER FOOT, not one per cleat. The capping is crowned across its width
+    and falling along its length; two feet 94 mm apart do not stand at the same
+    height, and one hit shared between them floats the forward one.
     """
-    LENGTH, WIDTH, PLATE, BAR = 0.190, 0.072, 0.010, 0.012
-    APERTURE = 0.044
+    # ── The casting, in metres. A 190 mm cleat: the size that takes the 12 mm
+    #    line this boat's cleats are drawn with, and the size the reference is.
+    LENGTH = 0.190      # horn tip to horn tip
+    BAR_R = 0.0085      # the bar's radius, between the legs
+    TIP_R = 0.0044      # and at the horns, which it tapers to
+    BAR_Z = 0.0350      # the bar's axis, above the deck
+    CROWN = 0.0015      # how much higher its middle sits than its horns
+    LEG_X = 0.0470      # the legs, either side of the centre
+    PAD_A = 0.0265      # a pad, along the bar
+    PAD_B = 0.0205      # and across it
+    PAD_OUT = 0.0090    # how far a pad splays outboard of its own leg
+    SINK = 0.0040       # how far its underside goes below the deck
+    SEG = 10            # segments round the bar and the legs, as `U.tube`
+
+    #: From the capping's OUTER edge, not from its centre — see the docstring.
+    INBOARD = U.SPEC.rail_inboard + 0.020
+    #: Moulding to leave outboard and inboard of a pad, whatever the plan does.
+    MARGIN = 0.014
+    #: Aft of `SPEC.rail_bow_x[0]`, every one of them, in order of preference.
+    STATIONS = (2.045, 2.000, 1.955, 1.910)
+
     depsgraph = bpy.context.evaluated_depsgraph_get()
     verts: list[tuple[float, float, float]] = []
     faces: list[list[int]] = []
     placed = 0
 
+    def deck_z(x: float, y: float) -> float | None:
+        """The highest up-facing deck under a point."""
+        best = None
+        for deck in decks:
+            hit, loc, nor, *_ = deck.ray_cast(
+                Vector((x, y, 1.8)), Vector((0, 0, -1)), depsgraph=depsgraph)
+            if hit and nor.z > 0.7 and (best is None or loc.z > best):
+                best = loc.z
+        return best
+
+    def sheer_along(x: float, side: int) -> Vector:
+        """The unit plan direction of the line this cleat lies along.
+
+        THE CHORD, NOT THE TANGENT, and the half-length is the point of it: a
+        cleat is a straight object bolted to a curve, so what it should be
+        parallel to is the curve *across its own 190 mm*, not the derivative at
+        one station. Read this way both horns end up the same distance off the
+        moulding's edge; read as a tangent the after horn drifts outboard.
+        """
+        span = []
+        for x_at in (x - LENGTH / 2, x + LENGTH / 2):
+            plan = U.gunwale_plan(hull, x_at)
+            span.append(None if plan is None else plan[0] - INBOARD)
+        if span[0] is None or span[1] is None:
+            return Vector((1.0, 0.0))
+        out = Vector((LENGTH, side * (span[1] - span[0])))
+        out.normalize()
+        return out
+
+    def plan_ring(centre, fwd: Vector, a: float, b: float) -> int:
+        """An ellipse lying flat: `a` along the cleat, `b` across it. A leg."""
+        base = len(verts)
+        for i in range(SEG):
+            t = 2 * math.pi * i / SEG
+            du, dv = a * math.cos(t), b * math.sin(t)
+            verts.append((centre[0] + du * fwd.x - dv * fwd.y,
+                          centre[1] + du * fwd.y + dv * fwd.x, centre[2]))
+        return base
+
+    def bar_ring(centre, fwd: Vector, r: float) -> int:
+        """A circle standing across the cleat. The bar's own section."""
+        base = len(verts)
+        for i in range(SEG):
+            t = 2 * math.pi * i / SEG
+            dv = r * math.cos(t)
+            verts.append((centre[0] - dv * fwd.y, centre[1] + dv * fwd.x,
+                          centre[2] + r * math.sin(t)))
+        return base
+
+    def bridge(a: int, b: int) -> None:
+        for i in range(SEG):
+            j = (i + 1) % SEG
+            faces.append([a + i, a + j, b + j, b + i])
+
     for side in (1, -1):
-        found = None
-        for xs in (2.15, 2.05, 1.95, 1.85, 1.75):
+        seat = None
+        for xs in STATIONS:
             plan = U.gunwale_plan(hull, xs)
             if plan is None:
                 continue
             outer, inner = plan
-            if outer - inner < WIDTH + 0.030:
+            if outer - max(inner, 0.0) < 2 * (PAD_B + MARGIN):
                 continue
-            y = side * (inner + outer) / 2
-            for deck in decks:
-                hit, loc, nor, *_ = deck.ray_cast(
-                    Vector((xs, y, 1.8)), Vector((0, 0, -1)), depsgraph=depsgraph)
-                if hit and nor.z > 0.7 and (found is None or loc.z > found[2]):
-                    found = (xs, y, loc.z)
-            if found:
-                break
-        if not found:
+            y = min(outer - INBOARD, outer - PAD_B - MARGIN)
+            y = max(y, max(inner, 0.0) + PAD_B + MARGIN)
+            fwd = sheer_along(xs, side)
+            feet = [deck_z(xs + s * LEG_X * fwd.x, side * y + s * LEG_X * fwd.y)
+                    for s in (-1, 1)]
+            if any(z is None for z in feet):
+                continue
+            seat = (xs, side * y, outer, fwd, feet)
+            break
+        if seat is None:
             continue
-        x, y, z = found
+        x0, y0, outer, fwd, (z_aft, z_fwd) = seat
+        z_bar = max(z_aft, z_fwd) + BAR_Z
         placed += 1
+        log(f"bow fitting  cleat at x {x0:.3f}, y {y0:+.3f} "
+            f"({outer - abs(y0):.3f} m inboard of the capping's edge), "
+            f"yawed {math.degrees(math.atan2(abs(fwd.y), fwd.x)):.1f}° onto the "
+            f"sheer, feet at z {z_aft:.3f} / {z_fwd:.3f}, "
+            f"{U.SPEC.rail_bow_x[0] - (x0 + LENGTH / 2 * fwd.x):.3f} m clear "
+            f"of the rail")
 
-        def box(x0, x1, y0, y1, z0, z1):
-            b = len(verts)
-            verts.extend([(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0),
-                          (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)])
-            faces.extend([[b, b + 1, b + 2, b + 3], [b + 4, b + 7, b + 6, b + 5],
-                          [b, b + 4, b + 5, b + 1], [b + 1, b + 5, b + 6, b + 2],
-                          [b + 2, b + 6, b + 7, b + 3], [b + 3, b + 7, b + 4, b]])
+        # ── the bar ──────────────────────────────────────────────────────
+        #
+        # Constant between the legs and tapering only outboard of them, which
+        # is what the reference draws and what stops the horns reading as a
+        # spindle. The tips close over a quarter circle to a single welded
+        # point, so there is no flat disc to catch a highlight end-on.
+        half, end = LENGTH / 2, LENGTH / 2 - TIP_R
 
-        hx, hy = LENGTH / 2, WIDTH / 2
-        rail = (WIDTH - APERTURE) / 2
-        box(x - hx, x + hx, y - hy, y - hy + rail, z, z + PLATE)
-        box(x - hx, x + hx, y + hy - rail, y + hy, z, z + PLATE)
-        box(x - hx, x - hx + 0.030, y - hy + rail, y + hy - rail, z, z + PLATE)
-        box(x + hx - 0.030, x + hx, y - hy + rail, y + hy - rail, z, z + PLATE)
-        box(x - 0.015, x + 0.015, y - hy + rail, y + hy - rail, z, z + PLATE)
-        box(x - hx + 0.034, x - 0.019, y - hy + rail - 0.004, y + hy - rail + 0.004,
-            z + PLATE, z + PLATE + BAR)
-        box(x + 0.019, x + hx - 0.034, y - hy + rail - 0.004, y + hy - rail + 0.004,
-            z + PLATE, z + PLATE + BAR)
+        def bar_r(dx: float) -> float:
+            if abs(dx) <= LEG_X:
+                return BAR_R
+            u = (abs(dx) - LEG_X) / (end - LEG_X)
+            return BAR_R + (TIP_R - BAR_R) * u
+
+        def bar_axis(dx: float) -> float:
+            return z_bar + CROWN * (1.0 - (dx / half) ** 2)
+
+        sections: list[tuple[float, float]] = []
+        for deg in (90.0, 62.0, 34.0):
+            a = math.radians(deg)
+            sections.append((-end - TIP_R * math.sin(a), TIP_R * math.cos(a)))
+        for dx in (-end, -0.070, -LEG_X, -0.024, 0.0,
+                   0.024, LEG_X, 0.070, end):
+            sections.append((dx, bar_r(dx)))
+        for deg in (34.0, 62.0, 90.0):
+            a = math.radians(deg)
+            sections.append((end + TIP_R * math.sin(a), TIP_R * math.cos(a)))
+
+        prev = None
+        for dx, r in sections:
+            base = bar_ring((x0 + dx * fwd.x, y0 + dx * fwd.y, bar_axis(dx)),
+                            fwd, r)
+            if prev is not None:
+                bridge(prev, base)
+            prev = base
+
+        # ── the two legs ─────────────────────────────────────────────────
+        #
+        # Heights are above each foot's OWN deck hit. The flare is late on
+        # purpose: a leg that spreads evenly down its length reads as a cone,
+        # and what the reference shows is a stalk that becomes a pad in its
+        # last ten millimetres. `u` is how far the section has slid outboard
+        # by, which is what makes the pair splay rather than stand parallel.
+        for sign, z_deck in ((-1, z_aft), (1, z_fwd)):
+            top = bar_axis(sign * LEG_X) - z_deck
+            profile = (
+                (top,          0.0080,       0.0080,       0.00),
+                (top - 0.009,  0.0074,       0.0070,       0.06),
+                (0.0190,       0.0076,       0.0068,       0.16),
+                (0.0115,       0.0100,       0.0086,       0.32),
+                (0.0065,       0.0148,       0.0124,       0.52),
+                (0.0028,       0.0212,       0.0172,       0.78),
+                (0.0010,       PAD_A,        PAD_B,        1.00),
+                (-SINK,        PAD_A * 0.88, PAD_B * 0.88, 1.00),
+            )
+            prev = None
+            for h, a, b, u in profile:
+                du = sign * (LEG_X + PAD_OUT * u)
+                base = plan_ring((x0 + du * fwd.x, y0 + du * fwd.y, z_deck + h),
+                                 fwd, a, b)
+                if prev is None:
+                    # Buried inside the bar, and closed all the same: an open
+                    # shell has no outside for `recalc_face_normals` to find.
+                    faces.append(list(range(base, base + SEG))[::-1])
+                else:
+                    bridge(prev, base)
+                prev = base
+            faces.append(list(range(prev, prev + SEG)))  # the pad's underside
 
     if not placed:
         log("bow fitting  ray missed the deck — not placed")
         return None
-    ob = U.mesh_from(BOW_FITTING, verts, faces)
-    log(f"bow fitting  {placed} flush cleats placed by deck raycast")
+    ob = U.weld(U.mesh_from(BOW_FITTING, verts, faces))
+    log(f"bow fitting  {placed} open horn cleats, "
+        f"{len(ob.data.polygons):,}f, {LENGTH * 1000:.0f} mm over "
+        f"{(BAR_Z + BAR_R) * 1000:.0f} mm of leg")
     return ob
 
 

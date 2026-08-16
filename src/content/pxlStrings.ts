@@ -45,6 +45,45 @@ export interface PxlStrings {
    * EXTERIOR, while INTERIOR's three each need a name of their own.
    */
   controls: Record<string, string>;
+  /**
+   * ONE SECTION AT A TIME — the copy the step flow needs.
+   *
+   * The configurator walks the categories rather than showing all of them, so
+   * three things have to be sayable that a single-screen rail never needed:
+   * where you are (`stepCounter`), where you are going (`nextSection` /
+   * `previousSection`), and what the section you are on is FOR
+   * (`categoryIntro`).
+   */
+  stepCounter: string;
+  nextSection: string;
+  previousSection: string;
+  /** One sentence per section. What this part of the boat is. */
+  categoryIntro: Record<PxlCategoryId, string>;
+  /**
+   * WHAT A CONTROL ACTUALLY CHANGES ON THE BOAT, keyed on `labelKey`.
+   *
+   * Written against `PXL_ZONES`, which is where the answer really lives: each
+   * sentence names the surfaces its control's channel repaints, and nothing
+   * else. That is the difference between context and marketing — "paints the
+   * topsides, the gunwale capping and the cockpit liner" is checkable against
+   * the model, and it is the sentence that stops a viewer wondering why the
+   * bottom did not move with it.
+   *
+   * NOT `PxlCatalogOption.note`, which is next door and looks like it would do:
+   * that field is a DEVELOPMENT string documenting what has yet to be approved,
+   * and its own doc comment says it is never rendered to a customer.
+   */
+  controlNotes: Record<string, string>;
+  /**
+   * What stands where a configurator normally prints a price.
+   *
+   * Not an omission and not a placeholder for one. No price has been approved
+   * for anything in this catalogue, so the line says so — the alternative is a
+   * row of "0 Ft" that reads as free, or a blank that reads as forgotten.
+   */
+  noPrice: string;
+  /** How many options a control offers. `{count}`. */
+  optionCount: string;
   /** Accessible name pattern for an option. `{name}` is the option. */
   optionLabel: string;
   /** Announced when a selection changes. `{control}` and `{name}`. */
@@ -105,6 +144,20 @@ export interface PxlStrings {
   focusExit: string;
   /** One-time interaction hint over the stage. Hidden after the first drag. */
   dragHint: string;
+  /**
+   * WHAT THE POINTER IS STANDING ON, shown in the cursor's own label while it
+   * is over something that answers a click.
+   *
+   * Four strings rather than one, because the boat has two kinds of moving part
+   * and each of them has two states. A seat that is already open must not go on
+   * offering to open; a bimini does not "open" in any language — it is struck
+   * and raised. The scene picks between them from the live lid and stow state,
+   * so the label is always the verb the next click will actually perform.
+   */
+  openHint: string;
+  closeHint: string;
+  stowHint: string;
+  raiseHint: string;
   /** The compositional-arrival caption. Brief, then gone. */
   arrivalCaption: string;
   /** The finish has no approved public name. Preview surfaces say so once. */
@@ -171,6 +224,42 @@ const EN: PxlStrings = {
     audio: "Cockpit speakers",
     speakerLight: "Speaker lights",
   },
+  stepCounter: "{index} / {total}",
+  nextSection: "Next · {name}",
+  previousSection: "Back · {name}",
+  categoryIntro: {
+    exterior: "The colour the boat is known by from the bank. Six delivered studies, one choice.",
+    hull_detail: "Where the topsides colour stops and the bottom begins.",
+    interior: "The cockpit you sit in — leather, console, surface, screen and rails.",
+    propulsion: "What stands on the transom.",
+    equipment: "What is fitted to this boat, and what is left off it.",
+  },
+  controlNotes: {
+    exteriorFinish:
+      "Paints the topsides, the gunwale capping and the cockpit liner. The bottom and the sheer band are set on their own.",
+    lowerTreatment:
+      "How far the topsides colour travels: the bottom keeps its own dark, or the hull colour runs down to the keel.",
+    interiorPrimary:
+      "The leather — cockpit upholstery, the driver's squab and the three cushion lids.",
+    interiorSecondary:
+      "The helm console's panel, and the cool box if one is fitted. The dark shell around it and the dash do not change.",
+    interiorSurface:
+      "The character of the same moulding, smooth or grained. The colour does not change with it.",
+    glazingTint: "How dark the acrylic screen reads. Its shape and its frame are unchanged.",
+    railTreatment:
+      "Whether the grab rails and the bimini frame follow the cockpit leather or stay satin black.",
+    propulsion:
+      "Which drive stands on the transom. These are neutral proxies for proportion — no make and no power figure.",
+    boardingPlatform: "The teak platform and the stern spoiler, abaft the transom.",
+    bimini:
+      "A three-bow top over the helm. Once it is up, click the canopy on the boat to strike it.",
+    coolBox:
+      "An insulated locker on the sole, forward of the console. Click its lid on the boat to open it.",
+    audio: "Four flush speakers in the cockpit's inner wall, each with a lit ring.",
+    speakerLight: "What those rings do after dark. Turn Night on to see it.",
+  },
+  noPrice: "No price quoted",
+  optionCount: "{count} options",
   optionLabel: "{control}: {name}",
   optionSelected: "{control} set to {name}",
   categoryNav: "Configuration categories",
@@ -207,6 +296,10 @@ const EN: PxlStrings = {
   focus: "Focus",
   focusExit: "Exit focus",
   dragHint: "Drag to explore",
+  openHint: "Click to open",
+  closeHint: "Click to close",
+  stowHint: "Click to stow",
+  raiseHint: "Click to raise",
   arrivalCaption: "Configure your PXL",
   provisionalNames: "Colour names are provisional and not yet approved.",
   provisionalShort: "Provisional name",
@@ -269,6 +362,42 @@ const HU: PxlStrings = {
     audio: "Hangszórók",
     speakerLight: "Hangszóró világítás",
   },
+  stepCounter: "{index} / {total}",
+  nextSection: "Tovább · {name}",
+  previousSection: "Vissza · {name}",
+  categoryIntro: {
+    exterior: "Ez a szín látszik a partról. Hat átadott színtanulmány, egy döntés.",
+    hull_detail: "Ahol a felső szín véget ér, és a fenék elkezdődik.",
+    interior: "Az utastér, amiben ül — bőr, konzol, felület, szélvédő és kapaszkodók.",
+    propulsion: "Ami a tükrön áll.",
+    equipment: "Mi kerül fel erre a hajóra, és mi marad le róla.",
+  },
+  controlNotes: {
+    exteriorFinish:
+      "A felső hajótestet, a szegélylécet és az utastér burkolatát festi. A fenék és a szegélysáv külön áll.",
+    lowerTreatment:
+      "Meddig ér le a felső szín: a fenék marad a saját sötétjében, vagy a hajótest színe fut le a gerincig.",
+    interiorPrimary:
+      "A bőr — az utastér kárpitja, a vezetőülés párnája és a három ülőláda-fedél.",
+    interiorSecondary:
+      "A kormánykonzol panelja, és a hűtőláda, ha van. A körülötte lévő sötét burkolat és a műszerfal nem változik.",
+    interiorSurface:
+      "Ugyanannak a burkolatnak a jellege, sima vagy szemcsés. A szín nem változik vele.",
+    glazingTint: "Milyen sötét az akril szélvédő. A formája és a kerete változatlan.",
+    railTreatment:
+      "A kapaszkodók és a bimini váz a kárpit bőrét követik, vagy szatén feketék maradnak.",
+    propulsion:
+      "Milyen hajtómű áll a tükrön. Ezek semleges arány-modellek — márkát és teljesítményt nem adunk meg.",
+    boardingPlatform: "A teak plató és a tatspoiler, a tükör mögött.",
+    bimini:
+      "Háromíves tető a kormányállás fölött. Ha áll, kattintson a ponyvára a hajón a lehajtásához.",
+    coolBox:
+      "Szigetelt láda a padlón, a konzol előtt. Kattintson a fedelére a hajón a kinyitásához.",
+    audio: "Négy süllyesztett hangszóró az utastér belső falában, mindegyik világító gyűrűvel.",
+    speakerLight: "Mit csinálnak ezek a gyűrűk sötétedés után. Kapcsolja be az Éjszaka nézetet.",
+  },
+  noPrice: "Ár nincs megadva",
+  optionCount: "{count} lehetőség",
   optionLabel: "{control}: {name}",
   optionSelected: "{control} beállítva: {name}",
   categoryNav: "Összeállítási kategóriák",
@@ -305,6 +434,10 @@ const HU: PxlStrings = {
   focus: "Teljes nézet",
   focusExit: "Kilépés",
   dragHint: "Húzza a körbeforgatáshoz",
+  openHint: "Kattintson a kinyitáshoz",
+  closeHint: "Kattintson a lecsukáshoz",
+  stowHint: "Kattintson a lehajtáshoz",
+  raiseHint: "Kattintson a felállításhoz",
   arrivalCaption: "Állítsa össze a PXL-t",
   provisionalNames: "A színek elnevezése ideiglenes, még nem jóváhagyott.",
   provisionalShort: "Ideiglenes elnevezés",

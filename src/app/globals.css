@@ -40,6 +40,14 @@ html.is-immersive body > footer {
 html.is-immersive,
 html.is-immersive body {
   overflow: hidden;
+  /* THE GROUND BEHIND THE BOAT, and it lives here rather than on the
+     configurator's own shell. The shell has to stay UNDERNEATH the root canvas
+     for the vessel to be visible at all — see the note on `.shell` — so a
+     background painted there would be a background painted over the boat. The
+     document is the only surface left that is genuinely behind everything, and
+     `body` defaults to `--paper`, which on this route would be a sheet of
+     white behind a night composition. */
+  background: var(--depth);
   /* iOS gives a fixed element the *large* viewport and then puts the browser
      chrome over it. Anchoring the body to the small viewport is what keeps a
      bottom control rail above the address bar rather than behind it. */

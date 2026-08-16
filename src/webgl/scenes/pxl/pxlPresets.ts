@@ -405,3 +405,135 @@ export const PXL_ORBIT_LIMITS = {
  */
 export const PXL_NEAR = 0.12;
 export const PXL_FAR = 400;
+
+/* ── Subject compositions ──────────────────────────────────────────────────*/
+
+/**
+ * WHAT THE CAMERA SHOWS WHILE A DECISION IS BEING MADE.
+ *
+ * A composition per CONTROL, keyed on the control's own `labelKey` — the same
+ * key `pxlStrings.controls` and `pxlStrings.controlNotes` use, so a control
+ * gains a shot by being named rather than by anything being wired.
+ *
+ * NOT PRESETS, AND DELIBERATELY OUTSIDE `PxlPresetId`. A preset is a place the
+ * camera can be PUT, by a person, from a rail of named views; these are places
+ * the camera GOES on its own while the interface explains something. Keeping
+ * them out of the union is what stops them appearing in the view rail, needing
+ * localised names in `views`, or being reachable from a URL — and it is why
+ * `PxlCustomerPresetId` did not have to change to add thirteen of them.
+ *
+ * COMPOSED FOR THE PART, NOT FOR THE BOAT. The six product presets all frame
+ * the whole vessel, because that is what a product shot is. These frame the
+ * surface the control repaints: the target sits on it, the distance is what
+ * puts it across the frame, and the azimuth is the angle it is actually
+ * legible from — a windscreen tint read from abeam is a dark line, and read
+ * from forward of the bow it is a sheet of glass.
+ *
+ * THE EYE STAYS ABOVE THE WATER in every one of them. The lowest is the
+ * waterline shot, whose whole point is a low eye: 1.5° at 12.5 m off a target
+ * 0.30 m up puts it at 0.63 m, which is a person standing in a tender rather
+ * than a diver.
+ *
+ * The mobile variants sit further back on a longer lens, for the reason the
+ * product presets do: a short lens close in is what makes a hull look like a
+ * bath toy, and a phone is where the temptation to move closer is strongest.
+ */
+export interface PxlSubjectShot {
+  desktop: PxlCameraState;
+  mobile: Partial<PxlCameraState>;
+}
+
+export const PXL_SUBJECT_SHOTS: Readonly<Record<string, PxlSubjectShot>> = {
+  /* EXTERIOR. The subject is the whole boat, so this is the hero shot moved
+     a little — closer and a few degrees round, enough that arriving at the
+     section reads as an arrival rather than as nothing happening. */
+  exteriorFinish: {
+    desktop: { azimuth: 40, elevation: 13, distance: 13.0, hfov: 30, minVfov: 0, target: [0.15, 0.42, 0] },
+    mobile: { azimuth: 34, elevation: 11, distance: 15.2, hfov: 26, minVfov: 0, target: [0.05, 0.38, 0] },
+  },
+  /* HULL. Where the topsides colour stops is a line along the hull, and a line
+     is only a line from abeam. Low, because the boundary sits under the turn
+     of the bilge and an eye above the sheer looks straight over it. */
+  lowerTreatment: {
+    // Measured the way the product presets are: W = 2·d·tan(hfov/2) against
+    // the 5.76 m the boat subtends dead abeam. 12.5 m put that at 102% and cut
+    // the bow off — the tightest angle on the boat is the one where the
+    // arithmetic is least forgiving. 14.8 reads 86%.
+    desktop: { azimuth: 4, elevation: 1.5, distance: 14.8, hfov: 26, minVfov: 0, target: [0, 0.30, 0] },
+    mobile: { azimuth: 3, elevation: 1.5, distance: 17.2, hfov: 22, minVfov: 0, target: [0, 0.28, 0] },
+  },
+
+  /* INTERIOR. Five controls, five places to stand. */
+  interiorPrimary: {
+    // Down into the cockpit, closer than the `interior` preset: the subject is
+    // the leather, and the leather is four cushions that have to be readable.
+    // 92% of frame width: closer than the `interior` preset's 84%, and short
+    // of the crop — a cockpit shot may lose the very ends of the boat, but
+    // losing them by two per cent looks like an accident rather than a choice.
+    desktop: { azimuth: 44, elevation: 44, distance: 10.6, hfov: 32, minVfov: 29, target: [-0.30, 0.35, 0] },
+    mobile: { azimuth: 38, elevation: 47, distance: 12.3, hfov: 28, minVfov: 29, target: [-0.30, 0.32, 0] },
+  },
+  interiorSecondary: {
+    // The console's aft panel, from forward of abeam and above — the angle the
+    // panel faces, rather than the angle the helm is used from.
+    desktop: { azimuth: 54, elevation: 24, distance: 6.4, hfov: 26, minVfov: 24, target: [-1.05, 0.78, 0] },
+    mobile: { azimuth: 48, elevation: 26, distance: 7.6, hfov: 23, minVfov: 24, target: [-1.05, 0.75, 0] },
+  },
+  interiorSurface: {
+    // Smooth against grained is a grazing-light difference, so the eye comes
+    // down toward the moulding rather than looking onto it from above.
+    desktop: { azimuth: 46, elevation: 30, distance: 7.0, hfov: 27, minVfov: 26, target: [-0.20, 0.58, 0] },
+    mobile: { azimuth: 40, elevation: 33, distance: 8.2, hfov: 24, minVfov: 26, target: [-0.20, 0.55, 0] },
+  },
+  glazingTint: {
+    // From forward and slightly above, which is the one place the screen is a
+    // sheet of glass with a tint in it rather than a dark edge-on line.
+    // Pulled back from 5.6: at that stand-off the screen was centre-frame and
+    // the boat around it was gone, which reads as a photograph of a windscreen
+    // rather than a windscreen on this boat.
+    desktop: { azimuth: 62, elevation: 20, distance: 6.8, hfov: 25, minVfov: 24, target: [-1.15, 1.00, 0] },
+    mobile: { azimuth: 56, elevation: 22, distance: 7.9, hfov: 22, minVfov: 24, target: [-1.15, 0.98, 0] },
+  },
+  railTreatment: {
+    // Along the side deck rather than across it: the rails are a run of tube,
+    // and a run reads as a run only when the eye is nearly on its line.
+    desktop: { azimuth: 24, elevation: 13, distance: 8.6, hfov: 26, minVfov: 0, target: [-0.95, 0.84, 0] },
+    mobile: { azimuth: 20, elevation: 14, distance: 10.0, hfov: 23, minVfov: 0, target: [-0.95, 0.82, 0] },
+  },
+
+  /* PROPULSION. Aft, low, and off the quarter — the angle a drive's own
+     proportions read from, which is the only thing these proxies claim. */
+  propulsion: {
+    desktop: { azimuth: -62, elevation: 11, distance: 7.6, hfov: 28, minVfov: 0, target: [-2.30, 0.42, 0] },
+    mobile: { azimuth: -56, elevation: 12, distance: 8.9, hfov: 24, minVfov: 0, target: [-2.30, 0.40, 0] },
+  },
+
+  /* EQUIPMENT. Each option is a part appearing or disappearing, so the camera
+     stands where that part is — an option that toggles off-screen is an option
+     the viewer has to take on trust. */
+  boardingPlatform: {
+    desktop: { azimuth: -56, elevation: 20, distance: 7.2, hfov: 28, minVfov: 0, target: [-2.60, 0.32, 0] },
+    mobile: { azimuth: -50, elevation: 22, distance: 8.4, hfov: 24, minVfov: 0, target: [-2.60, 0.30, 0] },
+  },
+  bimini: {
+    // The one option that adds height, so this is the one shot that has to
+    // stand back: a top 1.9 m over the waterline needs the frame a whole boat
+    // needs, and cropping it would be cropping the thing being chosen.
+    desktop: { azimuth: -38, elevation: 19, distance: 11.8, hfov: 30, minVfov: 0, target: [-1.30, 1.00, 0] },
+    mobile: { azimuth: -34, elevation: 20, distance: 13.7, hfov: 26, minVfov: 0, target: [-1.30, 0.96, 0] },
+  },
+  coolBox: {
+    desktop: { azimuth: 50, elevation: 34, distance: 5.8, hfov: 26, minVfov: 26, target: [-0.66, 0.52, 0] },
+    mobile: { azimuth: 44, elevation: 37, distance: 6.8, hfov: 23, minVfov: 26, target: [-0.66, 0.50, 0] },
+  },
+  audio: {
+    desktop: { azimuth: 32, elevation: 26, distance: 6.4, hfov: 26, minVfov: 25, target: [-0.30, 0.60, 0] },
+    mobile: { azimuth: 28, elevation: 28, distance: 7.5, hfov: 23, minVfov: 25, target: [-0.30, 0.58, 0] },
+  },
+  speakerLight: {
+    // Closer and lower than the speakers themselves: a lit ring is read off
+    // the grazing angle, and from above it is a bright dot.
+    desktop: { azimuth: 27, elevation: 17, distance: 5.6, hfov: 24, minVfov: 24, target: [-0.30, 0.62, 0] },
+    mobile: { azimuth: 24, elevation: 18, distance: 6.6, hfov: 21, minVfov: 24, target: [-0.30, 0.60, 0] },
+  },
+};

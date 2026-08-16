@@ -41,21 +41,35 @@ export function CustomCursor() {
     const x = gsap.quickTo(el, "x", { duration: 0.42, ease: "power3.out" });
     const y = gsap.quickTo(el, "y", { duration: 0.42, ease: "power3.out" });
 
-    const onMove = (event: PointerEvent) => {
-      if (event.pointerType !== "mouse") return;
-      x(event.clientX);
-      y(event.clientY);
-      setVisible(true);
-
-      const target = event.target as Element | null;
+    const read = (target: Element | null) => {
       const owner = target?.closest?.("[data-cursor]");
       setLabel(owner?.getAttribute("data-cursor") || null);
       setCompact(Boolean(target?.closest?.("[data-cursor-solid]")));
     };
 
+    const onMove = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return;
+      x(event.clientX);
+      y(event.clientY);
+      setVisible(true);
+      read(event.target as Element | null);
+    };
+
     const onLeave = () => setVisible(false);
     const onDown = () => el.classList.add(styles.pressed);
-    const onUp = () => el.classList.remove(styles.pressed);
+    /* RE-READ ON RELEASE, not only on movement.
+     *
+     * `data-cursor` is a fact about what the element offers, and a click is
+     * the one thing that can change that fact WITHOUT the pointer moving —
+     * the PXL seats put "Click to open" on the stage and swap it for "Click to
+     * close" the instant they are clicked. Reading only in `onMove` left the
+     * old word under a motionless hand. The owner's own listener runs first
+     * (it is on the element, this one is on `window`), so the attribute is
+     * already current by the time this fires. */
+    const onUp = (event: PointerEvent) => {
+      el.classList.remove(styles.pressed);
+      read(event.target as Element | null);
+    };
 
     window.addEventListener("pointermove", onMove, { passive: true });
     document.addEventListener("pointerleave", onLeave);

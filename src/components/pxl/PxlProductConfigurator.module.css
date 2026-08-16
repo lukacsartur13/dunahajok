@@ -1,24 +1,26 @@
 /* ===========================================================================
    PXL CONFIGURATOR — the customer-facing composition
    ---------------------------------------------------------------------------
-   ONE RULE GOVERNS EVERY BREAKPOINT: the vessel is the page and the interface
-   floats over it. The stage is `position: absolute; inset: 0` rather than a
-   grid cell, which is what makes §7 structural instead of aspirational — a
-   narrower window, a taller rail or a longer language cannot take a single
-   pixel away from the boat, because the boat is not in the same layout flow as
-   the controls. The rail earns its legibility from a scrim, not from a panel.
+   ONE RULE GOVERNS EVERY BREAKPOINT: the vessel is the page, and it is given a
+   rectangle of that page it owns outright. The stage is absolutely positioned
+   rather than a grid cell — so a longer language cannot reflow the product —
+   but its inline end stops at `--panel-width`, and that box is what the
+   renderer scissors into and what the camera frames for. The boat is
+   therefore centred and sized in the space it actually has.
 
-   That is also why there is no sidebar anywhere in this file. A 24rem rail
-   beside a 1440px viewport is a sixth of the width, permanently, in exchange
-   for six swatches and five view chips that fit comfortably in a horizontal
-   band 96px tall.
+   The earlier rule was `inset: 0` on the reasoning that a rail must never take
+   a pixel from the product. It never did; the product was half-behind the rail
+   anyway, because a floating panel takes no layout space and simply covers
+   what is under it. A smaller frame the vessel owns is worth more than a
+   larger one it shares.
 
    Three authored compositions:
 
-     DESKTOP    identity top-left, actions top-right, one horizontal rail
-     PORTRAIT   identity top, tray at the bottom, capped so the stage keeps
-                the majority of the viewport
-     LANDSCAPE  almost the whole viewport is stage; the rail is a slim overlay
+     DESKTOP    identity top-left, section navigator under it, one column of
+                cards down the inline end, one bar along the bottom
+     PORTRAIT   identity top, navigator over a capped tray, bar under it; the
+                stage keeps everything above them
+     LANDSCAPE  almost the whole viewport is stage; the column is slim
 
    Everything resolves through the site's tokens. The configurator is more
    restrained than the editorial homepage — mono labels, hairlines, no display
@@ -28,32 +30,77 @@
 .shell {
   --pad: clamp(1rem, 2.4vw, 2.5rem);
   --rail-gap: clamp(1rem, 2.2vw, 2.75rem);
+  /* The section panel's width, named because the step navigator has to stop
+     short of it and nothing else should have to guess where that is. Capped in
+     rem as well as in vw: past about 27rem the cards stop being cards and the
+     sentences start setting at a line length nobody reads down a side. */
+  --panel-width: clamp(19rem, 25vw, 25rem);
 
-  position: fixed;
+  /* ABSOLUTE, NOT FIXED, AND THE WHOLE INTERFACE DEPENDS ON IT.
+     `position: fixed` ALWAYS creates a stacking context — no z-index needed,
+     unlike `absolute`. That flattens every control inside this shell to the
+     shell's own level in the root stacking context, which is `auto`; the root
+     canvas is a sibling at --z-scene (40), so it paints over all of them and
+     the configurator renders a boat and nothing else. That is precisely the
+     failure the note below describes, arriving through the one property
+     nobody suspects, and it is why the interface had gone missing on this
+     route while every element in it was still laid out and still hit-testable.
+
+     `absolute` with no positioned ancestor resolves against the initial
+     containing block, which on this route is the viewport — `html.is-immersive
+     body` is `block-size: 100%; overflow: hidden`, so there is nothing to
+     scroll away from and nothing is given up by not being fixed.
+
+     NO `contain` HERE EITHER, AND FOR THE SAME REASON. Both `contain: paint`
+     and `contain: layout` make the element a stacking context. The symptom is
+     a configurator whose interface vanishes the instant the vessel starts
+     drawing, which looks like a rendering bug and is a stacking one.
+
+     AND NO `background`. The ground behind the boat belongs to the page, not
+     to this shell: a shell that painted one would be a shell that had to sit
+     above the canvas to be seen, and then its own fill would cover the boat. */
+  position: absolute;
   inset: 0;
-  background: var(--depth);
   color: var(--signal);
   font-family: var(--font-ui);
   overflow: hidden;
-  /* NO `contain` HERE, AND IT COST AN HOUR TO LEARN WHY.
-     Both `contain: paint` and `contain: layout` make the element a stacking
-     context. This shell has no z-index of its own, so becoming one flattens
-     every control inside it to the shell's own level — underneath the root
-     canvas at --z-scene, which on this route covers the entire viewport. The
-     symptom is a configurator whose interface vanishes the instant the vessel
-     starts drawing, which looks like a rendering bug and is a stacking one. */
 }
 
 /* ── The vessel ─────────────────────────────────────────────────────────── */
 
-/* The measured box the renderer projects into, and the home of the fallback
-   render until it does. It stays at the bottom of the stack on purpose: the
-   canvas paints over it, which is exactly the handover data-scene-active
-   performs. */
+/* THE BOAT'S OWN AREA, AND IT STOPS WHERE THE PANEL STARTS.
+   This box is not decoration: it is the rectangle the renderer scissors into
+   AND the rectangle the camera frames for, so insetting it does not crop the
+   vessel — it re-composes the shot. The boat ends up centred in the space it
+   actually has, at the size that space allows, instead of centred in the
+   viewport with a fifth of its length behind a column of cards.
+
+   That is a reversal of what this file used to do, and worth saying plainly.
+   The old rule was `inset: 0` so that no rail could ever take a pixel from the
+   product. It could not, and the boat was still half-hidden — because a
+   floating panel does not take layout space, it just sits on top of whatever
+   was underneath. Giving the vessel a smaller frame it owns outright is what
+   the old rule was trying to buy and never could.
+
+   It also stays at the bottom of the stack, which is unchanged and load-
+   bearing: the canvas paints over this box, and that handover is exactly what
+   `data-scene-active` performs. */
 .stage {
   position: absolute;
   inset: 0;
+  /* The panel's CARDS are `--panel-width`; the panel itself carries `--pad`
+     of gutter outboard of them, so the edge the vessel has to clear is the
+     sum. Insetting by the width alone leaves the boat's stern a gutter's worth
+     under the first column of swatches, which is the whole complaint. */
+  inset-inline-end: calc(var(--panel-width) + var(--pad));
   z-index: 0;
+}
+
+/* Focus mode takes the panel away, so the vessel takes the frame back. The
+   transition is the camera's own: re-framing a wider box is a change of
+   aspect, which `applyPxlCamera` resolves on the next frame. */
+.shell[data-focus] .stage {
+  inset-inline-end: 0;
 }
 
 .stage > [data-scene] {
@@ -73,7 +120,12 @@
   position: absolute;
   inset-block-start: 0;
   inset-inline: 0;
-  z-index: calc(var(--z-product-ui) + 2);
+  /* ABOVE THE PANEL, not level with it. The panel's blending gradient runs the
+     full height of the frame so that the seam it covers has no ends, and at
+     equal z-index the later sibling wins — which put a scrim over the FOCUS
+     control. The identity and the way out are the last things on this page
+     that may be dimmed by anything. */
+  z-index: calc(var(--z-product-ui) + 4);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -215,7 +267,7 @@
 
 .hint {
   position: absolute;
-  inset-block-end: calc(var(--rail-height, 7rem) + 1rem);
+  inset-block-end: calc(var(--bar-height, 5.5rem) + 1rem);
   inset-inline-start: var(--pad);
   z-index: calc(var(--z-product-ui) + 1);
   margin: 0;
@@ -235,164 +287,225 @@
 
 /* ── The control rail ───────────────────────────────────────────────────── */
 
-.rail {
+/* ── The section navigator ──────────────────────────────────────────────── */
+
+/* WHERE YOU ARE IN THE WALK, ALWAYS, AND EVERY OTHER STOP IN ONE CLICK.
+   A pill rather than a band across the head of the page: the boat is the page
+   and chrome that spans the full width reads as a browser toolbar. The counter
+   is separated by a hairline rather than by a gap, because "2 / 5" beside five
+   words with equal spacing looks like a sixth word. */
+.steps {
   position: absolute;
-  inset-block-end: 0;
-  inset-inline: 0;
+  inset-block-start: calc(var(--pad) + 3.4rem);
+  inset-inline-start: var(--pad);
   z-index: calc(var(--z-product-ui) + 2);
-  /* TWO LAYERS FROM PHASE FOUR ON — §A25.
-     Phase Three's rail was one row, because there was one category. Four
-     categories in one row would be twenty-two controls across the bottom of a
-     product shot, which is the "giant form" §A25 rules out. So the rail is a
-     column of two short rows: the category navigation, then the open
-     category's controls beside the actions. It costs one line of height and it
-     is what keeps the interface at 150px on a 900px-tall viewport. */
   display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  padding: var(--pad);
-  padding-block-end: max(var(--pad), env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(
-    to top,
-    rgba(10, 14, 15, 0.86) 0%,
-    rgba(10, 14, 15, 0.62) 44%,
-    rgba(10, 14, 15, 0) 100%
-  );
-  /* The controls arrive after the vessel is dominant, not with it. */
+  align-items: stretch;
+  gap: 0.9rem;
+  max-inline-size: calc(100% - var(--panel-width) - var(--pad) * 3);
+  padding: 0.45rem 1rem;
+  background: rgba(10, 14, 15, 0.62);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--signal-16);
+  border-radius: 999px;
   opacity: 0;
-  transform: translateY(0.75rem);
+  transform: translateY(-0.5rem);
   transition:
     opacity var(--dur-2) var(--ease-hull),
     transform var(--dur-2) var(--ease-hull);
 }
 
-.rail[data-ready] {
+.steps[data-ready] {
   opacity: 1;
   transform: none;
 }
 
-/* ── Category navigation ────────────────────────────────────────────────── */
-
-/* LOW-PROFILE AND HORIZONTAL — §A25's desktop preference, and the reason the
-   rest of the rail can stay one row deep. Four words and four indices; the
-   selected one is underlined by a hairline that is the Duna Line's own weight
-   rather than a filled tab, because a filled tab is chrome and this composition
-   has as little of it as it can get away with. */
-.categories {
-  display: flex;
-  align-items: baseline;
-  gap: clamp(1rem, 2.2vw, 2.25rem);
-  border-block-end: 1px solid var(--signal-16);
-  padding-block-end: 0.7rem;
+.stepCount {
+  margin: 0;
+  align-self: center;
+  padding-inline-end: 0.9rem;
+  border-inline-end: 1px solid var(--signal-16);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  color: var(--signal);
+  white-space: nowrap;
 }
 
-.category {
-  position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
-  margin-block: -0.5rem;
+.stepList {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.6rem, 1.4vw, 1.5rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-inline-size: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.stepList::-webkit-scrollbar {
+  display: none;
+}
+
+.step {
+  padding: 0.35rem 0;
   background: none;
   border: 0;
   cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: var(--fs-small);
   color: var(--signal-45);
   transition: color var(--dur-1) var(--ease-hull);
 }
 
-/* The selected category is named in full contrast AND underscored AND carries
-   aria-current. Three signals, because on a dark scrim over a moving hull one
-   of them will be hard to read at any given moment. */
-.category::after {
-  content: "";
-  position: absolute;
-  inset-block-end: calc(-0.7rem - 1px);
-  inset-inline: 0;
-  block-size: 1px;
-  background: var(--signal);
-  transform: scaleX(0);
-  transform-origin: 0 50%;
-  transition: transform var(--dur-2) var(--ease-hull);
-}
-
-.category[data-on]::after {
-  transform: scaleX(1);
-}
-
-.category:hover {
-  color: var(--signal-70);
-}
-
-.category[data-on] {
+.step:hover {
   color: var(--signal);
 }
 
-.categoryIndex {
-  font-family: var(--font-tech);
-  font-size: 0.625rem;
-  letter-spacing: 0.1em;
-  color: var(--signal-45);
+/* A section already walked through is not the same as one not yet reached, and
+   the difference is worth exactly one step of tone — anything louder turns the
+   navigator into a progress bar, which would imply the walk has to be
+   completed. It does not: every option is already set to something. */
+.step[data-done] {
+  color: var(--signal-70);
 }
 
-.categoryName {
-  font-family: var(--font-tech);
-  font-size: var(--fs-label);
-  letter-spacing: var(--tr-label);
-  text-transform: uppercase;
+.step[data-on] {
+  color: var(--signal);
+  font-weight: 500;
 }
 
-/* ── The open category's controls ───────────────────────────────────────── */
+/* ── The section panel ──────────────────────────────────────────────────── */
 
-/* One category's worth of controls, and the view chips, in a row. The actions
-   are a sibling rather than a child so that they stay pinned to the right at
-   every width without the controls having to reserve space for them. */
-.controls {
+/* A COLUMN, AND THE REASON IS THE COPY.
+   Phase Four's rail was a band across the bottom of the vessel — room for a
+   label, a row of samples and nothing else, which is why the boat could be
+   repainted without the interface ever saying what had been painted. §A25's
+   objection was to a GIANT FORM, twenty-two controls from five categories at
+   once, and that objection is answered by the walk rather than by the shape:
+   one section is open, so the widest this ever gets is the five controls of
+   INTERIOR. In exchange every one of them can carry the sentence that says
+   what it changes on the boat.
+
+   The vessel keeps the rest, and keeps it structurally: the stage is still
+   `inset: 0` behind this, so the panel covers a corner of the boat rather than
+   taking a column away from it. */
+.rail {
+  position: absolute;
+  inset-block: calc(var(--pad) + 3.4rem) 0;
+  inset-inline-end: 0;
+  z-index: calc(var(--z-product-ui) + 2);
+  inline-size: var(--panel-width);
   display: flex;
-  align-items: flex-end;
-  gap: var(--rail-gap);
-  min-inline-size: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  /* Keyed on the category id in the markup, so this runs on every change of
-     category and never on a change of option — the controls arrive as a group,
-     which is what makes switching categories read as one movement. */
-  animation: pxl-controls-in var(--dur-2) var(--ease-hull) both;
+  flex-direction: column;
+  padding: 0 var(--pad) 0 0;
+  opacity: 0;
+  transform: translateX(0.75rem);
+  transition:
+    opacity var(--dur-2) var(--ease-hull),
+    transform var(--dur-2) var(--ease-hull);
+  pointer-events: none;
 }
 
-@keyframes pxl-controls-in {
+.rail[data-ready] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* THE SEAM, AND WHY IT NEEDS COVERING.
+   The renderer paints its studio ground inside the stage box and nothing
+   outside it, so the moment the stage stops short of the panel there is a
+   vertical line down the frame where a lit ground meets a flat one. It is
+   small and it is exactly the kind of edge that makes a composited page look
+   composited.
+
+   A gradient that starts over the last inch of the stage and closes to the
+   page's own ground is enough to lose it. It reaches left of the panel on
+   purpose — the seam is at the stage's edge, not at the panel's — and the boat
+   is centred well clear of both, so nothing of the product is under it. */
+.rail::before {
+  content: "";
+  position: absolute;
+  inset-block: -100vh;
+  inset-inline: -3.5rem 0;
+  z-index: -1;
+  background: linear-gradient(
+    to right,
+    rgba(10, 14, 15, 0) 0%,
+    rgba(10, 14, 15, 0.55) 55%,
+    var(--depth) 100%
+  );
+  pointer-events: none;
+}
+
+/* The scroller is the card stack, not the panel: the panel is a full-height
+   column so that the stack can be short and sit at the top of it, and long and
+   scroll, without the layout knowing which. */
+.railScroll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Thin and in the interface's own tones. The platform default is a light
+     bar, which on this ground is the brightest thing on the screen after the
+     hull — a scrollbar has no business competing with the product. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--signal-16) transparent;
+  padding-block-end: calc(var(--bar-height, 5rem) + var(--pad));
+  animation: pxl-panel-in var(--dur-2) var(--ease-hull) both;
+}
+
+@keyframes pxl-panel-in {
   from {
     opacity: 0;
-    transform: translateY(0.4rem);
+    transform: translateY(0.5rem);
   }
 }
 
-/* The view selector belongs to the camera rather than to the configuration, so
-   it is pushed away from the controls that change the boat. Auto margin rather
-   than a separator: a rule between them would imply a grouping that is already
-   obvious from the gap. */
-.viewGroup {
-  margin-inline-start: auto;
-}
-
-.group {
+.sectionHead {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  min-inline-size: 0;
-  /* The rail is a row of blocks that are each exactly as wide as their
-     contents. Letting a group shrink would compress the swatches — the one
-     control on the page whose size is the point of it. */
-  flex-shrink: 0;
+  gap: 0.35rem;
+  padding-block-end: 0.25rem;
 }
 
-.groupHead {
+.sectionTitle {
+  margin: 0;
+  font-size: clamp(1.15rem, 1.6vw, 1.5rem);
+  font-weight: 500;
+  letter-spacing: var(--tr-heading);
+}
+
+/* What this part of the boat IS, before any control is offered. One sentence:
+   a paragraph here would be a brochure, and no sentence at all is what the
+   band across the bottom had. */
+.sectionLead {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 1.5;
+  color: var(--signal-70);
+}
+
+/* ── One control, one card ──────────────────────────────────────────────── */
+
+.card {
   display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.9rem 1rem 0.8rem;
+  background: rgba(10, 14, 15, 0.72);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--signal-16);
 }
 
 /* §39: mono for the technical annotation, and nothing else labelled. */
-.label {
+.cardLabel {
   margin: 0;
   font-family: var(--font-tech);
   font-size: var(--fs-label);
@@ -403,36 +516,92 @@
 }
 
 /* §24: the selection is always named, never inferred from a coloured disc. */
-.value {
+.cardValue {
   margin: 0;
-  font-size: var(--fs-small);
+  font-size: 1rem;
+  line-height: 1.3;
   letter-spacing: 0.01em;
   color: var(--signal);
 }
 
+/* Where a configurator normally prints a figure. Quiet, because it is a fact
+   about the range rather than a warning, and present, because a blank line
+   there reads as a number that failed to load. */
+.cardPrice {
+  margin: 0;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: 0.06em;
+  color: var(--signal-45);
+}
+
+/* THE SENTENCE THIS WHOLE LAYOUT EXISTS FOR. What the control changes on the
+   boat, named against the surfaces it actually repaints. */
+.cardNote {
+  margin: 0.35rem 0 0.15rem;
+  font-size: var(--fs-small);
+  line-height: 1.5;
+  color: var(--signal-70);
+}
+
+.cardCount {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-tech);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--signal-45);
+}
+
+/* The camera is not a specification. Same card, no border fill, so it reads as
+   an instrument beside the decisions rather than as another decision. */
+.viewCard {
+  background: none;
+  backdrop-filter: none;
+  border-style: dashed;
+  border-color: rgba(241, 240, 235, 0.16);
+}
+
+.panelFoot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-block-start: 0.25rem;
+}
+
 /* ── Swatches ───────────────────────────────────────────────────────────── */
 
+/* EVERY OPTION NAMED, ALL THE TIME.
+   Phase Four's swatches were a row of discs with the name on hover, which is
+   fine for six colours in a band and wrong the moment the interface is being
+   asked to explain itself: a name that only appears under the pointer cannot
+   be read by somebody deciding which to point at, and cannot be read at all on
+   a touch screen. So the group is a grid of tiles — sample over name — and the
+   hover label is gone because it has nothing left to say. */
 .swatches {
-  display: flex;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+  gap: 0.25rem;
+  margin-block-start: 0.25rem;
 }
 
 .swatch {
   position: relative;
-  /* 44px minimum target in both axes, with the sample inset so the selected
-     ring has somewhere to live that is not the sample itself. */
-  inline-size: 2.75rem;
-  block-size: 2.75rem;
+  inline-size: 100%;
+  min-block-size: 4.25rem;
   display: grid;
-  place-items: center;
-  padding: 0;
+  grid-template-rows: auto auto;
+  justify-items: center;
+  align-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.25rem;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 0.25rem;
   background: none;
   cursor: pointer;
   transition:
     border-color var(--dur-1) var(--ease-hull),
-    transform var(--dur-1) var(--ease-hull);
+    background-color var(--dur-1) var(--ease-hull);
 }
 
 /* §10: a material sample, not a colour fill. The sheen is fixed — the same
@@ -527,6 +696,7 @@
 
 .swatch:hover {
   border-color: var(--signal-16);
+  background: rgba(241, 240, 235, 0.05);
 }
 
 .swatch:hover .sample {
@@ -536,42 +706,44 @@
 /* §10: selection is a ring AND a name AND aria-checked. Never colour alone. */
 .swatch[data-on] {
   border-color: var(--signal);
+  background: rgba(241, 240, 235, 0.07);
 }
 
-/* The per-swatch name appears on hover and on focus only — §10's "hover
-   label". The rail already prints the selected name permanently, so this is
-   for comparing the other five without clicking them. */
+/* PRINTED, NOT REVEALED. The name is part of the tile now rather than a label
+   that appears under the pointer — see the note on `.swatches`. Wrapping
+   rather than truncating: "Aft Platform and Spoiler" is the option's name and
+   an ellipsis in the middle of it is not a shorter name, it is a worse one. */
 .swatchName {
-  position: absolute;
-  inset-block-end: calc(100% + 0.4rem);
-  inset-inline-start: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
   font-family: var(--font-tech);
-  font-size: 0.6875rem;
-  letter-spacing: 0.06em;
+  font-size: 0.625rem;
+  line-height: 1.25;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--signal-70);
-  background: rgba(10, 14, 15, 0.86);
-  padding: 0.25rem 0.5rem;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-1) var(--ease-hull);
+  text-align: center;
+  text-wrap: balance;
+  color: var(--signal-45);
+  transition: color var(--dur-1) var(--ease-hull);
 }
 
-.swatch:hover .swatchName,
-.swatch:focus-visible .swatchName {
-  opacity: 1;
+.swatch:hover .swatchName {
+  color: var(--signal-70);
+}
+
+.swatch[data-on] .swatchName {
+  color: var(--signal);
 }
 
 /* ── View controls ──────────────────────────────────────────────────────── */
 
+/* WRAPPING, NOW THAT THEY LIVE IN A COLUMN. In the old bottom rail these were
+   five chips on one line at every desktop width, and a selector that broke
+   4 + 1 there read as an accident. In a 20rem panel one line is not on offer at
+   any width, so they wrap on purpose and the card grows by a row. */
 .views {
   display: flex;
   gap: 0.375rem;
-  /* Five chips, one row, at every desktop width. A view selector that breaks
-     4 + 1 reads as an accident and makes the rail a line taller for nothing. */
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  margin-block-start: 0.25rem;
 }
 
 .view {
@@ -601,28 +773,90 @@
   border-color: var(--signal);
 }
 
-/* ── Actions ────────────────────────────────────────────────────────────── */
+/* ── The bottom bar ─────────────────────────────────────────────────────── */
 
-/* The actions sit on the same line as the open category's controls, pinned to
-   the right. `grid-area` rather than a flex sibling because the rail is a grid
-   of two rows and the actions belong to the second one — placing them there
-   explicitly means the category navigation above cannot be pushed around by a
-   long CTA in another language. */
+/* The walk on the left, the decision on the right, and the whole width of the
+   frame between them. It spans under the panel rather than stopping at it: the
+   bar is about the configuration as a whole and the panel is about one section
+   of it, so a bar that ended where the panel began would read as belonging to
+   the section.
+
+   The scrim is a gradient rather than a filled strip, because the vessel's
+   waterline is usually somewhere behind here and a hard edge across it is the
+   one thing that makes the boat look pasted onto the page. */
+.bar {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: calc(var(--z-product-ui) + 3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: var(--pad);
+  padding-block-end: max(var(--pad), env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(
+    to top,
+    rgba(10, 14, 15, 0.86) 0%,
+    rgba(10, 14, 15, 0.5) 55%,
+    rgba(10, 14, 15, 0) 100%
+  );
+  opacity: 0;
+  transform: translateY(0.75rem);
+  transition:
+    opacity var(--dur-2) var(--ease-hull),
+    transform var(--dur-2) var(--ease-hull);
+  pointer-events: none;
+}
+
+.bar[data-ready] {
+  opacity: 1;
+  transform: none;
+}
+
+/* The bar's own background must not swallow clicks aimed at the boat — most
+   of its width is empty gradient over the hull. Only the controls take them. */
+.bar > * {
+  pointer-events: auto;
+}
+
+.move {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-inline-size: 0;
+}
+
+/* The forward move. Outlined rather than filled: the filled button on this
+   screen is the one that sends the configuration to the yard, and there may
+   only be one of those. */
+.next {
+  min-block-size: 2.75rem;
+  padding: 0 1.2rem;
+  border: 1px solid var(--signal-45);
+  background: rgba(241, 240, 235, 0.06);
+  color: var(--signal);
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-1) var(--ease-hull),
+    background-color var(--dur-1) var(--ease-hull);
+}
+
+.next:hover {
+  border-color: var(--signal);
+  background: rgba(241, 240, 235, 0.12);
+}
+
 .actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
-}
-
-/* The second row. The controls take the space that is going; the actions never
-   give any up, because a CTA that has been squeezed off the right edge of a
-   viewport is a CTA that does not exist. */
-.railBody {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--rail-gap);
-  min-inline-size: 0;
 }
 
 .primary {
@@ -694,7 +928,7 @@
    of their own — copying a link, resetting an already-default configuration. */
 .toast {
   position: absolute;
-  inset-block-end: calc(var(--rail-height, 7rem) + 1rem);
+  inset-block-end: calc(var(--bar-height, 5.5rem) + 1rem);
   inset-inline: 0;
   z-index: calc(var(--z-product-ui) + 3);
   margin: 0;
@@ -745,11 +979,24 @@
    never the Fullscreen API — a page that takes over the display without being
    asked is a page people close.
 
-   The rail slides rather than disappearing, so leaving focus mode returns it
-   to exactly where the eye left it. */
+   Everything slides rather than disappearing, so leaving focus mode returns it
+   to exactly where the eye left it. Each surface leaves by the edge it lives
+   on: the panel sideways, the bar and the navigator vertically. */
 .shell[data-focus] .rail {
   opacity: 0;
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+.shell[data-focus] .bar {
+  opacity: 0;
   transform: translateY(100%);
+  pointer-events: none;
+}
+
+.shell[data-focus] .steps {
+  opacity: 0;
+  transform: translateY(-100%);
   pointer-events: none;
 }
 
@@ -969,105 +1216,107 @@
 }
 
 /* ===========================================================================
-   PORTRAIT PHONE AND TABLET — the rail becomes a tray
+   PORTRAIT PHONE AND TABLET — the panel becomes a tray again
    ---------------------------------------------------------------------------
-   §21: mobile is designed, not scaled. The tray is content-sized and capped;
-   the stage takes everything else. The cap is what makes the stage's claim on
-   the viewport mean something — Phase 2.5 found the tray growing to 570px on a
-   844px phone and leaving the boat an ecommerce thumbnail.
+   §21: mobile is designed, not scaled. A column down one side is a desktop
+   idea; at 390px it would be the whole screen. So the panel returns to the
+   bottom of the frame as a capped tray, the step navigator moves under the
+   identity, and the bar sits below the tray. The cap is what makes the stage's
+   claim on the viewport mean something — Phase 2.5 found the tray growing to
+   570px on an 844px phone and leaving the boat an ecommerce thumbnail.
    =========================================================================== */
 
 @media (max-width: 60rem) {
   .shell {
     --pad: 1rem;
+    --panel-width: 100%;
   }
 
+  /* The controls are along the bottom here, so that is the edge the vessel
+     keeps clear of. Measured, not guessed — the tray is one card tall on
+     EXTERIOR and five on INTERIOR, and the boat re-centres between them. */
+  .stage {
+    inset-inline-end: 0;
+    inset-block-end: calc(var(--bar-height, 5.5rem) + var(--tray-height, 0px));
+  }
+
+  .shell[data-focus] .stage {
+    inset-block-end: 0;
+  }
+
+  /* Full width, ABOVE the bar rather than behind it, and capped. The tray
+     scrolls inside the cap rather than growing past it. Stacking the three
+     surfaces instead of overlapping them is what keeps the request button off
+     the swatches — the two measured variables are the whole mechanism. */
   .rail {
-    gap: 0.8rem;
-    /* Measured: at 390×844 this lands the rail at ~250px and the stage at
-       ~594px — 70% of the screen, and comfortably the largest thing on it. */
-    max-block-size: 34dvh;
-    overflow-y: auto;
+    inset-block: auto var(--bar-height, 5.5rem);
+    inset-inline: 0;
+    inline-size: 100%;
+    max-block-size: 40dvh;
+    padding: 0;
+    transform: translateY(0.75rem);
+  }
+
+  .railScroll {
+    gap: 0.6rem;
+    padding: 1.25rem var(--pad) 0.75rem;
     background: linear-gradient(
       to top,
       rgba(10, 14, 15, 0.94) 0%,
-      rgba(10, 14, 15, 0.86) 60%,
+      rgba(10, 14, 15, 0.9) 70%,
       rgba(10, 14, 15, 0) 100%
     );
   }
 
-  /* §21: swatches scroll horizontally rather than wrapping to a second row.
-     Six colours wrapping 4 + 2 reads as an accident, and a second row is the
-     first thing that pushes the tray past its cap. `contain` on the inline
-     axis stops a swipe along the swatches from also scrolling the tray —
-     §23's "avoid nested scroll traps". */
+  .shell[data-focus] .rail {
+    transform: translateY(100%);
+  }
+
+  /* The tray brings its own scrim and the seam is horizontal here, so the
+     side gradient has nothing to cover. */
+  .rail::before {
+    display: none;
+  }
+
+  /* Directly over the tray, measured rather than guessed: the tray's height is
+     the number of controls in the open section, which is one on EXTERIOR and
+     five on INTERIOR. */
+  .steps {
+    inset-block-start: auto;
+    inset-block-end: calc(var(--bar-height, 5.5rem) + var(--tray-height, 0px) + 0.5rem);
+    inset-inline: var(--pad);
+    max-inline-size: none;
+    padding: 0.4rem 0.85rem;
+  }
+
+  /* §21: swatches keep their grid but on a phone's width it resolves to three
+     or four columns rather than five, which is what the auto-fill is for.
+     Nothing scrolls sideways here — the names make a horizontal scroller
+     unreadable, and the tray already scrolls the only way it needs to. */
   .swatches {
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scrollbar-width: none;
-    padding-block-end: 0.15rem;
+    grid-template-columns: repeat(auto-fill, minmax(4.25rem, 1fr));
   }
 
-  .swatches::-webkit-scrollbar {
-    display: none;
-  }
-
-  .views {
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    flex-wrap: nowrap;
-    scrollbar-width: none;
-  }
-
-  .views::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* On a phone the second row cannot hold the controls AND the actions, so the
-     actions take a third row of their own and the controls stop reserving space
-     for them. The CTA then spans whatever is left, which is what keeps it a
-     full-width target rather than a chip in a corner. */
-  .railBody {
+  /* Two rows in the bar: the walk above, the decision below and full width.
+     A CTA squeezed into a corner beside two move buttons is a CTA nobody
+     presses on a phone. */
+  .bar {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.8rem;
-  }
-
-  .actions {
-    display: grid;
-    grid-template-columns: auto auto 1fr;
     gap: 0.5rem;
   }
 
-  .controls {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.8rem;
-    overflow: visible;
+  .move,
+  .actions {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 0.5rem;
   }
 
-  /* The view chips go back under the controls rather than beside them — an
-     `auto` inline margin in a column is vertical space nobody asked for. */
-  .viewGroup {
-    margin-inline-start: 0;
-  }
-
-  /* Four categories at 375px is tight in some languages. Scroll rather than
-     wrap: a category navigation that breaks 3 + 1 reads as an accident. */
-  .categories {
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scrollbar-width: none;
-    gap: 1.1rem;
-  }
-
-  .categories::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Two rows: the way out and the two secondary actions above, the product
-     name below and undiminished. Everything on one line at 390px would mean
-     shrinking PXL, which is the one thing on the screen that may not shrink. */
+  /* Two rows: the way out and the focus control above, the product name below
+     and undiminished. Everything on one line at 390px would mean shrinking
+     PXL, which is the one thing on the screen that may not shrink. */
   .top {
     flex-wrap: wrap;
     row-gap: 0.35rem;
@@ -1086,8 +1335,8 @@
     font-size: 1.5rem;
   }
 
-  /* The tray is measured, so these still sit exactly above it — see
-     `--rail-height`. What changes on a phone is only that the hint is centred
+  /* The bar is measured, so these still sit exactly above it — see
+     `--bar-height`. What changes on a phone is only that the hint is centred
      with the confirmation rather than tucked into a corner there is no room
      for. */
   .hint {
@@ -1095,14 +1344,18 @@
     text-align: center;
   }
 
-  /* The marker stays — an unapproved name should be marked on a phone too —
-     but it is allowed to drop to its own line rather than forcing the selected
-     colour's name to truncate. */
-  .groupHead {
-    flex-wrap: wrap;
-    row-gap: 0.15rem;
+  .views {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
   }
 
+  .views::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* The marker stays — an unapproved name should be marked on a phone too. */
   .provisional {
     padding-inline-start: 0;
     border-inline-start: none;
@@ -1123,14 +1376,18 @@
    LANDSCAPE PHONE — almost the whole viewport is stage
    ---------------------------------------------------------------------------
    §22. A phone on its side is the closest thing the web has to a presentation
-   screen, and the correct response is to get out of the way: the rail becomes
-   a single slim row overlaid on the bottom of the frame, the labels go, and
-   the boat keeps the rest.
+   screen, and the correct response is to get out of the way: the panel goes
+   back to being a narrow column, the tray cap is irrelevant, and the boat
+   keeps the rest.
    =========================================================================== */
 
 @media (max-height: 32rem) and (orientation: landscape) {
   .shell {
     --pad: 0.65rem;
+    /* Narrow, because 390px of height is the scarce axis here and the panel
+       does not compete for it — but a third of an 844px viewport is still a
+       readable card. */
+    --panel-width: 16rem;
   }
 
   /* One row again. The portrait rule above matches this width too — 844 is
@@ -1145,67 +1402,82 @@
     flex-basis: auto;
   }
 
+  /* The portrait rule above matches this width too, so both of its stage
+     insets have to be undone: the panel is a column again, and the edge the
+     vessel keeps clear of is the inline one. */
+  .stage {
+    inset-block-end: 0;
+    inset-inline-end: calc(var(--panel-width) + var(--pad));
+  }
+
+  .shell[data-focus] .stage {
+    inset-inline-end: 0;
+  }
+
   .rail {
-    gap: 0.4rem;
+    inset-block: calc(var(--pad) + 2.6rem) 0;
+    inset-inline: auto 0;
+    inline-size: var(--panel-width);
     max-block-size: none;
-    padding-block: 0.5rem;
-    /* Respect the notch on a phone held either way round. */
-    padding-inline: max(var(--pad), env(safe-area-inset-left, 0px))
-      max(var(--pad), env(safe-area-inset-right, 0px));
+    padding: 0 var(--pad) 0 0;
+    transform: translateX(0.75rem);
+  }
+
+  .rail::before {
+    display: block;
+  }
+
+  .shell[data-focus] .rail {
+    transform: translateX(100%);
+  }
+
+  .railScroll {
+    background: none;
+    padding: 0 0 calc(var(--bar-height, 4rem) + 0.5rem);
+  }
+
+  .steps {
+    inset-block: calc(var(--pad) + 2.6rem) auto;
+    inset-inline: var(--pad) auto;
+    max-inline-size: calc(100% - var(--panel-width) - var(--pad) * 3);
+  }
+
+  .bar {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .move,
+  .actions {
+    display: flex;
   }
 
   /* WHAT GIVES WAY, AND IN WHAT ORDER.
-     844 × 390 cannot hold six swatches, five view chips and three actions on
-     one row at full size, and the answer is not to shrink everything until it
-     fits. The swatches and the views may compress and scroll — they are ranges,
-     and a range that scrolls is still a range. The primary action may not: a
-     CTA that has slid off the right edge of a phone is a CTA that does not
-     exist. So the snapshot goes, and it is the right thing to lose — §35 calls
-     it secondary, it has a keyboard-free equivalent in the share link, and it
-     is the one control here that produces a file rather than a decision. */
-  .group {
-    flex-shrink: 1;
-    min-inline-size: 0;
-  }
-
+     844 × 390 cannot hold everything at full size, and the answer is not to
+     shrink it all until it fits. The swatches are a range and a range may
+     compress. The primary action may not: a CTA that has slid off the right
+     edge of a phone is a CTA that does not exist. So the snapshot goes, and it
+     is the right thing to lose — §35 calls it secondary, it has a
+     keyboard-free equivalent in the share link, and it is the one control here
+     that produces a file rather than a decision. */
   .snapshot {
     display: none;
   }
 
-  .groupHead {
-    display: none;
-  }
-
-  /* One row for everything below the categories. 844 × 390 has the width for
-     it once the group headings are gone, and a stacked body would take a fifth
-     of the viewport for two buttons. */
-  .railBody {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.9rem;
-  }
-
-  .controls {
-    flex-direction: row;
-    align-items: center;
-    overflow: hidden;
-  }
-
-  .categories {
-    padding-block-end: 0.4rem;
+  .swatches {
+    grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr));
   }
 
   .swatch {
-    inline-size: 2.5rem;
-    block-size: 2.5rem;
+    min-block-size: 3.5rem;
   }
 
   /* Still 44px. A phone on its side is the hardest place to hit a control
-     accurately, and a 60px rail out of a 390px viewport still leaves the
-     vessel 85% of the screen — there is nothing to buy by shrinking them. */
+     accurately, and there is nothing to buy by shrinking them. */
   .view,
   .ghost,
   .primary,
+  .next,
   .chip {
     min-block-size: 2.75rem;
   }
@@ -1227,16 +1499,23 @@
    REDUCED MOTION — §25
    ---------------------------------------------------------------------------
    The product does not go away and nothing stops working. What goes is travel:
-   the rail is simply present rather than arriving, the curtain does not lift
-   because there was never one to lift, and the swatch does not grow under the
-   pointer. The finish still changes, because a colour change is information.
+   the interface is simply present rather than arriving, the curtain does not
+   lift because there was never one to lift, and the swatch does not grow under
+   the pointer. The finish still changes, because a colour change is
+   information.
    =========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
-  .rail {
+  .rail,
+  .bar,
+  .steps {
     transition: none;
     opacity: 1;
     transform: none;
+  }
+
+  .railScroll {
+    animation: none;
   }
 
   .veil,
