@@ -457,7 +457,9 @@
      hull — a scrollbar has no business competing with the product. */
   scrollbar-width: thin;
   scrollbar-color: var(--signal-16) transparent;
-  padding-block-end: calc(var(--bar-height, 5rem) + var(--pad));
+  /* Just the gutter. The bar stops at this column's edge now, so there is
+     nothing down there for the last card to clear. */
+  padding-block-end: var(--pad);
   animation: pxl-panel-in var(--dur-2) var(--ease-hull) both;
 }
 
@@ -775,11 +777,14 @@
 
 /* ── The bottom bar ─────────────────────────────────────────────────────── */
 
-/* The decision on the left, the walk on the right, and the whole width of the
-   frame between them. It spans under the panel rather than stopping at it: the
-   bar is about the configuration as a whole and the panel is about one section
-   of it, so a bar that ended where the panel began would read as belonging to
-   the section.
+/* THE BAR ENDS WHERE THE VESSEL'S AREA ENDS — same inset as the stage.
+   It used to span the full width and pass under the panel, on the reasoning
+   that the bar is about the configuration as a whole while the panel is about
+   one section of it. That is still true and it is not worth what it cost: the
+   inline-end half of the bar then sat on top of a card, so the move buttons
+   were controls floating over a swatch grid with the swatches showing through
+   them. Two regions, two sets of controls, no overlap — and the walk's own
+   buttons now sit in the same rectangle as the thing being walked around.
 
    The scrim is a gradient rather than a filled strip, because the vessel's
    waterline is usually somewhere behind here and a hard edge across it is the
@@ -787,7 +792,7 @@
 .bar {
   position: absolute;
   inset-block-end: 0;
-  inset-inline: 0;
+  inset-inline: 0 calc(var(--panel-width) + var(--pad));
   z-index: calc(var(--z-product-ui) + 3);
   display: flex;
   align-items: center;
@@ -856,24 +861,20 @@
   background: rgba(241, 240, 235, 0.12);
 }
 
-/* THE BAR'S OWN CONTROLS GET A GROUND, and the swap is what made it matter.
-   The bar spans the full width and paints over the panel, so anything in its
-   inline-end half sits on top of a card. That was invisible while the corner
-   held the filled CTA — a solid block over a card reads as a solid block. Two
-   outlined buttons over a swatch row read as a mess, because the swatches show
-   through them.
-
-   The same fill and blur the cards use, so the buttons read as the bar's
-   rather than as a card's. Scoped to `.bar`: the panel's own ghosts sit on the
-   page's ground and want nothing behind them. */
+/* A LIGHT GROUND, AND NOW ONLY FOR THE HULL BEHIND THEM.
+   This started as a fix for the bar overlapping the panel; the bar no longer
+   does. What is left is the reason it is still worth a few per cent: the bar's
+   scrim is a gradient, and near its top edge — which is where these buttons
+   are — it is thin enough that a white hull can come through an outlined
+   control. Much weaker than the card fill it used to borrow, because it is
+   answering a much smaller problem. */
 .bar .ghost,
 .bar .next {
-  background: rgba(10, 14, 15, 0.78);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 14, 15, 0.4);
 }
 
 .bar .ghost:hover:not(:disabled) {
-  background: rgba(10, 14, 15, 0.9);
+  background: rgba(10, 14, 15, 0.62);
 }
 
 .bar .next:hover {
@@ -1276,6 +1277,12 @@
      scrolls inside the cap rather than growing past it. Stacking the three
      surfaces instead of overlapping them is what keeps the request button off
      the swatches — the two measured variables are the whole mechanism. */
+  /* Full width again: down here the panel is a tray across the bottom rather
+     than a column beside the boat, so there is no inline edge to stop at. */
+  .bar {
+    inset-inline: 0;
+  }
+
   .rail {
     inset-block: auto var(--bar-height, 5.5rem);
     inset-inline: 0;
@@ -1462,7 +1469,7 @@
 
   .railScroll {
     background: none;
-    padding: 0 0 calc(var(--bar-height, 4rem) + 0.5rem);
+    padding: 0 0 0.5rem;
   }
 
   .steps {
@@ -1474,6 +1481,7 @@
   .bar {
     flex-direction: row;
     align-items: center;
+    inset-inline: 0 calc(var(--panel-width) + var(--pad));
   }
 
   .move,
